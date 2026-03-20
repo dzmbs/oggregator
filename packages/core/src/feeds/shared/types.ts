@@ -1,0 +1,49 @@
+import type { ChainRequest, VenueOptionChain } from '../../core/types.js';
+import type { VenueDelta, VenueStatus } from '../../core/types.js';
+import type { VenueId } from '../../types/common.js';
+
+export interface VenueCapabilities {
+  /** Whether the venue supports fetching a full option chain in one call */
+  optionChain: boolean;
+  /** Whether the venue provides greeks data */
+  greeks: boolean;
+  /** Whether the adapter uses WebSocket (true) or REST polling (false) */
+  websocket: boolean;
+}
+
+export interface StreamHandlers {
+  onDelta: (deltas: VenueDelta[]) => void;
+  onStatus: (status: VenueStatus) => void;
+}
+
+/**
+ * Contract for all venue adapters. Current CCXT-based adapters implement this
+ * via REST polling. Next step: replace with direct WebSocket adapters.
+ *
+ * See HANDOFF.md for per-venue WebSocket endpoints and subscription formats.
+ */
+export interface OptionVenueAdapter {
+  readonly venue: VenueId;
+  readonly capabilities: VenueCapabilities;
+
+  /** Load/refresh instrument catalog for this venue */
+  loadMarkets(force?: boolean): Promise<void>;
+
+  /** List base assets that have options (e.g. ['BTC', 'ETH', 'SOL']) */
+  listUnderlyings(): Promise<string[]>;
+
+  /** List available expiry dates for an underlying (YYYY-MM-DD format) */
+  listExpiries(underlying: string): Promise<string[]>;
+
+  /** Fetch a snapshot of all options for an underlying+expiry */
+  fetchOptionChain(request: ChainRequest): Promise<VenueOptionChain>;
+
+  /** Subscribe to real-time updates. Returns an unsubscribe function. */
+  subscribe?(
+    request: ChainRequest,
+    handlers: StreamHandlers,
+  ): Promise<() => Promise<void>>;
+
+  /** Cleanup connections */
+  dispose?(): Promise<void>;
+}
