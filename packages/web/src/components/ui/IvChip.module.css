@@ -1,0 +1,22 @@
+.chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.chip[data-size="md"] {
+  font-size: var(--text-xs);
+  padding: 2px 6px;
+}
+
+.chip[data-size="sm"] {
+  font-size: var(--text-xs);
+  padding: 2px 5px;
+}

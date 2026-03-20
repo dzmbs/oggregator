@@ -1,0 +1,29 @@
+.dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+  border-radius: 5px;
+  border: 1px solid;
+  cursor: default;
+  height: 26px;
+}
+
+.dot[data-best="true"] {
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.05);
+}
+
+.logo {
+  height: 14px;
+  width: auto;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.label {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--text-tertiary);
+}
