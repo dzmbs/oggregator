@@ -18,10 +18,14 @@ export default function ChainView() {
   const setExpiry   = useAppStore((s) => s.setExpiry);
   const activeVenues = useAppStore((s) => s.activeVenues);
   const toggleVenue = useAppStore((s) => s.toggleVenue);
+  const setActiveVenues = useAppStore((s) => s.setActiveVenues);
   const myIv        = useAppStore((s) => s.myIv);
   const openPalette = useOpenPalette();
 
-  const { data: expiries = [] } = useExpiries(underlying);
+  const { data: expiriesData } = useExpiries(underlying);
+  const expiries = expiriesData?.expiries ?? [];
+  const expiryByVenue = expiriesData?.byVenue;
+
   const { data: chain, isLoading, error } = useChainQuery(underlying, expiry, activeVenues);
   const { connectionState, failedVenues } = useChainWs({ underlying, expiry, venues: activeVenues });
 
@@ -30,6 +34,16 @@ export default function ChainView() {
       setExpiry(expiries[0]!);
     }
   }, [expiries, expiry, setExpiry]);
+
+  useEffect(() => {
+    if (!expiry || !expiryByVenue) return;
+    const venuesForExpiry = expiryByVenue
+      .filter((v) => v.expiries.includes(expiry))
+      .map((v) => v.venue);
+    if (venuesForExpiry.length > 0) {
+      setActiveVenues(venuesForExpiry);
+    }
+  }, [expiry, expiryByVenue, setActiveVenues]);
 
   const myIvFloat = myIv !== "" ? parseFloat(myIv) / 100 : null;
   const myIvValid = myIvFloat != null && !isNaN(myIvFloat) && myIvFloat > 0;

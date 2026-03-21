@@ -1,6 +1,6 @@
-// Types matching @oggregator/core enrichment output.
-// Defined locally since the web package doesn't add @oggregator/core as a dependency.
-// These must stay in sync with packages/core/src/core/enrichment.ts
+// Enrichment types mirrored from packages/core/src/core/enrichment.ts.
+// Web doesn't depend on core directly — these must stay in sync manually.
+// WS protocol types come from @oggregator/protocol (shared, not duplicated).
 
 export type VenueId = "deribit" | "okx" | "binance" | "bybit" | "derive";
 
@@ -83,29 +83,11 @@ export interface IvSurfaceResponse {
   termStructure: TermStructure;
 }
 
-// ── WS protocol types ─────────────────────────────────────────────
-
-export interface WsSubscriptionRequest {
-  underlying: string;
-  expiry:     string;
-  venues:     VenueId[];
-}
-
-export interface SnapshotMeta {
-  generatedAt: number;
-  maxQuoteTs:  number;
-  staleMs:     number;
-}
-
-export type WsConnectionState = "connecting" | "live" | "reconnecting" | "stale" | "error" | "closed";
-
-export interface VenueFailure {
-  venue:  VenueId;
-  reason: string;
-}
-
-export type ServerWsMessage =
-  | { type: "subscribed"; subscriptionId: string; request: WsSubscriptionRequest; serverTime: number; failedVenues?: VenueFailure[] }
-  | { type: "snapshot";   subscriptionId: string; seq: number; request: WsSubscriptionRequest; meta: SnapshotMeta; data: EnrichedChainResponse }
-  | { type: "status";     subscriptionId: string; venue: VenueId; state: "connected" | "polling" | "reconnecting" | "degraded" | "down"; ts: number; message?: string }
-  | { type: "error";      subscriptionId: string | null; code: string; message: string; retryable: boolean };
+export type {
+  WsSubscriptionRequest,
+  SnapshotMeta,
+  VenueFailure,
+  ServerWsMessage,
+  WsConnectionState,
+  VenueConnectionState,
+} from '@oggregator/protocol';

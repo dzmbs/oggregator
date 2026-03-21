@@ -17,6 +17,7 @@ interface AppState {
   setExpiry:       (e: string) => void;
   setActiveTab:    (t: "chain" | "surface" | "gex") => void;
   toggleVenue:     (venueId: string) => void;
+  setActiveVenues:  (venues: string[]) => void;
   setMyIv:         (iv: string) => void;
 }
 
@@ -39,5 +40,6 @@ export const useAppStore = create<AppState>((set) => ({
       // Always keep at least one venue active
       return { activeVenues: active.length > 0 ? active : s.activeVenues };
     }),
+  setActiveVenues: (venues) => set({ activeVenues: venues.length > 0 ? venues : VENUE_IDS.slice() }),
   setMyIv: (myIv) => set({ myIv }),
 }));

@@ -1,8 +1,9 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
-import type { EnrichedChainResponse, WsConnectionState, VenueFailure } from "@shared/enriched";
-import { ServerWsMessageSchema } from "@lib/ws-schemas";
+import type { EnrichedChainResponse } from "@shared/enriched";
+import type { WsConnectionState, VenueFailure } from "@oggregator/protocol";
+import { ServerWsMessageSchema } from "@oggregator/protocol";
 import { chainKeys } from "@features/chain/queries";
 
 interface UseChainWsOptions {
@@ -96,10 +97,8 @@ export function useChainWs({
         break;
 
       case "status":
-        // Map venue-level status to aggregate connection state
         switch (msg.state) {
           case "connected":
-            // A fresh connected after reconnecting → back to live
             setConnectionState("live");
             break;
           case "reconnecting":

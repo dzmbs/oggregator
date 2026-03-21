@@ -29,19 +29,30 @@ export const chainKeys = {
 
 // ── Hooks ─────────────────────────────────────────────────────────────────
 
+interface UnderlyingsResult {
+  underlyings: string[];
+  byVenue: Array<{ venue: string; underlyings: string[] }>;
+}
+
 export function useUnderlyings() {
   return useQuery({
     queryKey: chainKeys.underlyings(),
     queryFn:  () => fetchJson<UnderlyingsResponse>("/underlyings"),
     staleTime: 60_000,
-    select: (data): string[] => {
+    select: (data): UnderlyingsResult => {
       const order = ["BTC", "ETH", "SOL"];
-      return [...data.underlyings].sort(
+      const sorted = [...data.underlyings].sort(
         (a, b) => (order.indexOf(a) === -1 ? 99 : order.indexOf(a)) -
                   (order.indexOf(b) === -1 ? 99 : order.indexOf(b)),
       );
+      return { underlyings: sorted, byVenue: data.byVenue };
     },
   });
+}
+
+interface ExpiriesResult {
+  expiries: string[];
+  byVenue: Array<{ venue: string; expiries: string[] }>;
 }
 
 export function useExpiries(underlying: string) {
@@ -50,7 +61,7 @@ export function useExpiries(underlying: string) {
     queryFn:  () => fetchJson<ExpiriesResponse>(`/expiries?underlying=${underlying}`),
     enabled:  Boolean(underlying),
     staleTime: 30_000,
-    select: (data): string[] => data.expiries,
+    select: (data): ExpiriesResult => ({ expiries: data.expiries, byVenue: data.byVenue }),
   });
 }
 

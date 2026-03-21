@@ -2,7 +2,7 @@ import type { CSSProperties } from "react";
 import { VENUE_LIST, VENUES } from "@lib/venue-meta";
 import { venueColor } from "@lib/colors";
 import { fmtUsdCompact } from "@lib/format";
-import type { VenueFailure } from "@shared/enriched";
+import type { VenueFailure } from "@oggregator/protocol";
 import styles from "./VenueSidebar.module.css";
 
 interface VenueSidebarProps {
@@ -13,16 +13,16 @@ interface VenueSidebarProps {
 }
 
 export default function VenueSidebar({ activeVenues, onToggle, venueOi, failedVenues = [] }: VenueSidebarProps) {
-  const failedSet = new Set(failedVenues.map((f) => f.venue));
-  const failedMap = new Map(failedVenues.map((f) => [f.venue, f.reason]));
+  const failedSet = new Set<string>(failedVenues.map((f) => f.venue));
+  const failedMap = new Map<string, string>(failedVenues.map((f) => [f.venue, f.reason]));
   return (
     <aside className={styles.sidebar}>
       <div className={styles.header}>Venues</div>
       <div className={styles.list}>
         {VENUE_LIST.map((venue) => {
           const active = activeVenues.includes(venue.id);
-          const failed = failedSet.has(venue.id as VenueFailure["venue"]);
-          const reason = failedMap.get(venue.id as VenueFailure["venue"]);
+          const failed = failedSet.has(venue.id);
+          const reason = failedMap.get(venue.id);
           const oi     = venueOi?.[venue.id];
           const color  = venueColor(venue.id);
           const meta   = VENUES[venue.id];

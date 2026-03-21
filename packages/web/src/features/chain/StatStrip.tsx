@@ -1,4 +1,5 @@
-import type { ChainStats, WsConnectionState } from "@shared/enriched";
+import type { ChainStats } from "@shared/enriched";
+import type { WsConnectionState } from "@oggregator/protocol";
 
 import { fmtUsd, fmtUsdCompact, fmtIv, fmtPct, fmtNum } from "@lib/format";
 import styles from "./StatStrip.module.css";
