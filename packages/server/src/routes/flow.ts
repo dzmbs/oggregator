@@ -9,8 +9,17 @@ export async function flowRoute(app: FastifyInstance) {
       return reply.status(503).send({ error: 'flow service not available' });
     }
     const underlying = req.query.underlying ?? 'BTC';
-    const minNotional = Number(req.query.minNotional) || 0;
-    const limit = Math.min(Number(req.query.limit) || 100, 500);
+
+    // Number(...) || fallback silently passes through negative values because they
+    // are truthy. Use explicit finite + bounds checks instead.
+    const rawMinNotional = Number(req.query.minNotional);
+    const minNotional = Number.isFinite(rawMinNotional) && rawMinNotional >= 0 ? rawMinNotional : 0;
+
+    const rawLimit = Number(req.query.limit);
+    const limit = Math.min(
+      Number.isFinite(rawLimit) && rawLimit > 0 ? Math.floor(rawLimit) : 100,
+      500,
+    );
 
     const trades = flowService.getTrades(underlying, minNotional);
 
