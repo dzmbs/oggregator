@@ -43,15 +43,18 @@ export class FlowService {
   private shouldReconnect = true;
 
   async start(underlyings: string[] = ['BTC', 'ETH']): Promise<void> {
+    // Open live WS connections and return immediately — callers can flip the
+    // readiness flag and start serving /flow without waiting for REST seeds.
     for (const underlying of underlyings) {
       this.buffers.set(underlying, []);
-
-      await this.seedFromRest(underlying);
-
       for (const stream of VENUE_STREAMS) {
         this.connectStream(stream, underlying);
       }
     }
+
+    // Seed historical trades in the background. Fire-and-forget: a slow or
+    // failing REST endpoint must never delay live-stream availability.
+    void Promise.allSettled(underlyings.map(u => this.seedFromRest(u)));
   }
 
   private async seedFromRest(underlying: string): Promise<void> {
@@ -82,7 +85,13 @@ export class FlowService {
     const key = `${stream.venue}:${underlying}`;
     const ws = new WebSocket(stream.url);
 
+    // Track whether this connection ever opened so we can reset backoff after a
+    // healthy session. Without this, a few early failures permanently inflate the
+    // delay even after hours of stable operation.
+    let didOpen = false;
+
     ws.on('open', () => {
+      didOpen = true;
       log.info({ venue: stream.venue, underlying }, 'trade stream connected');
       stream.connect(ws, underlying);
 
@@ -106,10 +115,11 @@ export class FlowService {
       if (ka) { clearInterval(ka); this.keepaliveTimers.delete(key); }
 
       if (this.shouldReconnect) {
-        const delay = Math.min(1000 * 2 ** attempt + Math.random() * 500, 30_000);
+        const nextAttempt = didOpen ? 0 : attempt + 1;
+        const delay = Math.min(1000 * 2 ** nextAttempt + Math.random() * 500, 30_000);
         const timer = setTimeout(() => {
           this.reconnectTimers.delete(key);
-          this.connectStream(stream, underlying, attempt + 1);
+          this.connectStream(stream, underlying, nextAttempt);
         }, delay);
         this.reconnectTimers.set(key, timer);
       }

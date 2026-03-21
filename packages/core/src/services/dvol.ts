@@ -60,9 +60,7 @@ export class DvolService {
 
     await this.rpc.connect();
 
-    for (const currency of currencies) {
-      await this.fetchHistory(currency);
-    }
+    await Promise.all(currencies.map(c => this.fetchHistory(c)));
 
     const channels = currencies.map(c => `deribit_volatility_index.${c.toLowerCase()}_usd`);
     await this.rpc.subscribe(channels);
@@ -174,10 +172,12 @@ export class DvolService {
 
     this.refreshTimer = setTimeout(async () => {
       log.info('refreshing DVOL history (daily rollover)');
-      for (const currency of this.currencies) {
-        try { await this.fetchHistory(currency); }
-        catch (err: unknown) { log.warn({ currency, err: String(err) }, 'DVOL refresh failed'); }
-      }
+      await Promise.allSettled(
+        this.currencies.map(async (currency) => {
+          try { await this.fetchHistory(currency); }
+          catch (err: unknown) { log.warn({ currency, err: String(err) }, 'DVOL refresh failed'); }
+        }),
+      );
       this.scheduleHistoryRefresh();
     }, msUntil);
   }
