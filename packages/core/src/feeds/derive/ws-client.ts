@@ -38,10 +38,11 @@ export class DeriveWsAdapter extends SdkBaseAdapter {
     if (this.rpc) return;
     this.rpc = new JsonRpcWsClient(DERIVE_WS_URL, 'derive-ws', {
       heartbeatIntervalSec: 30,
-      requestTimeoutMs: 45_000, // Derive API is slow
+      requestTimeoutMs: 45_000,
       subscribeMethod: 'subscribe',
       unsubscribeMethod: 'unsubscribe',
       unsubscribeAllMethod: 'unsubscribe_all',
+      onStatusChange: (state) => this.emitStatus(state === 'connected' ? 'connected' : state === 'down' ? 'down' : 'reconnecting'),
     });
 
     this.rpc.onSubscription((channel, data) => {

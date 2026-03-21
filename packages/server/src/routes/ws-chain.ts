@@ -140,6 +140,14 @@ export async function wsChainRoute(app: FastifyInstance) {
 
       ctx = newCtx;
 
+      const failedVenues: Array<{ venue: VenueId; reason: string }> = [];
+
+      for (const v of request.venues) {
+        if (!registered.has(v)) {
+          failedVenues.push({ venue: v, reason: 'not loaded — failed during bootstrap' });
+        }
+      }
+
       // Async venue subscriptions — check disposed after each in case a new subscribe arrived
       for (const venueId of liveVenues) {
         if (newCtx.disposed) return;
@@ -148,7 +156,9 @@ export async function wsChainRoute(app: FastifyInstance) {
           if (!adapter.subscribe) continue;
           await adapter.subscribe({ underlying: request.underlying, expiry: request.expiry }, newCtx.handlers);
         } catch (err: unknown) {
-          log.warn({ venue: venueId, err: String(err) }, 'venue subscribe failed');
+          const reason = err instanceof Error ? err.message : String(err);
+          failedVenues.push({ venue: venueId, reason });
+          log.warn({ venue: venueId, err: reason }, 'venue subscribe failed');
         }
       }
 
@@ -157,9 +167,10 @@ export async function wsChainRoute(app: FastifyInstance) {
       send(socket, {
         type: 'subscribed',
         subscriptionId,
-        request,
+        request: resolvedRequest,
         serverTime: Date.now(),
-      });
+        failedVenues: failedVenues.length > 0 ? failedVenues : undefined,
+      } as ServerWsMessage);
 
       buildAndPush(newCtx);
 

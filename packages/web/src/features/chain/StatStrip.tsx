@@ -34,13 +34,13 @@ function StatCell({ label, value, sub, accent, positive }: StatCellProps) {
   );
 }
 
-const CONNECTION_LABELS: Record<WsConnectionState, { text: string; color: string }> = {
-  live:         { text: "● LIVE",         color: "var(--color-profit)" },
-  connecting:   { text: "◌ Connecting",   color: "var(--text-dim)" },
-  reconnecting: { text: "◌ Reconnecting", color: "var(--color-warning, orange)" },
-  stale:        { text: "◌ Stale",        color: "var(--color-warning, orange)" },
-  error:        { text: "● Error",        color: "var(--color-loss)" },
-  closed:       { text: "○ Offline",      color: "var(--text-dim)" },
+const CONN_DISPLAY: Record<WsConnectionState, { dot: string; label: string }> = {
+  live:         { dot: "var(--color-profit)",          label: "Live" },
+  connecting:   { dot: "var(--text-dim)",              label: "Connecting" },
+  reconnecting: { dot: "var(--color-warning, orange)", label: "Reconnecting" },
+  stale:        { dot: "var(--color-warning, orange)", label: "Stale" },
+  error:        { dot: "var(--color-loss)",            label: "Error" },
+  closed:       { dot: "var(--text-dim)",              label: "Offline" },
 };
 
 export default function StatStrip({ stats, underlying, dte, connectionState }: StatStripProps) {
@@ -89,8 +89,13 @@ export default function StatStrip({ stats, underlying, dte, connectionState }: S
           <div className={styles.divider} />
           <div className={styles.cell}>
             <span className={styles.label}>Feed</span>
-            <span className={styles.value} style={{ color: CONNECTION_LABELS[connectionState].color, fontSize: "11px" }}>
-              {CONNECTION_LABELS[connectionState].text}
+            <span className={styles.feedState}>
+              <span
+                className={styles.feedDot}
+                data-state={connectionState}
+                style={{ background: CONN_DISPLAY[connectionState].dot }}
+              />
+              {CONN_DISPLAY[connectionState].label}
             </span>
           </div>
         </>

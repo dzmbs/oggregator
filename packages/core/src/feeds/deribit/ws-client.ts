@@ -79,6 +79,7 @@ export class DeribitWsAdapter extends SdkBaseAdapter {
     this.rpc = new JsonRpcWsClient(DERIBIT_WS_URL, 'deribit-ws', {
       heartbeatIntervalSec: 30,
       requestTimeoutMs: 15_000,
+      onStatusChange: (state) => this.emitStatus(state === 'connected' ? 'connected' : state === 'down' ? 'down' : 'reconnecting'),
     });
 
     this.rpc.onSubscription((channel: string, data: unknown) => {

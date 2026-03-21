@@ -99,8 +99,13 @@ export interface SnapshotMeta {
 
 export type WsConnectionState = "connecting" | "live" | "reconnecting" | "stale" | "error" | "closed";
 
+export interface VenueFailure {
+  venue:  VenueId;
+  reason: string;
+}
+
 export type ServerWsMessage =
-  | { type: "subscribed"; subscriptionId: string; request: WsSubscriptionRequest; serverTime: number }
+  | { type: "subscribed"; subscriptionId: string; request: WsSubscriptionRequest; serverTime: number; failedVenues?: VenueFailure[] }
   | { type: "snapshot";   subscriptionId: string; seq: number; request: WsSubscriptionRequest; meta: SnapshotMeta; data: EnrichedChainResponse }
-  | { type: "status";     subscriptionId: string; venue: VenueId; state: string; ts: number; message?: string }
+  | { type: "status";     subscriptionId: string; venue: VenueId; state: "connected" | "polling" | "reconnecting" | "degraded" | "down"; ts: number; message?: string }
   | { type: "error";      subscriptionId: string | null; code: string; message: string; retryable: boolean };

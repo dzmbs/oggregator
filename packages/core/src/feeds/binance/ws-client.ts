@@ -164,6 +164,7 @@ export class BinanceWsAdapter extends SdkBaseAdapter {
 
       this.ws.on('open', () => {
         log.info('ws connected');
+        this.emitStatus('connected');
         resolve();
       });
 
@@ -176,6 +177,7 @@ export class BinanceWsAdapter extends SdkBaseAdapter {
 
       this.ws.on('close', () => {
         log.warn('ws closed');
+        this.emitStatus('reconnecting', 'transport closed');
         if (this.shouldReconnect) this.scheduleReconnect();
       });
 

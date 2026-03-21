@@ -23,7 +23,7 @@ export default function ChainView() {
 
   const { data: expiries = [] } = useExpiries(underlying);
   const { data: chain, isLoading, error } = useChainQuery(underlying, expiry, activeVenues);
-  const { connectionState } = useChainWs({ underlying, expiry, venues: activeVenues });
+  const { connectionState, failedVenues } = useChainWs({ underlying, expiry, venues: activeVenues });
 
   useEffect(() => {
     if (expiries.length > 0 && !expiry) {
@@ -39,6 +39,7 @@ export default function ChainView() {
       <VenueSidebar
         activeVenues={activeVenues}
         onToggle={toggleVenue}
+        failedVenues={failedVenues}
       />
 
       <div className={styles.main}>

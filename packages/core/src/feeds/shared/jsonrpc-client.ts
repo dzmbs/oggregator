@@ -27,10 +27,10 @@ export class JsonRpcWsClient {
       requestTimeoutMs?: number;
       maxReconnectAttempts?: number;
       reconnectDelayMs?: number;
-      /** Override subscribe/unsubscribe method names (Derive uses 'subscribe', Deribit uses 'public/subscribe') */
       subscribeMethod?: string;
       unsubscribeMethod?: string;
       unsubscribeAllMethod?: string;
+      onStatusChange?: (state: 'connected' | 'reconnecting' | 'down') => void;
     } = {},
   ) {
     this.log = logger.child({ component: this.label });
@@ -47,6 +47,7 @@ export class JsonRpcWsClient {
         this.log.info({ url: this.url }, 'ws connected');
         this.reconnectAttempts = 0;
         this.startHeartbeat();
+        this.options.onStatusChange?.('connected');
         resolve();
       });
 
@@ -60,6 +61,7 @@ export class JsonRpcWsClient {
       this.ws.on('close', () => {
         this.log.warn('ws closed');
         this.cleanup();
+        this.options.onStatusChange?.('reconnecting');
         if (this.shouldReconnect) this.scheduleReconnect();
       });
 
@@ -198,6 +200,7 @@ export class JsonRpcWsClient {
     const maxAttempts = this.options.maxReconnectAttempts ?? 20;
     if (this.reconnectAttempts >= maxAttempts) {
       this.log.error({ maxAttempts }, 'max reconnect attempts reached');
+      this.options.onStatusChange?.('down');
       return;
     }
 

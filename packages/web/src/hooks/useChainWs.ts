@@ -1,7 +1,8 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
-import type { ServerWsMessage, WsConnectionState } from "@shared/enriched";
+import type { EnrichedChainResponse, WsConnectionState, VenueFailure } from "@shared/enriched";
+import { ServerWsMessageSchema } from "@lib/ws-schemas";
 import { chainKeys } from "@features/chain/queries";
 
 interface UseChainWsOptions {
@@ -15,6 +16,7 @@ interface UseChainWsResult {
   connectionState: WsConnectionState;
   staleMs: number | null;
   lastSeq: number;
+  failedVenues: VenueFailure[];
 }
 
 let subIdCounter = 0;
@@ -28,8 +30,8 @@ function backoffMs(attempt: number): number {
 
 /**
  * Subscribes to real-time chain updates via server WebSocket.
- * Pushes snapshots into TanStack Query cache, keyed from the server's
- * response (not local mutable state) to prevent stale-snapshot races.
+ * Validates incoming messages with Zod, gates on subscriptionId,
+ * and pushes snapshots into TanStack Query cache.
  */
 export function useChainWs({
   underlying,
@@ -46,6 +48,7 @@ export function useChainWs({
   const [connectionState, setConnectionState] = useState<WsConnectionState>("closed");
   const [staleMs, setStaleMs] = useState<number | null>(null);
   const [lastSeq, setLastSeq] = useState(0);
+  const [failedVenues, setFailedVenues] = useState<VenueFailure[]>([]);
 
   const paramsRef = useRef({ underlying, expiry, venues });
   paramsRef.current = { underlying, expiry, venues };
@@ -60,43 +63,61 @@ export function useChainWs({
     ws.send(JSON.stringify({
       type: "subscribe",
       subscriptionId: subId,
-      request: {
-        underlying: u,
-        expiry: e,
-        venues: v,
-      },
+      request: { underlying: u, expiry: e, venues: v },
     }));
   }, []);
 
   const handleMessage = useCallback((event: MessageEvent) => {
-    let msg: ServerWsMessage;
-    try { msg = JSON.parse(event.data as string) as ServerWsMessage; }
+    let json: unknown;
+    try { json = JSON.parse(event.data as string); }
     catch { return; }
+
+    const parsed = ServerWsMessageSchema.safeParse(json);
+    if (!parsed.success) return;
+
+    const msg = parsed.data;
 
     if ("subscriptionId" in msg && msg.subscriptionId !== activeSubIdRef.current) return;
 
-    if (msg.type === "snapshot") {
-      setConnectionState("live");
-      setStaleMs(msg.meta.staleMs);
-      setLastSeq(msg.seq);
-
-      // Key from server's request, not local mutable params
-      const key = chainKeys.chain(msg.request.underlying, msg.request.expiry, msg.request.venues);
-      qc.setQueryData(key, msg.data);
-    }
-
-    if (msg.type === "subscribed") {
-      setConnectionState("live");
-    }
-
-    if (msg.type === "status") {
-      if (msg.state === "reconnecting" || msg.state === "degraded") {
-        setConnectionState("stale");
+    switch (msg.type) {
+      case "snapshot": {
+        setConnectionState("live");
+        setStaleMs(msg.meta.staleMs);
+        setLastSeq(msg.seq);
+        // Key from server's response, not local mutable params
+        const key = chainKeys.chain(msg.request.underlying, msg.request.expiry, msg.request.venues);
+        qc.setQueryData(key, msg.data as EnrichedChainResponse);
+        break;
       }
-    }
 
-    if (msg.type === "error" && !msg.retryable) {
-      setConnectionState("error");
+      case "subscribed":
+        setConnectionState("live");
+        setFailedVenues(msg.failedVenues ?? []);
+        break;
+
+      case "status":
+        // Map venue-level status to aggregate connection state
+        switch (msg.state) {
+          case "connected":
+            // A fresh connected after reconnecting → back to live
+            setConnectionState("live");
+            break;
+          case "reconnecting":
+          case "polling":
+            setConnectionState("reconnecting");
+            break;
+          case "degraded":
+            setConnectionState("stale");
+            break;
+          case "down":
+            setConnectionState("error");
+            break;
+        }
+        break;
+
+      case "error":
+        if (!msg.retryable) setConnectionState("error");
+        break;
     }
   }, [qc]);
 
@@ -172,5 +193,5 @@ export function useChainWs({
     sendSubscribe(ws);
   }, [underlying, expiry, venues, sendSubscribe]);
 
-  return { connectionState, staleMs, lastSeq };
+  return { connectionState, staleMs, lastSeq, failedVenues };
 }

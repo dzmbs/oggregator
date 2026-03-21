@@ -1,6 +1,6 @@
 import { BaseAdapter } from './base.js';
 import type { VenueCapabilities, StreamHandlers } from './types.js';
-import type { ChainRequest, VenueOptionChain, NormalizedOptionContract, VenueDelta, OptionGreeks, EstimatedFees } from '../../core/types.js';
+import type { ChainRequest, VenueOptionChain, NormalizedOptionContract, VenueDelta, VenueStatus, VenueConnectionState, OptionGreeks, EstimatedFees } from '../../core/types.js';
 import { EMPTY_GREEKS } from '../../core/types.js';
 import type { VenueId, OptionRight } from '../../types/common.js';
 
@@ -170,6 +170,15 @@ export abstract class SdkBaseAdapter extends BaseAdapter {
   // ── internal helpers ──────────────────────────────────────────
 
   protected deltaHandlers = new Set<StreamHandlers>();
+
+  /** Broadcast venue connection state to all registered handlers. */
+  protected emitStatus(state: VenueConnectionState, message?: string): void {
+    const status: VenueStatus = { venue: this.venue, state, ts: Date.now() };
+    if (message != null) status.message = message;
+    for (const h of this.deltaHandlers) {
+      h.onStatus(status);
+    }
+  }
 
   protected emitQuoteUpdate(exchangeSymbol: string, quote: LiveQuote): void {
     this.quoteStore.set(exchangeSymbol, quote);

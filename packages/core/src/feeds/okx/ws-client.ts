@@ -209,6 +209,7 @@ export class OkxWsAdapter extends SdkBaseAdapter {
 
       this.ws.on('open', () => {
         log.info('ws connected');
+        this.emitStatus('connected');
         this.startPing();
         resolve();
       });
@@ -219,6 +220,7 @@ export class OkxWsAdapter extends SdkBaseAdapter {
 
       this.ws.on('close', () => {
         log.warn('ws closed');
+        this.emitStatus('reconnecting', 'transport closed');
         this.stopPing();
         if (this.shouldReconnect) this.scheduleReconnect();
       });
