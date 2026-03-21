@@ -5,6 +5,7 @@ import { ChainView, useUnderlyings } from "@features/chain";
 import { SurfaceView }               from "@features/surface";
 import { GexView }                   from "@features/gex";
 import { FlowView }                  from "@features/flow";
+import { DvolChart }                 from "@features/dvol";
 import { useAppStore }               from "@stores/app-store";
 
 import styles from "./App.module.css";
@@ -14,6 +15,7 @@ const TABS = [
   { id: "surface", label: "Surface" },
   { id: "flow",    label: "Flow", badge: "LIVE" },
   { id: "gex",     label: "GEX", badge: "PRO" },
+  { id: "dvol",    label: "DVOL" },
 ] as const;
 
 export default function App() {
@@ -36,6 +38,7 @@ export default function App() {
         {activeTab === "surface" && <SurfaceView />}
         {activeTab === "flow"    && <FlowView />}
         {activeTab === "gex"     && <GexView />}
+        {activeTab === "dvol"    && <DvolChart />}
       </div>
     </AppShell>
   );

@@ -1,0 +1,135 @@
+.view {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: var(--space-6);
+  gap: var(--space-4);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-shrink: 0;
+}
+
+.headerLeft {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.title {
+  font-family: var(--font-mono);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.subtitle {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-dim);
+}
+
+.picker {
+  display: flex;
+  background: var(--bg-base);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 2px;
+  gap: 1px;
+}
+
+.pickerBtn {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 4px 12px;
+  border: none;
+  border-radius: calc(var(--radius-md) - 2px);
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.pickerBtn:hover { color: var(--text-secondary); }
+
+.pickerBtn[data-active="true"] {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* ── Stats badges ────────────────────────────────── */
+
+.stats {
+  display: flex;
+  gap: var(--space-5);
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.statLabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.statValue {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.statValue[data-accent] {
+  color: var(--accent-primary);
+  font-size: var(--text-base);
+  font-weight: 700;
+}
+
+.statValue[data-positive="true"]  { color: var(--color-profit); }
+.statValue[data-positive="false"] { color: var(--color-loss); }
+
+/* ── Chart container ─────────────────────────────── */
+
+.chartArea {
+  flex: 1;
+  min-height: 300px;
+  position: relative;
+}
+
+.chartWrap {
+  width: 100%;
+  height: 100%;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.chartOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  background: rgba(10, 10, 10, 0.7);
+}
