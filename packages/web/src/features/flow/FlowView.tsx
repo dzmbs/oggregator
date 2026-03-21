@@ -44,8 +44,10 @@ function notional(t: TradeEvent): number {
 
 function fmtNotional(n: number): string {
   if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000)     return `$${(n / 1_000).toFixed(0)}K`;
-  return `$${n.toFixed(0)}`;
+  if (n >= 10_000)    return `$${(n / 1_000).toFixed(0)}K`;
+  if (n >= 1_000)     return `$${(n / 1_000).toFixed(1)}K`;
+  if (n >= 1)         return `$${n.toFixed(0)}`;
+  return '<$1';
 }
 
 interface TradeRowProps {
