@@ -54,6 +54,12 @@
   gap: 4px;
 }
 
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
 .title {
   font-size: var(--text-xl);
   font-weight: 700;

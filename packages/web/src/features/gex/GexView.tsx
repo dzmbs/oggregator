@@ -1,5 +1,6 @@
 import type { GexStrike } from "@shared/enriched";
 
+import { AssetPickerButton } from "@components/ui";
 import { fmtUsd } from "@lib/format";
 import styles from "./GexView.module.css";
 
@@ -31,7 +32,10 @@ export default function GexView({ gex, spotPrice }: GexViewProps) {
     <div className={styles.view}>
       <div className={styles.header}>
         <div className={styles.headerLeft}>
-          <span className={styles.title}>Gamma Exposure (GEX)</span>
+          <div className={styles.titleRow}>
+            <span className={styles.title}>Gamma Exposure (GEX)</span>
+            <AssetPickerButton />
+          </div>
           <span className={styles.subtitle}>
             USD millions · positive = price magnet · negative = accelerator
           </span>
