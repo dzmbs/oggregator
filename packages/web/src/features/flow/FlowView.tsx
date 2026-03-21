@@ -1,12 +1,13 @@
 import { useRef, useEffect, useState } from "react";
 
-import { useAppStore } from "@stores/app-store";
 import { Spinner, EmptyState } from "@components/ui";
 import { VENUES } from "@lib/venue-meta";
 import { fmtIv } from "@lib/format";
 import { useFlow } from "./queries";
 import type { TradeEvent } from "./queries";
 import styles from "./FlowView.module.css";
+
+const FLOW_ASSETS = ["BTC", "ETH"] as const;
 
 // Notional thresholds for visual treatment
 const WHALE_THRESHOLD   = 100_000; // $100k+ notional
@@ -104,8 +105,8 @@ function TradeRow({ trade, isNew }: TradeRowProps) {
 }
 
 export default function FlowView() {
-  const underlying = useAppStore((s) => s.underlying);
-  const { data, isLoading, error } = useFlow(underlying);
+  const [asset, setAsset] = useState<string>("BTC");
+  const { data, isLoading, error } = useFlow(asset);
   const [seenIds, setSeenIds] = useState<Set<string>>(new Set());
   const prevCountRef = useRef(0);
   const listRef = useRef<HTMLDivElement>(null);
@@ -155,7 +156,21 @@ export default function FlowView() {
     <div className={styles.view}>
       <div className={styles.header}>
         <div className={styles.headerLeft}>
-          <span className={styles.title}>Live Options Flow — {underlying}</span>
+          <div className={styles.titleRow}>
+            <span className={styles.title}>Live Options Flow</span>
+            <div className={styles.assetPicker}>
+              {FLOW_ASSETS.map((a) => (
+                <button
+                  key={a}
+                  className={styles.assetBtn}
+                  data-active={a === asset}
+                  onClick={() => setAsset(a)}
+                >
+                  {a}
+                </button>
+              ))}
+            </div>
+          </div>
           <span className={styles.subtitle}>
             {trades.length} trades · 5 venues · auto-refreshing
           </span>

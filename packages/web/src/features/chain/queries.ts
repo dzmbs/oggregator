@@ -85,3 +85,32 @@ export function useVenues() {
     staleTime: 5 * 60_000,
   });
 }
+
+// ── Stats (DVOL + spot) ───────────────────────────────────────────────────
+
+export interface StatsResponse {
+  underlying: string;
+  spot: {
+    price:         number;
+    change24hPct:  number;
+    high24h:       number;
+    low24h:        number;
+  } | null;
+  dvol: {
+    current:    number;
+    ivr:        number;
+    ivChange1d: number;
+    high52w:    number;
+    low52w:     number;
+  } | null;
+}
+
+export function useStats(underlying: string) {
+  return useQuery({
+    queryKey: ["stats", underlying],
+    queryFn:  () => fetchJson<StatsResponse>(`/stats?underlying=${underlying}`),
+    enabled:  Boolean(underlying),
+    staleTime: 10_000,
+    refetchInterval: 30_000,
+  });
+}

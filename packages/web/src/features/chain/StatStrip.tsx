@@ -2,6 +2,7 @@ import type { ChainStats } from "@shared/enriched";
 import type { WsConnectionState } from "@oggregator/protocol";
 
 import { fmtUsd, fmtUsdCompact, fmtIv, fmtPct, fmtNum } from "@lib/format";
+import type { StatsResponse } from "./queries";
 import styles from "./StatStrip.module.css";
 
 interface StatStripProps {
@@ -9,6 +10,7 @@ interface StatStripProps {
   underlying:       string;
   dte:              number;
   connectionState?: WsConnectionState;
+  marketStats?:     StatsResponse | null;
 }
 
 interface StatCellProps {
@@ -44,7 +46,7 @@ const CONN_DISPLAY: Record<WsConnectionState, { dot: string; label: string }> = 
   closed:       { dot: "var(--text-dim)",              label: "Offline" },
 };
 
-export default function StatStrip({ stats, underlying, dte, connectionState }: StatStripProps) {
+export default function StatStrip({ stats, underlying, dte, connectionState, marketStats }: StatStripProps) {
   const forwardSub = stats.forwardBasisPct != null
     ? fmtPct(stats.forwardBasisPct, 3)
     : undefined;
@@ -85,6 +87,23 @@ export default function StatStrip({ stats, underlying, dte, connectionState }: S
         value={fmtUsdCompact(stats.totalOiUsd)}
         sub={forwardSub ? `Basis ${forwardSub}` : undefined}
       />
+      {marketStats?.dvol && (
+        <>
+          <div className={styles.divider} />
+          <StatCell
+            label="IVR"
+            value={`${marketStats.dvol.ivr.toFixed(0)}`}
+            sub={`52w: ${fmtIv(marketStats.dvol.low52w)}–${fmtIv(marketStats.dvol.high52w)}`}
+            accent
+          />
+          <div className={styles.divider} />
+          <StatCell
+            label="IV Δ1d"
+            value={fmtPct(marketStats.dvol.ivChange1d * 100, 1)}
+            positive={marketStats.dvol.ivChange1d > 0 ? true : marketStats.dvol.ivChange1d < 0 ? false : null}
+          />
+        </>
+      )}
       {connectionState && (
         <>
           <div className={styles.divider} />

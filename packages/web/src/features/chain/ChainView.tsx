@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 
 import { useAppStore } from "@stores/app-store";
-import { useChainQuery, useExpiries } from "./queries";
+import { useChainQuery, useExpiries, useStats } from "./queries";
 import { useChainWs } from "@hooks/useChainWs";
 import { useOpenPalette } from "@components/layout";
 import { Spinner, EmptyState } from "@components/ui";
@@ -28,6 +28,7 @@ export default function ChainView() {
   const expiryByVenue = expiriesData?.byVenue;
 
   const { data: chain, isLoading, error } = useChainQuery(underlying, expiry, activeVenues);
+  const { data: marketStats } = useStats(underlying);
   const setFeedStatus = useAppStore((s) => s.setFeedStatus);
   const { connectionState, staleMs, failedVenues } = useChainWs({ underlying, expiry, venues: activeVenues });
 
@@ -81,6 +82,7 @@ export default function ChainView() {
             underlying={chain.underlying}
             dte={chain.dte}
             connectionState={connectionState}
+            marketStats={marketStats}
           />
         )}
 
