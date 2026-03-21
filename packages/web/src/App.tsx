@@ -5,7 +5,6 @@ import { ChainView, useUnderlyings } from "@features/chain";
 import { SurfaceView }               from "@features/surface";
 import { GexView }                   from "@features/gex";
 import { FlowView }                  from "@features/flow";
-import { DvolChart }                 from "@features/dvol";
 import { AnalyticsView }             from "@features/analytics";
 import { useAppStore }               from "@stores/app-store";
 
@@ -17,7 +16,6 @@ const TABS = [
   { id: "flow",      label: "Flow", badge: "LIVE" },
   { id: "analytics", label: "Analytics" },
   { id: "gex",       label: "GEX", badge: "PRO" },
-  { id: "dvol",      label: "DVOL" },
 ] as const;
 
 export default function App() {
@@ -41,7 +39,6 @@ export default function App() {
         {activeTab === "flow"    && <FlowView />}
         {activeTab === "analytics" && <AnalyticsView />}
         {activeTab === "gex"       && <GexView />}
-        {activeTab === "dvol"      && <DvolChart />}
       </div>
     </AppShell>
   );

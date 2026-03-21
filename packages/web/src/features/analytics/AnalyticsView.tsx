@@ -4,6 +4,7 @@ import { useAppStore } from "@stores/app-store";
 import { AssetPickerButton, Spinner } from "@components/ui";
 import { fmtUsdCompact, fmtNum, formatExpiry } from "@lib/format";
 import { VENUES } from "@lib/venue-meta";
+import { DvolChart } from "@features/dvol";
 import { useAllExpiriesChain } from "./queries";
 import styles from "./AnalyticsView.module.css";
 
@@ -236,6 +237,9 @@ export default function AnalyticsView() {
       <div className={styles.grid}>
         <VenueVolumeChart data={venueVolume} />
         <PcrChart data={expiryPcr} />
+        <div className={styles.dvolWrap}>
+          <DvolChart />
+        </div>
         <OiByStrikeChart data={strikeOi} spotPrice={spotPrice} />
       </div>
     </div>

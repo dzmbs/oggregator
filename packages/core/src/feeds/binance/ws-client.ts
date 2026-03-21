@@ -75,6 +75,9 @@ export class BinanceWsAdapter extends SdkBaseAdapter {
     await this.connectAndSubscribe(instruments);
     await this.waitForFirstData();
 
+    // WS optionMarkPrice has no volume or OI — supplement from REST ticker
+    await this.fetchTickerSnapshot();
+
     return instruments;
   }
 
@@ -298,6 +301,29 @@ export class BinanceWsAdapter extends SdkBaseAdapter {
       if (this.instrumentMap.has(exchangeSymbol)) {
         this.emitQuoteUpdate(exchangeSymbol, quote);
       }
+    }
+  }
+
+  // ── REST supplement — WS optionMarkPrice has no volume or OI ──
+
+  private async fetchTickerSnapshot(): Promise<void> {
+    try {
+      const raw = await this.fetchEapi('/eapi/v1/ticker');
+      if (!Array.isArray(raw)) return;
+
+      let merged = 0;
+      for (const item of raw) {
+        const t = item as { symbol?: string; volume?: string };
+        if (typeof t.symbol !== 'string') continue;
+        const prev = this.quoteStore.get(t.symbol);
+        if (prev) {
+          prev.volume24h = this.safeNum(t.volume);
+          merged++;
+        }
+      }
+      log.info({ count: merged }, 'merged ticker volume from REST');
+    } catch (err: unknown) {
+      log.warn({ err: String(err) }, 'ticker snapshot failed');
     }
   }
 

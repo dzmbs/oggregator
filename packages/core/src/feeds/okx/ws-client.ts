@@ -148,6 +148,25 @@ export class OkxWsAdapter extends SdkBaseAdapter {
         const message = err instanceof Error ? err.message : String(err);
         log.warn({ instFamily, err: message }, 'failed to fetch greeks');
       }
+
+      // OI lives on a separate endpoint — merge into existing quotes
+      try {
+        const data = await this.fetchOkxApi('/api/v5/public/open-interest', { instType: 'OPTION', instFamily });
+        let merged = 0;
+        for (const raw of data) {
+          const item = raw as { instId?: string; oi?: string; oiCcy?: string };
+          if (typeof item.instId !== 'string') continue;
+          const prev = this.quoteStore.get(item.instId);
+          if (prev) {
+            prev.openInterest = this.safeNum(item.oiCcy);
+            merged++;
+          }
+        }
+        log.info({ count: merged, instFamily }, 'fetched open interest');
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        log.warn({ instFamily, err: message }, 'failed to fetch OI');
+      }
     }
   }
 
