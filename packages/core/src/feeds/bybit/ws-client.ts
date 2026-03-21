@@ -51,33 +51,41 @@ export class BybitWsAdapter extends SdkBaseAdapter {
 
   protected async fetchInstruments(): Promise<CachedInstrument[]> {
     const instruments: CachedInstrument[] = [];
-    let cursor: string | undefined;
 
-    do {
-      const url = new URL('/v5/market/instruments-info', REST_BASE);
-      url.searchParams.set('category', 'option');
-      url.searchParams.set('limit', '1000');
-      if (cursor) url.searchParams.set('cursor', cursor);
+    // Bybit returns only BTC when baseCoin is omitted — must query each explicitly
+    const baseCoins = ['BTC', 'ETH', 'SOL', 'DOGE', 'XRP'];
 
-      const raw = await this.fetchJson(url);
-      const parsed = BybitInstrumentsResponseSchema.safeParse(raw);
+    for (const baseCoin of baseCoins) {
+      let cursor: string | undefined;
 
-      if (!parsed.success) {
-        log.error({ error: parsed.error.message }, 'instruments response validation failed');
-        break;
-      }
+      do {
+        const url = new URL('/v5/market/instruments-info', REST_BASE);
+        url.searchParams.set('category', 'option');
+        url.searchParams.set('baseCoin', baseCoin);
+        url.searchParams.set('limit', '1000');
+        if (cursor) url.searchParams.set('cursor', cursor);
 
-      if (parsed.data.retCode !== 0) {
-        throw new Error(`Bybit instruments failed: ${parsed.data.retMsg}`);
-      }
+        const raw = await this.fetchJson(url);
+        const parsed = BybitInstrumentsResponseSchema.safeParse(raw);
 
-      for (const item of parsed.data.result.list) {
-        const inst = this.parseInstrument(item);
-        if (inst) instruments.push(inst);
-      }
+        if (!parsed.success) {
+          log.warn({ baseCoin, error: parsed.error.message }, 'instruments response validation failed');
+          break;
+        }
 
-      cursor = parsed.data.result.nextPageCursor || undefined;
-    } while (cursor);
+        if (parsed.data.retCode !== 0) {
+          log.warn({ baseCoin, msg: parsed.data.retMsg }, 'instruments request failed');
+          break;
+        }
+
+        for (const item of parsed.data.result.list) {
+          const inst = this.parseInstrument(item);
+          if (inst) instruments.push(inst);
+        }
+
+        cursor = parsed.data.result.nextPageCursor || undefined;
+      } while (cursor);
+    }
 
     log.info({ count: instruments.length }, 'loaded option instruments');
 
@@ -268,6 +276,7 @@ export class BybitWsAdapter extends SdkBaseAdapter {
       return;
     }
 
+    if (json == null || typeof json !== 'object') return;
     const obj = json as Record<string, unknown>;
     if (obj['op'] === 'subscribe' || obj['op'] === 'pong' || obj['success'] !== undefined) return;
 

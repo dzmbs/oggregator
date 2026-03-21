@@ -122,4 +122,5 @@ export type BybitWsMessage = z.infer<typeof BybitWsMessageSchema>;
 
 // ── Symbol regex ───────────────────────────────────────────────
 // Matches: BTC-25DEC26-67000-C-USDT (new) and BTC-28MAR26-60000-C (legacy)
-export const BYBIT_OPTION_SYMBOL_RE = /^(\w+)-(\w+)-(\d+)-([CP])(?:-(\w+))?$/;
+// Strike can be decimal for low-price assets (DOGE: 0.07, XRP: 1.5)
+export const BYBIT_OPTION_SYMBOL_RE = /^(\w+)-(\w+)-([\d.]+)-([CP])(?:-(\w+))?$/;

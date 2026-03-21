@@ -9,7 +9,7 @@ const log = feedLogger('derive');
 
 // Production still uses the legacy lyra.finance domain
 const DERIVE_WS_URL = 'wss://api.lyra.finance/ws';
-const CURRENCIES = ['BTC', 'ETH', 'SOL'];
+const CURRENCIES = ['BTC', 'ETH', 'SOL', 'HYPE'];
 
 /**
  * Derive (formerly Lyra Finance) adapter using direct JSON-RPC over WebSocket.
@@ -148,6 +148,54 @@ export class DeriveWsAdapter extends SdkBaseAdapter {
     };
   }
 
+  /**
+   * Fetch tickers for a single currency+expiry and populate the QuoteStore.
+   * Derive's bulk get_tickers omits instruments with zero liquidity, so we
+   * fall back to per-instrument get_ticker calls when the bulk response is empty.
+   */
+  private async fetchTickersForExpiry(currency: string, expiryDate: string): Promise<number> {
+    const result = await this.rpc.call('public/get_tickers', {
+      instrument_type: 'option',
+      currency,
+      expiry_date: expiryDate,
+    });
+
+    const resultObj = result && typeof result === 'object' ? result as Record<string, unknown> : {};
+    const tickerDict = resultObj['tickers'] && typeof resultObj['tickers'] === 'object'
+      ? resultObj['tickers'] as Record<string, unknown>
+      : {};
+
+    let count = 0;
+    for (const [name, raw] of Object.entries(tickerDict)) {
+      const parsed = DeriveTickerSchema.safeParse(raw);
+      if (!parsed.success) continue;
+      this.quoteStore.set(name, this.parseTickerAbbreviated(parsed.data));
+      count++;
+    }
+
+    if (count > 0) return count;
+
+    // Bulk endpoint returned nothing — fetch per-instrument for illiquid expiries
+    const expIso = `${expiryDate.slice(0, 4)}-${expiryDate.slice(4, 6)}-${expiryDate.slice(6, 8)}`;
+    const matching = this.instruments.filter(
+      (i) => i.base === currency && i.expiry === expIso,
+    );
+
+    for (const inst of matching) {
+      try {
+        const ticker = await this.rpc.call('public/get_ticker', {
+          instrument_name: inst.exchangeSymbol,
+        });
+        const parsed = DeriveTickerSchema.safeParse(ticker);
+        if (!parsed.success) continue;
+        this.quoteStore.set(inst.exchangeSymbol, this.parseTickerAbbreviated(parsed.data));
+        count++;
+      } catch { /* delisted or expired instrument */ }
+    }
+
+    return count;
+  }
+
   private async fetchBulkTickers(): Promise<void> {
     for (const currency of CURRENCIES) {
       const expiries = this.expiryDates.get(currency);
@@ -156,24 +204,7 @@ export class DeriveWsAdapter extends SdkBaseAdapter {
       let totalCount = 0;
       for (const expiryDate of expiries) {
         try {
-          const result = await this.rpc.call('public/get_tickers', {
-            instrument_type: 'option',
-            currency,
-            expiry_date: expiryDate,
-          });
-
-          // Result is { tickers: { "BTC-20260327-84000-C": { t, A, a, B, b, ... }, ... } }
-          const resultObj = result && typeof result === 'object' ? result as Record<string, unknown> : {};
-          const tickerDict = resultObj['tickers'] && typeof resultObj['tickers'] === 'object'
-            ? resultObj['tickers'] as Record<string, unknown>
-            : {};
-          for (const [name, raw] of Object.entries(tickerDict)) {
-            const parsed = DeriveTickerSchema.safeParse(raw);
-            if (!parsed.success) continue;
-            const quote = this.parseTickerAbbreviated(parsed.data);
-            this.quoteStore.set(name, quote);
-            totalCount++;
-          }
+          totalCount += await this.fetchTickersForExpiry(currency, expiryDate);
         } catch (err: unknown) {
           log.warn({ currency, expiryDate, err: String(err) }, 'get_tickers failed');
         }
@@ -187,9 +218,17 @@ export class DeriveWsAdapter extends SdkBaseAdapter {
 
   protected async subscribeChain(
     underlying: string,
-    _expiry: string,
+    expiry: string,
     instruments: CachedInstrument[],
   ): Promise<void> {
+    // Derive's get_tickers requires expiry_date — non-eager expiries have no data until fetched
+    try {
+      const count = await this.fetchTickersForExpiry(underlying, expiry.replace(/-/g, ''));
+      log.info({ count, underlying, expiry }, 'fetched tickers for expiry');
+    } catch (err: unknown) {
+      log.warn({ underlying, expiry, err: String(err) }, 'get_tickers failed for expiry');
+    }
+
     const channels: string[] = [];
 
     for (const inst of instruments) {
