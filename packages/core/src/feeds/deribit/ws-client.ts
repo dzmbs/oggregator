@@ -335,7 +335,8 @@ export class DeribitWsAdapter extends SdkBaseAdapter {
         openInterest: prev?.openInterest ?? null,
         greeks: {
           ...(prev?.greeks ?? EMPTY_GREEKS),
-          markIv: this.ivToFraction(mp.iv),
+          // markprice.options sends IV as fraction (0.49 = 49%), unlike ticker which sends percentage
+          markIv: this.safeNum(mp.iv),
         },
         timestamp: mp.timestamp ?? Date.now(),
       };
