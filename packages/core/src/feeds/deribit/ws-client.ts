@@ -69,14 +69,17 @@ export class DeribitWsAdapter extends SdkBaseAdapter {
   // instrument loading so price_index updates can fan out efficiently.
   private indexToInstruments = new Map<string, Set<string>>();
 
+  // Subscribe to ALL expiries so bid/ask and greeks are live from boot.
+  // agg2 (2s) keeps per-instrument bandwidth low. Deribit rate limits are
+  // comfortable: ~4300 instruments / 500 per batch = 9 subscribe calls,
+  // each costing 3000 credits from a 30k pool that refills at 10k/sec.
   protected override async eagerSubscribe(): Promise<void> {
     const underlyings = await this.listUnderlyings();
 
     for (const underlying of underlyings) {
       const expiries = await this.listExpiries(underlying);
-      const nearest = expiries.slice(0, this.eagerExpiryCount);
 
-      for (const expiry of nearest) {
+      for (const expiry of expiries) {
         const matching = this.instruments.filter(
           (i) => i.base === underlying && i.expiry === expiry,
         );

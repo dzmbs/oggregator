@@ -146,7 +146,13 @@ function buildEnrichedSide(
     const quote = contractToVenueQuote(contract);
     venues[venueKey] = quote;
 
-    const hasMarket = (quote.bid !== null && quote.bid > 0) || (quote.ask !== null && quote.ask > 0);
+    // Require a real market: non-zero quotes AND either open interest or a genuine
+    // spread (bid ≠ ask). Derive SOL lists instruments with bid=ask=250 and OI=0 —
+    // phantom placeholder quotes that must not win bestVenue.
+    const hasQuotes = (quote.bid !== null && quote.bid > 0) || (quote.ask !== null && quote.ask > 0);
+    const hasLiquidity = (quote.openInterest ?? 0) > 0
+      || (quote.bid !== null && quote.ask !== null && quote.bid !== quote.ask);
+    const hasMarket = hasQuotes && hasLiquidity;
     const iv = quote.markIv;
     if (iv !== null && hasMarket && (bestIv === null || iv < bestIv)) {
       bestIv = iv;
