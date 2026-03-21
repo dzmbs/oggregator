@@ -1,0 +1,8 @@
+{
+  "name": "playwright-extension",
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "playwright": "^1.49.1"
+  }
+}
