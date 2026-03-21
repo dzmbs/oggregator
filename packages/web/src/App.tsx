@@ -4,6 +4,7 @@ import { AppShell } from "@components/layout";
 import { ChainView, useUnderlyings } from "@features/chain";
 import { SurfaceView }               from "@features/surface";
 import { GexView }                   from "@features/gex";
+import { FlowView }                  from "@features/flow";
 import { useAppStore }               from "@stores/app-store";
 import { useChainQuery }             from "@features/chain/queries";
 
@@ -12,6 +13,7 @@ import styles from "./App.module.css";
 const TABS = [
   { id: "chain",   label: "Chain" },
   { id: "surface", label: "Surface" },
+  { id: "flow",    label: "Flow", badge: "LIVE" },
   { id: "gex",     label: "GEX", badge: "PRO" },
 ] as const;
 
@@ -47,6 +49,7 @@ export default function App() {
       <div className={styles.panel}>
         {activeTab === "chain"   && <ChainView />}
         {activeTab === "surface" && <SurfaceView />}
+        {activeTab === "flow"    && <FlowView />}
         {activeTab === "gex"     && <GexPanel />}
       </div>
     </AppShell>
