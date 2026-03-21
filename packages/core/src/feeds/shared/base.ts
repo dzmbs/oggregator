@@ -16,6 +16,13 @@ export abstract class BaseAdapter implements OptionVenueAdapter {
     return Number.isFinite(n) ? n : null;
   }
 
+  /** Returns null for zero, negative, or non-finite values. Useful for exchange
+   *  fields where 0 means "no data" (Binance bo/ao) or -1 is a sentinel (Binance bidIV/askIV). */
+  protected positiveOrNull(value: unknown): number | null {
+    const n = Number(value);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  }
+
   /** Convert IV from percentage (Deribit sends 50.18 for 50.18%) to fraction (0.5018). */
   protected ivToFraction(value: unknown): number | null {
     const n = Number(value);

@@ -262,11 +262,18 @@ export class BinanceWsAdapter extends SdkBaseAdapter {
       const exchangeSymbol = item.data.s;
       // instrumentMap isn't populated until after fetchInstruments returns — store first, emit later
 
+      // Binance sends "0.000" for bid/ask when no order exists, and "-1.0"
+      // for bid/ask IV when no quote is available. Treat both as null.
+      const bidPrice = this.positiveOrNull(item.data.bo);
+      const askPrice = this.positiveOrNull(item.data.ao);
+      const bidIv    = this.positiveOrNull(item.data.b);
+      const askIv    = this.positiveOrNull(item.data.a);
+
       const quote: LiveQuote = {
-        bidPrice: this.safeNum(item.data.bo),
-        askPrice: this.safeNum(item.data.ao),
-        bidSize: this.safeNum(item.data.bq),
-        askSize: this.safeNum(item.data.aq),
+        bidPrice,
+        askPrice,
+        bidSize: bidPrice != null ? this.safeNum(item.data.bq) : null,
+        askSize: askPrice != null ? this.safeNum(item.data.aq) : null,
         markPrice: this.safeNum(item.data.mp),
         lastPrice: null,
         underlyingPrice: this.safeNum(item.data.i),
@@ -280,8 +287,8 @@ export class BinanceWsAdapter extends SdkBaseAdapter {
           vega: this.safeNum(item.data.v),
           rho: null,
           markIv: this.safeNum(item.data.vo),
-          bidIv: this.safeNum(item.data.b),
-          askIv: this.safeNum(item.data.a),
+          bidIv,
+          askIv,
         },
         timestamp: item.data.E ?? Date.now(),
       };
