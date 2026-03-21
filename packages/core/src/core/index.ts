@@ -18,11 +18,12 @@ export type {
   VenueStatus,
   WsSubscriptionRequest,
   SnapshotMeta,
+  VenueFailure,
   ServerWsMessage,
   ClientWsMessage,
 } from './types.js';
 
-export { ClientWsMessageSchema } from './ws-schemas.js';
+export { ClientWsMessageSchema, ServerWsMessageSchema } from '@oggregator/protocol';
 
 export { EMPTY_GREEKS } from './types.js';
 

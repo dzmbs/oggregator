@@ -120,31 +120,12 @@ export interface VenueStatus {
   message?: string;
 }
 
-// ── WS protocol types ─────────────────────────────────────────────
+// ── WS protocol types — re-exported from @oggregator/protocol ─────
 
-export interface WsSubscriptionRequest {
-  underlying: string;
-  expiry: string;
-  venues: VenueId[];
-}
-
-export interface SnapshotMeta {
-  generatedAt: number;
-  maxQuoteTs: number;
-  staleMs: number;
-}
-
-export type ClientWsMessage =
-  | { type: 'subscribe'; subscriptionId: string; request: WsSubscriptionRequest }
-  | { type: 'unsubscribe' };
-
-export interface VenueFailure {
-  venue: VenueId;
-  reason: string;
-}
-
-export type ServerWsMessage =
-  | { type: 'subscribed'; subscriptionId: string; request: WsSubscriptionRequest; serverTime: number; failedVenues?: VenueFailure[] }
-  | { type: 'snapshot'; subscriptionId: string; seq: number; request: WsSubscriptionRequest; meta: SnapshotMeta; data: unknown }
-  | { type: 'status'; subscriptionId: string; venue: VenueId; state: VenueConnectionState; ts: number; message?: string }
-  | { type: 'error'; subscriptionId: string | null; code: string; message: string; retryable: boolean };
+export type {
+  WsSubscriptionRequest,
+  SnapshotMeta,
+  VenueFailure,
+  ClientWsMessage,
+  ServerWsMessage,
+} from '@oggregator/protocol';

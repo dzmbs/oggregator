@@ -18,11 +18,12 @@ export type {
   VenueStatus,
   WsSubscriptionRequest,
   SnapshotMeta,
+  VenueFailure,
   ServerWsMessage,
   ClientWsMessage,
 } from './core/types.js';
 export { EMPTY_GREEKS } from './core/types.js';
-export { ClientWsMessageSchema } from './core/ws-schemas.js';
+export { ClientWsMessageSchema, ServerWsMessageSchema } from '@oggregator/protocol';
 
 export { buildComparisonChain } from './core/aggregator.js';
 export { registerAdapter, getAdapter, getAllAdapters, getRegisteredVenues } from './core/registry.js';
