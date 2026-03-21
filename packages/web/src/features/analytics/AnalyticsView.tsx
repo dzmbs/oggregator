@@ -30,20 +30,31 @@ interface ExpiryPcr {
   ratio:   number;
 }
 
+// Each venue reports volume/OI in different units. Convert to USD notional.
+// Deribit: volume in BTC, OI in BTC → × spot
+// OKX: volume in contracts (0.01 BTC each), OI from oiCcy already in BTC → × spot
+// Bybit: volume in contracts (1 contract = 1 option, priced in USDT), OI in contracts
+// Binance: USDT-settled, volume/OI in contracts (1 contract priced in USDT)
+// Derive: USDC-settled, volume/OI in USDC
+const VENUE_VOL_MULTIPLIER: Record<string, (spot: number) => { vol: number; oi: number }> = {
+  deribit: (spot) => ({ vol: spot, oi: spot }),             // BTC → USD
+  okx:     (spot) => ({ vol: 0.01 * spot, oi: spot }),      // contracts × 0.01 BTC → USD; oiCcy already BTC
+  bybit:   (_)    => ({ vol: 1, oi: 1 }),                   // already USDT-denominated
+  binance: (_)    => ({ vol: 1, oi: 1 }),                   // already USDT-denominated
+  derive:  (_)    => ({ vol: 1, oi: 1 }),                   // already USDC-denominated
+};
+
 function aggregateVenueVolume(chains: EnrichedChainResponse[], spotPrice: number): VenueVolume[] {
   const map = new Map<string, { volume: number; oi: number }>();
-
-  // Inverse venues (Deribit, OKX) report volume/OI in BTC — multiply by spot for USD
-  const INVERSE_VENUES = new Set(["deribit", "okx"]);
 
   for (const chain of chains) {
     for (const strike of chain.strikes) {
       for (const side of [strike.call, strike.put]) {
         for (const [venue, q] of Object.entries(side.venues)) {
           const prev = map.get(venue) ?? { volume: 0, oi: 0 };
-          const multiplier = INVERSE_VENUES.has(venue) ? spotPrice : 1;
-          prev.volume += (q?.volume24h ?? 0) * multiplier;
-          prev.oi     += (q?.openInterest ?? 0) * multiplier;
+          const mul  = (VENUE_VOL_MULTIPLIER[venue] ?? ((_: number) => ({ vol: 1, oi: 1 })))(spotPrice);
+          prev.volume += (q?.volume24h ?? 0) * mul.vol;
+          prev.oi     += (q?.openInterest ?? 0) * mul.oi;
           map.set(venue, prev);
         }
       }
@@ -58,19 +69,18 @@ function aggregateVenueVolume(chains: EnrichedChainResponse[], spotPrice: number
 
 function aggregateStrikeOi(chains: EnrichedChainResponse[], spotPrice: number | null): StrikeOi[] {
   const map = new Map<number, { callOi: number; putOi: number }>();
-  const INVERSE_VENUES = new Set(["deribit", "okx"]);
   const spot = spotPrice ?? 1;
 
   for (const chain of chains) {
     for (const strike of chain.strikes) {
       const prev = map.get(strike.strike) ?? { callOi: 0, putOi: 0 };
       for (const [venue, q] of Object.entries(strike.call.venues)) {
-        const mul = INVERSE_VENUES.has(venue) ? spot : 1;
-        prev.callOi += (q?.openInterest ?? 0) * mul;
+        const mul = (VENUE_VOL_MULTIPLIER[venue] ?? ((_: number) => ({ vol: 1, oi: 1 })))(spot);
+        prev.callOi += (q?.openInterest ?? 0) * mul.oi;
       }
       for (const [venue, q] of Object.entries(strike.put.venues)) {
-        const mul = INVERSE_VENUES.has(venue) ? spot : 1;
-        prev.putOi += (q?.openInterest ?? 0) * mul;
+        const mul = (VENUE_VOL_MULTIPLIER[venue] ?? ((_: number) => ({ vol: 1, oi: 1 })))(spot);
+        prev.putOi += (q?.openInterest ?? 0) * mul.oi;
       }
       map.set(strike.strike, prev);
     }
