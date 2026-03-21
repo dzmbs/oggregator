@@ -67,15 +67,13 @@ export default function DvolChart() {
       priceFormat: { type: "custom", formatter: (p: number) => `${p.toFixed(1)}%` },
     });
 
-    // HV (realized vol) — orange dashed line for IV vs HV comparison
+    // HV (realized vol) — solid orange line for IV vs HV comparison
     const hvSeries = chart.addSeries(LineSeries, {
       color: "#F7A600",
-      lineWidth: 1,
-      lineStyle: 2, // dashed
+      lineWidth: 2,
+      lineStyle: 0, // solid
       priceFormat: { type: "custom", formatter: (p: number) => `${p.toFixed(1)}%` },
       crosshairMarkerVisible: false,
-      lastValueVisible: false,       // no horizontal price line
-      priceLineVisible: false,       // no dashed price line across chart
     });
 
     chartApiRef.current = chart;
