@@ -222,6 +222,58 @@ export class DeriveWsAdapter extends SdkBaseAdapter {
 
       log.info({ count: totalCount, currency, expiries: expiries.size }, 'fetched tickers');
     }
+
+    // Fetch aggregate notional volume per currency from public/statistics.
+    // stats.v on individual tickers is premium volume — this gives us the
+    // notional figure that matches Derive's own dashboard.
+    await this.fetchNotionalVolume();
+  }
+
+  /**
+   * Calls public/statistics per currency and distributes daily_notional_volume
+   * across instruments weighted by their premium volume (stats.v).
+   */
+  private async fetchNotionalVolume(): Promise<void> {
+    for (const currency of CURRENCIES) {
+      try {
+        const result = await this.rpc.call('public/statistics', {
+          instrument_name: 'OPTION',
+          currency,
+        });
+
+        const res = result as { daily_notional_volume?: string } | null;
+        const notional = Number(res?.daily_notional_volume);
+        if (!Number.isFinite(notional) || notional <= 0) continue;
+
+        // Sum premium volume across all instruments for this currency to get weights
+        let totalPremium = 0;
+        const entries: Array<{ symbol: string; premium: number }> = [];
+
+        for (const inst of this.instruments) {
+          if (inst.base !== currency) continue;
+          const q = this.quoteStore.get(inst.exchangeSymbol);
+          const pv = q?.volume24h ?? 0;
+          if (pv > 0) {
+            entries.push({ symbol: inst.exchangeSymbol, premium: pv });
+            totalPremium += pv;
+          }
+        }
+
+        if (totalPremium <= 0) continue;
+
+        // Distribute notional proportionally
+        for (const e of entries) {
+          const q = this.quoteStore.get(e.symbol);
+          if (q) {
+            q.volume24hUsd = (e.premium / totalPremium) * notional;
+          }
+        }
+
+        log.info({ currency, notional: notional.toFixed(0), instruments: entries.length }, 'distributed notional volume');
+      } catch (err: unknown) {
+        log.warn({ currency, err: String(err) }, 'statistics fetch failed');
+      }
+    }
   }
 
   // ─── WebSocket subscriptions ──────────────────────────────────
