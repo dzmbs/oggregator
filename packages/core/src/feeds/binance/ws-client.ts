@@ -272,6 +272,9 @@ export class BinanceWsAdapter extends SdkBaseAdapter {
       const bidIv    = this.positiveOrNull(item.data.b);
       const askIv    = this.positiveOrNull(item.data.a);
 
+      // Preserve volume and OI from the REST snapshot — WS stream doesn't carry them
+      const prev = this.quoteStore.get(exchangeSymbol);
+
       const quote: LiveQuote = {
         bidPrice,
         askPrice,
@@ -281,8 +284,8 @@ export class BinanceWsAdapter extends SdkBaseAdapter {
         lastPrice: null,
         underlyingPrice: this.safeNum(item.data.i),
         indexPrice: this.safeNum(item.data.i),
-        volume24h: null,
-        openInterest: null,
+        volume24h: prev?.volume24h ?? null,
+        openInterest: prev?.openInterest ?? null,
         greeks: {
           delta: this.safeNum(item.data.d),
           gamma: this.safeNum(item.data.g),
@@ -334,12 +337,17 @@ export class BinanceWsAdapter extends SdkBaseAdapter {
     }
 
     const baseAssets = new Set(instruments.map((i) => i.base));
+    log.info({ bases: [...baseAssets], expiries: [...expiries] }, 'fetching OI for bases × expiries');
 
     for (const base of baseAssets) {
       for (const expiry of expiries) {
         try {
-          const raw = await this.fetchEapi(`/eapi/v1/openInterest?underlyingAsset=${base}&expiration=${expiry}`);
-          if (!Array.isArray(raw)) continue;
+          const url = `/eapi/v1/openInterest?underlyingAsset=${base}&expiration=${expiry}`;
+          const raw = await this.fetchEapi(url);
+          if (!Array.isArray(raw)) {
+            log.warn({ base, expiry, raw: JSON.stringify(raw).slice(0, 100) }, 'OI not an array');
+            continue;
+          }
 
           let merged = 0;
           for (const item of raw) {
@@ -353,7 +361,9 @@ export class BinanceWsAdapter extends SdkBaseAdapter {
             }
           }
           if (merged > 0) log.info({ base, expiry, count: merged }, 'merged OI from REST');
-        } catch { /* skip failed expiries */ }
+        } catch (err: unknown) {
+          log.warn({ base, expiry, err: String(err) }, 'OI fetch failed');
+        }
       }
     }
   }
