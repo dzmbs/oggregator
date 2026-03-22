@@ -21,9 +21,11 @@ export default function TopBar({ tabs, onOpenPalette }: TopBarProps) {
 
   const { connectionState, failedVenueCount, staleMs } = feedStatus;
   const activeFeeds = activeVenues.length - failedVenueCount;
-  const latency     = staleMs != null ? `${staleMs}ms` : "–";
   const isLive      = connectionState === "live";
   const isWarning   = connectionState === "reconnecting" || connectionState === "stale";
+  const statusText  = isLive && staleMs != null
+    ? `${activeFeeds} feeds · ${staleMs}ms`
+    : `${activeFeeds} feeds`;
 
   return (
     <header className={styles.bar}>
@@ -53,7 +55,7 @@ export default function TopBar({ tabs, onOpenPalette }: TopBarProps) {
             data-warning={isWarning}
             data-live={isLive}
           />
-          <span>{activeFeeds} feeds · {latency}</span>
+          <span>{statusText}</span>
         </div>
         <button className={styles.cmdk} onClick={onOpenPalette}>
           ⌘K
