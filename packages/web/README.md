@@ -18,7 +18,7 @@ Fully responsive with:
 - Full-screen settings drawer (venues, expiry, asset, My IV)
 - Card-based chain layout replacing the 15-column desktop grid
 - Touch-optimized tap targets (44px minimum)
-- PWA-ready (manifest, safe areas, homescreen install)
+- PWA ready (manifest, safe areas, homescreen install)
 
 ## Commands
 

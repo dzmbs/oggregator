@@ -1,6 +1,3 @@
 <svg width="320" height="48" viewBox="0 0 320 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <text x="0" y="38" font-family="'IBM Plex Mono', monospace" font-size="40" font-weight="700" font-style="italic" fill="#F6FEFD" letter-spacing="-1.5">oggregator</text>
-  <circle cx="308" cy="12" r="5" fill="#50D2C1">
-    <animate attributeName="opacity" values="1;0.4;1" dur="2s" repeatCount="indefinite"/>
-  </circle>
+  <text x="0" y="38" font-family="'IBM Plex Mono', monospace" font-size="40" font-weight="700" font-style="italic" fill="currentColor" letter-spacing="-1.5">oggregator</text>
 </svg>

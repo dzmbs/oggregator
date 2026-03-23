@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <strong>Cross-venue crypto options aggregator — real-time pricing, greeks, and IV across 5 exchanges.</strong>
+  <strong>Cross-venue crypto options aggregator. Real-time pricing, greeks, and IV across 5 exchanges.</strong>
 </p>
 
 <p align="center">
@@ -51,7 +51,7 @@ pnpm build        # production build (server + web)
 
 ```
 packages/
-  protocol/   Shared Zod schemas for WS protocol between server ↔ web
+  protocol/   Shared Zod schemas for WS protocol between server and web
   core/       Venue adapters, canonical types, normalization, enrichment
   server/     Fastify REST + WS API, serves enriched chain data
   web/        React 19 + Vite dashboard (mobile-first responsive)
@@ -84,11 +84,11 @@ The web dashboard includes:
 - **Analytics** — OI by venue, put/call ratio by expiry, DVOL chart with HV overlay, OI by strike
 - **GEX** — Gamma exposure by strike with dealer positioning explanation
 
-Mobile-responsive with bottom navigation, shared toolbar, and full-screen settings drawer.
+Mobile responsive with bottom navigation, shared toolbar, and full-screen settings drawer.
 
 ## Deploy
 
-Single-service deploy — server serves the SPA in production:
+Single-service deploy. The server serves the SPA in production:
 
 ```bash
 pnpm build

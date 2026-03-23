@@ -29,7 +29,7 @@ pnpm test:run     # vitest
 ## How it works
 
 1. Server starts and begins bootstrapping venue adapters (~5–15s)
-2. During bootstrap, all endpoints return `503` — the web client retries automatically
+2. During bootstrap, all endpoints return `503`. The web client retries automatically
 3. Once adapters connect, `isReady()` flips and data starts flowing
 4. In production (`NODE_ENV=production`), the server also serves the built web SPA from `../web/dist/`
 
@@ -38,4 +38,4 @@ pnpm test:run     # vitest
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `PORT` | `3100` | Server listen port |
-| `NODE_ENV` | — | Set to `production` to serve static SPA |
+| `NODE_ENV` | | Set to `production` to serve static SPA |
