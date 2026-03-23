@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState } from "react";
 
-import { Spinner, EmptyState } from "@components/ui";
+import { Spinner, EmptyState, VenuePickerButton } from "@components/ui";
 import { VENUES } from "@lib/venue-meta";
 import { useAppStore } from "@stores/app-store";
 import { fmtIv } from "@lib/format";
@@ -224,11 +224,12 @@ export default function FlowView() {
                 ))}
               </div>
             )}
+            <VenuePickerButton compact />
           </div>
           <span className={styles.subtitle}>
             {mode === "all"
-              ? `${trades.length} trades · 5 venues · auto-refreshing`
-              : "Institutional RFQ & block trades across all venues"}
+              ? `${trades.length} trades · ${activeVenues.length} venues · auto-refreshing`
+              : `Institutional RFQ & block trades · ${activeVenues.length} venues`}
           </span>
         </div>
         {mode === "all" && (

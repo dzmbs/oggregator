@@ -1,6 +1,4 @@
 import { useAppStore } from "@stores/app-store";
-import { VenueIndicator } from "@components/ui";
-import VenueSidebar from "@features/chain/VenueSidebar";
 
 import styles from "./TopBar.module.css";
 
@@ -19,7 +17,6 @@ export default function TopBar({ tabs, onOpenPalette }: TopBarProps) {
   const activeTab    = useAppStore((s) => s.activeTab);
   const setActiveTab = useAppStore((s) => s.setActiveTab);
   const activeVenues = useAppStore((s) => s.activeVenues);
-  const toggleVenue  = useAppStore((s) => s.toggleVenue);
   const feedStatus   = useAppStore((s) => s.feedStatus);
 
   const { connectionState, failedVenueCount, staleMs } = feedStatus;
@@ -51,16 +48,6 @@ export default function TopBar({ tabs, onOpenPalette }: TopBarProps) {
       </div>
 
       <div className={styles.right}>
-        <details className={styles.venuePicker}>
-          <summary className={styles.venuePickerBtn}>
-            <span className={styles.venuePickerLabel}>Venues</span>
-            <VenueIndicator />
-          </summary>
-          <div className={styles.venuePickerPanel}>
-            <VenueSidebar activeVenues={activeVenues} onToggle={toggleVenue} />
-          </div>
-        </details>
-
         <div className={styles.status}>
           <span
             className={styles.statusDot}

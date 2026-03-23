@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 
 import { useAppStore } from "@stores/app-store";
-import { AssetPickerButton, Spinner, EmptyState, VenueIndicator } from "@components/ui";
+import { AssetPickerButton, Spinner, EmptyState, VenuePickerButton } from "@components/ui";
 import { fmtUsd, dteDays, formatExpiry } from "@lib/format";
 import { useChainQuery, useExpiries } from "@features/chain/queries";
 import { useIsMobile } from "@hooks/useIsMobile";
@@ -48,9 +48,10 @@ export default function GexView() {
           <div className={styles.titleRow}>
             <span className={styles.title}>Gamma Exposure (GEX)</span>
             <AssetPickerButton />
+            <VenuePickerButton compact />
           </div>
           <span className={styles.subtitle}>
-            Dealer hedging pressure per strike in $M · <VenueIndicator />
+            Dealer hedging pressure per strike in $M
           </span>
         </div>
         {spotPrice != null && (

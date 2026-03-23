@@ -80,51 +80,6 @@
   justify-self: end;
 }
 
-.venuePicker {
-  position: relative;
-}
-
-.venuePicker[open] {
-  z-index: 20;
-}
-
-.venuePickerBtn {
-  list-style: none;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: 5px var(--space-3);
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  color: var(--text-dim);
-  border: 1px solid color-mix(in srgb, var(--border-subtle) 60%, transparent);
-  border-radius: calc(var(--radius-lg) - 2px);
-  cursor: pointer;
-  background: transparent;
-}
-
-.venuePickerBtn::-webkit-details-marker {
-  display: none;
-}
-
-.venuePickerBtn:hover,
-.venuePicker[open] .venuePickerBtn {
-  border-color: var(--border-default);
-  color: var(--text-secondary);
-  background: color-mix(in srgb, var(--bg-hover) 50%, transparent);
-}
-
-.venuePickerLabel {
-  color: var(--text-secondary);
-}
-
-.venuePickerPanel {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  width: 320px;
-}
-
 .status {
   display: flex;
   align-items: center;
@@ -211,10 +166,6 @@
 
   .right {
     gap: var(--space-2);
-  }
-
-  .venuePicker {
-    display: none;
   }
 
   /* Hide ⌘K on mobile — not relevant for touch */
