@@ -12,6 +12,8 @@ import styles from "./FlowView.module.css";
 const WHALE_THRESHOLD   = 100_000; // $100k+ notional
 const LARGE_THRESHOLD   = 25_000;  // $25k+ notional
 
+const MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
+
 function parseStrikeAndType(instrument: string): { strike: string; type: string } {
   const m = instrument.match(/-(\d+(?:\.\d+)?)-([CP])(?:-|$)/);
   if (!m) return { strike: "–", type: "–" };
@@ -21,11 +23,37 @@ function parseStrikeAndType(instrument: string): { strike: string; type: string 
   };
 }
 
+function numericDateToHuman(raw: string): string {
+  // YYMMDD (Binance: 260324) or YYYYMMDD (20260324) or YYYYMM (202603)
+  if (raw.length === 6 && /^\d{6}$/.test(raw)) {
+    const yy = raw.slice(0, 2);
+    const mm = parseInt(raw.slice(2, 4), 10);
+    const dd = raw.slice(4, 6);
+    if (mm >= 1 && mm <= 12) {
+      return dd === "00" || !dd
+        ? `${MONTHS[mm - 1]}${yy}`
+        : `${dd}${MONTHS[mm - 1]}${yy}`;
+    }
+  }
+  if (raw.length === 8 && /^\d{8}$/.test(raw)) {
+    const yy = raw.slice(2, 4);
+    const mm = parseInt(raw.slice(4, 6), 10);
+    const dd = raw.slice(6, 8);
+    if (mm >= 1 && mm <= 12) return `${dd}${MONTHS[mm - 1]}${yy}`;
+  }
+  return raw;
+}
+
 function parseExpiry(instrument: string): string {
-  // Match patterns like 22MAR26, 260322, 20260322
-  const m = instrument.match(/(\d{1,2}[A-Z]{3}\d{2})|(\d{6})|(\d{8})/);
-  if (!m) return "–";
-  return m[0]!;
+  const human = instrument.match(/\d{1,2}[A-Z]{3}\d{2}/);
+  if (human) return human[0]!;
+  // Venues like Binance/Derive send numeric dates instead of 24MAR26 format
+  const numeric = instrument.match(/(?:^|[-_])(\d{6,8})(?:[-_]|$)/);
+  if (numeric) return numericDateToHuman(numeric[1]!);
+  // Fallback: grab any 6-8 digit sequence
+  const fallback = instrument.match(/(\d{6,8})/);
+  if (fallback) return numericDateToHuman(fallback[1]!);
+  return "–";
 }
 
 function formatTime(ts: number): string {

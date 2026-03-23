@@ -2,6 +2,7 @@
   border-bottom: 1px solid var(--border-subtle);
   background: var(--bg-surface);
   transition: background var(--transition-fast);
+  contain: layout style;
 }
 
 .card[data-atm="true"] {
@@ -243,7 +244,7 @@
 
 .venueDetailGrid {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
   gap: 1px;
 }
 
@@ -265,4 +266,9 @@
 .vdAccent {
   font-weight: 600;
   color: var(--text-primary);
+}
+
+.vdIv {
+  color: var(--color-iv);
+  font-weight: 600;
 }

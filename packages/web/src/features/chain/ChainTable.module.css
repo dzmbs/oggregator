@@ -90,12 +90,15 @@
   color: var(--bg-base);
   letter-spacing: 0.04em;
   font-variant-numeric: tabular-nums;
+  min-width: 100px;
+  text-align: center;
 }
 
 /* ── Row ──────────────────────────────────────────────────────────────────── */
 
 .rowWrap {
   border-bottom: 1px solid var(--border-subtle);
+  contain: layout style;
 }
 
 .rowWrap:last-child {
