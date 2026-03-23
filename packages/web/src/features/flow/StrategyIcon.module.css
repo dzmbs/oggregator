@@ -1,0 +1,13 @@
+.icon {
+  flex-shrink: 0;
+  color: var(--accent-primary);
+}
+
+.fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}

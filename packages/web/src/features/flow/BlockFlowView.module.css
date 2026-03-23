@@ -1,0 +1,320 @@
+.list {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ── Trade row ──────────────────────────────────────── */
+
+.tradeWrap {
+  border-bottom: 1px solid color-mix(in srgb, var(--border-subtle) 50%, transparent);
+}
+
+.trade {
+  display: flex;
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--transition-fast);
+  border-left: 3px solid transparent;
+}
+
+.trade:hover, .trade:active {
+  background: var(--bg-hover);
+}
+
+.trade[data-side="buy"]  { border-left-color: var(--color-profit); }
+.trade[data-side="sell"] { border-left-color: var(--color-loss); }
+
+.trade[data-whale] {
+  background: color-mix(in srgb, var(--accent-primary) 4%, transparent);
+}
+
+.tradeMain {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-width: 0;
+}
+
+.tradeInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.tradeTop {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.strategy {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.legCount {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
+  color: var(--accent-primary);
+}
+
+.side {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.side[data-side="buy"]  { color: var(--color-profit); }
+.side[data-side="sell"] { color: var(--color-loss); }
+
+.tradeBottom {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--text-dim);
+}
+
+.expiry {
+  color: var(--text-tertiary);
+  letter-spacing: 0.04em;
+}
+
+.strike {
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.optType {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 2px;
+  letter-spacing: 0.04em;
+}
+
+.optType[data-type="CALL"] {
+  color: var(--color-profit);
+  background: color-mix(in srgb, var(--color-profit) 12%, transparent);
+}
+
+.optType[data-type="PUT"] {
+  color: var(--color-loss);
+  background: color-mix(in srgb, var(--color-loss) 12%, transparent);
+}
+
+/* ── Right side ─────────────────────────────────────── */
+
+.tradeRight {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+  margin-left: auto;
+  text-align: right;
+  min-width: 80px;
+}
+
+.notional {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.notional[data-whale] {
+  color: var(--accent-primary);
+}
+
+.tradeMeta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  justify-content: flex-end;
+}
+
+.venue {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-dim);
+}
+
+.venueLogo {
+  width: 12px;
+  height: 12px;
+  object-fit: contain;
+}
+
+.time {
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.chevron {
+  font-size: var(--text-base);
+  color: var(--text-dim);
+  transition: transform var(--transition-fast), color var(--transition-fast);
+  flex-shrink: 0;
+  width: 20px;
+  text-align: center;
+}
+
+.chevron[data-expanded="true"] {
+  transform: rotate(90deg);
+  color: var(--accent-primary);
+}
+
+/* ── Expanded legs ──────────────────────────────────── */
+
+.legs {
+  padding: 0 var(--space-4) var(--space-3);
+  padding-left: calc(var(--space-4) + 18px + var(--space-3));
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  animation: fadeIn 120ms ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-3px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.leg {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 4px var(--space-3);
+  background: var(--bg-elevated);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  border-left: 2px solid transparent;
+}
+
+.leg[data-side="buy"]  { border-left-color: var(--color-profit); }
+.leg[data-side="sell"] { border-left-color: var(--color-loss); }
+
+.legDir {
+  font-size: 10px;
+  font-weight: 700;
+  min-width: 28px;
+}
+
+.legDir[data-side="buy"]  { color: var(--color-profit); }
+.legDir[data-side="sell"] { color: var(--color-loss); }
+
+.legSize {
+  color: var(--text-secondary);
+  font-weight: 500;
+  min-width: 40px;
+}
+
+.legExpiry {
+  color: var(--text-dim);
+  letter-spacing: 0.04em;
+}
+
+.legStrike {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.legType {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 3px;
+  border-radius: 2px;
+  letter-spacing: 0.04em;
+}
+
+.legType[data-type="CALL"] {
+  color: var(--color-profit);
+  background: color-mix(in srgb, var(--color-profit) 12%, transparent);
+}
+
+.legType[data-type="PUT"] {
+  color: var(--color-loss);
+  background: color-mix(in srgb, var(--color-loss) 12%, transparent);
+}
+
+.legPrices {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  gap: 1px;
+}
+
+.legPerContract {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.legTotal {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/* ── Mobile ─────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .trade {
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .tradeMain {
+    gap: var(--space-2);
+    flex-wrap: wrap;
+  }
+
+  /* Icon + info on first line, notional on same line right-aligned */
+  .tradeInfo {
+    flex: 1;
+    min-width: 120px;
+  }
+
+  .strategy { font-size: var(--text-xs); }
+  .tradeBottom { font-size: 11px; }
+
+  .tradeRight {
+    flex-shrink: 0;
+  }
+
+  .notional { font-size: var(--text-sm); }
+  .venue { font-size: 9px; }
+  .time  { font-size: 9px; }
+
+  .chevron { width: 16px; font-size: var(--text-sm); }
+
+  .legs {
+    padding-left: var(--space-3);
+    padding-right: var(--space-3);
+  }
+
+  .leg {
+    flex-wrap: wrap;
+    gap: var(--space-1) var(--space-2);
+    font-size: 11px;
+  }
+
+  .legDir { font-size: 9px; min-width: 24px; }
+}

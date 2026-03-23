@@ -6,6 +6,7 @@ import { fmtIv } from "@lib/format";
 import { useUnderlyings } from "@features/chain/queries";
 import { useFlow } from "./queries";
 import type { TradeEvent } from "./queries";
+import BlockFlowView from "./BlockFlowView";
 import styles from "./FlowView.module.css";
 
 // Notional thresholds for visual treatment
@@ -133,13 +134,15 @@ function TradeRow({ trade, isNew }: TradeRowProps) {
   );
 }
 
+type FlowMode = "all" | "block";
+
 export default function FlowView() {
   const { data: underlyingsData } = useUnderlyings();
-  // Deduplicate base assets (BTC and BTC_USDC both → BTC)
   const flowAssets = [...new Set(
     (underlyingsData?.underlyings ?? []).map((u) => u.split('_')[0]!),
   )];
 
+  const [mode, setMode] = useState<FlowMode>("all");
   const [asset, setAsset] = useState<string>("BTC");
   const { data, isLoading, error } = useFlow(asset);
   const [seenIds, setSeenIds] = useState<Set<string>>(new Set());
@@ -160,10 +163,8 @@ export default function FlowView() {
       return;
     }
 
-    // After first load, flash only genuinely new trades
     prevCountRef.current = data.trades.length;
-    // seenIds stays as the previous set — new trades not in it will flash
-    // After 1.5s, update seenIds so the flash fades
+    // seenIds keeps the previous set — new trades not in it trigger the flash animation
     const timer = setTimeout(() => setSeenIds(currentIds), 1500);
     return () => clearTimeout(timer);
   }, [data?.trades]);
@@ -191,61 +192,88 @@ export default function FlowView() {
       <div className={styles.header}>
         <div className={styles.headerLeft}>
           <div className={styles.titleRow}>
-            <span className={styles.title}>Live Options Flow</span>
-            <div className={styles.assetPicker}>
-              {flowAssets.map((a) => (
-                <button
-                  key={a}
-                  className={styles.assetBtn}
-                  data-active={a === asset}
-                  onClick={() => setAsset(a)}
-                >
-                  {a}
-                </button>
-              ))}
+            <div className={styles.modePicker}>
+              <button
+                className={styles.modeBtn}
+                data-active={mode === "all"}
+                onClick={() => setMode("all")}
+              >
+                All Trades
+              </button>
+              <button
+                className={styles.modeBtn}
+                data-active={mode === "block"}
+                onClick={() => setMode("block")}
+              >
+                🏛 Institutions
+              </button>
             </div>
+            {mode === "all" && (
+              <div className={styles.assetPicker}>
+                {flowAssets.map((a) => (
+                  <button
+                    key={a}
+                    className={styles.assetBtn}
+                    data-active={a === asset}
+                    onClick={() => setAsset(a)}
+                  >
+                    {a}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <span className={styles.subtitle}>
-            {trades.length} trades · 5 venues · auto-refreshing
+            {mode === "all"
+              ? `${trades.length} trades · 5 venues · auto-refreshing`
+              : "Institutional RFQ & block trades across all venues"}
           </span>
         </div>
-        <div className={styles.legend}>
-          <span className={styles.legendItem}><span className={styles.legendDot} data-side="buy" /> Buys</span>
-          <span className={styles.legendItem}><span className={styles.legendDot} data-side="sell" /> Sells</span>
-          <span className={styles.legendItem}>🐋 $100K+</span>
-        </div>
-      </div>
-
-      <div className={styles.tableHeader}>
-        <span>TIME</span>
-        <span>VENUE</span>
-        <span>SIDE</span>
-        <span>INSTRUMENT</span>
-        <span>SIZE</span>
-        <span>NOTIONAL</span>
-        <span>IV</span>
-      </div>
-
-      <div className={styles.list}>
-        {trades.length === 0 ? (
-          <EmptyState
-            icon="◈"
-            title="No trades yet"
-            detail={`${asset} options have low trading activity. Trades will appear here in real-time when they occur.`}
-          />
-        ) : (
-          trades.map((t, i) => {
-            const id = `${t.venue}-${t.instrument}-${t.timestamp}-${t.size}`;
-            return (
-              <TradeRow
-                key={`${id}-${i}`}
-                trade={t}
-                isNew={!seenIds.has(id)}
-              />
-            );
-          })
+        {mode === "all" && (
+          <div className={styles.legend}>
+            <span className={styles.legendItem}><span className={styles.legendDot} data-side="buy" /> Buys</span>
+            <span className={styles.legendItem}><span className={styles.legendDot} data-side="sell" /> Sells</span>
+            <span className={styles.legendItem}>🐋 $100K+</span>
+          </div>
         )}
       </div>
+
+      {mode === "block" ? (
+        <BlockFlowView />
+      ) : (
+        <>
+          <div className={styles.tableHeader}>
+            <span>TIME</span>
+            <span>VENUE</span>
+            <span>SIDE</span>
+            <span>INSTRUMENT</span>
+            <span>SIZE</span>
+            <span>NOTIONAL</span>
+            <span>IV</span>
+          </div>
+
+          <div className={styles.list}>
+            {trades.length === 0 ? (
+              <EmptyState
+                icon="◈"
+                title="No trades yet"
+                detail={`${asset} options have low trading activity. Trades will appear here in real-time when they occur.`}
+              />
+            ) : (
+              trades.map((t, i) => {
+                const id = `${t.venue}-${t.instrument}-${t.timestamp}-${t.size}`;
+                return (
+                  <TradeRow
+                    key={`${id}-${i}`}
+                    trade={t}
+                    isNew={!seenIds.has(id)}
+                  />
+                );
+              })
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }

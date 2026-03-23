@@ -58,6 +58,7 @@ export { BaseAdapter } from './feeds/shared/base.js';
 export { DvolService, type DvolSnapshot, type DvolCandle, type HvPoint } from './services/dvol.js';
 export { SpotService, type SpotSnapshot } from './services/spot.js';
 export { FlowService, type TradeEvent } from './services/flow.js';
+export { BlockFlowService, type BlockTradeEvent, type BlockTradeLeg } from './services/block-flow.js';
 
 // feeds — venue adapters
 export { DeribitWsAdapter } from './feeds/deribit/index.js';

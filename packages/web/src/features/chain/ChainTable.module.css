@@ -6,12 +6,11 @@
 }
 
 /* ── Grid template ───────────────────────────────────────────────────────── */
-/* VENUES | γ | ν | Δ | IV | SPREAD | MID | STRIKE | MID | SPREAD | IV | Δ | ν | γ | VENUES */
-/* Venues/greeks on outer edges absorb space (1fr). Core data (MID/SPREAD/IV) fixed near strike. */
+/* VENUES | γ | ν | Δ | IV | SPREAD | BID | ASK | STRIKE | BID | ASK | SPREAD | IV | Δ | ν | γ | VENUES */
 
 .header {
   display: grid;
-  grid-template-columns: 1fr 50px 50px 60px 72px 72px 100px 100px 100px 72px 72px 60px 50px 50px 1fr;
+  grid-template-columns: 1fr 50px 50px 60px 72px 72px 80px 80px 100px 80px 80px 72px 72px 60px 50px 50px 1fr;
   border-bottom: 1px solid var(--border-default);
   background: var(--bg-elevated);
   flex-shrink: 0;
@@ -107,7 +106,7 @@
 
 .row {
   display: grid;
-  grid-template-columns: 1fr 50px 50px 60px 72px 72px 100px 100px 100px 72px 72px 60px 50px 50px 1fr;
+  grid-template-columns: 1fr 50px 50px 60px 72px 72px 80px 80px 100px 80px 80px 72px 72px 60px 50px 50px 1fr;
   align-items: center;
   height: 48px;
   cursor: pointer;
@@ -183,10 +182,21 @@
 
 /* ── Data cells ───────────────────────────────────────────────────────────── */
 
-.midCell {
-  font-size: var(--text-base);
+.bidCell {
+  font-size: var(--text-sm);
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--color-profit);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 8px;
+}
+
+.askCell {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-loss);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   overflow: hidden;

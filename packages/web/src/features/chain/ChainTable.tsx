@@ -76,6 +76,18 @@ function VenueColumn({ side, align, activeVenues }: VenueColumnProps) {
   );
 }
 
+// Best bid = highest bid across venues, best ask = lowest ask across venues
+function bestBidAsk(side: EnrichedSide, activeVenues: string[]): { bid: number | null; ask: number | null } {
+  let bestBid: number | null = null;
+  let bestAsk: number | null = null;
+  for (const [v, q] of Object.entries(side.venues)) {
+    if (!activeVenues.includes(v) || !q) continue;
+    if (q.bid != null && (bestBid == null || q.bid > bestBid)) bestBid = q.bid;
+    if (q.ask != null && (bestAsk == null || q.ask < bestAsk)) bestAsk = q.ask;
+  }
+  return { bid: bestBid, ask: bestAsk };
+}
+
 // ── Strike row ────────────────────────────────────────────────────────────────
 
 interface StrikeRowProps {
@@ -106,6 +118,8 @@ function StrikeRowItem({
   const putQ = strike.put.bestVenue != null
     ? strike.put.venues[strike.put.bestVenue] ?? null
     : null;
+  const callBba = bestBidAsk(strike.call, activeVenues);
+  const putBba  = bestBidAsk(strike.put, activeVenues);
 
   return (
     <div className={styles.rowWrap} data-expanded={isExpanded}>
@@ -123,7 +137,7 @@ function StrikeRowItem({
           }
         }}
       >
-        {/* CALL side: VENUES | γ | ν | Δ | IV | SPREAD | MID */}
+        {/* CALL side: VENUES | γ | ν | Δ | IV | SPREAD | BID | ASK */}
         <VenueColumn side={strike.call} align="left" activeVenues={activeVenues} />
         <span className={`${styles.greekCell} ${callItm ? styles.itmCall : ""}`}>
           {fmtGamma(callQ?.gamma ?? null)}
@@ -140,8 +154,11 @@ function StrikeRowItem({
         <div className={`${styles.spreadCell} ${callItm ? styles.itmCall : ""}`}>
           <SpreadPill spreadPct={callQ?.spreadPct ?? null} />
         </div>
-        <span className={`${styles.midCell} ${styles.alignRight} ${callItm ? styles.itmCall : ""}`}>
-          {fmtUsd(callQ?.mid ?? null)}
+        <span className={`${styles.bidCell} ${styles.alignRight} ${callItm ? styles.itmCall : ""}`}>
+          {fmtUsd(callBba.bid)}
+        </span>
+        <span className={`${styles.askCell} ${styles.alignRight} ${callItm ? styles.itmCall : ""}`}>
+          {fmtUsd(callBba.ask)}
         </span>
 
         {/* STRIKE center */}
@@ -150,9 +167,12 @@ function StrikeRowItem({
           <span className={styles.strikeNum}>{strike.strike.toLocaleString()}</span>
         </div>
 
-        {/* PUT side: MID | SPREAD | IV | Δ | ν | γ | VENUES */}
-        <span className={`${styles.midCell} ${putItm ? styles.itmPut : ""}`}>
-          {fmtUsd(putQ?.mid ?? null)}
+        {/* PUT side: BID | ASK | SPREAD | IV | Δ | ν | γ | VENUES */}
+        <span className={`${styles.bidCell} ${putItm ? styles.itmPut : ""}`}>
+          {fmtUsd(putBba.bid)}
+        </span>
+        <span className={`${styles.askCell} ${putItm ? styles.itmPut : ""}`}>
+          {fmtUsd(putBba.ask)}
         </span>
         <div className={`${styles.spreadCell} ${putItm ? styles.itmPut : ""}`}>
           <SpreadPill spreadPct={putQ?.spreadPct ?? null} />
@@ -283,9 +303,11 @@ export default function NewChainTable({
         <span className={styles.hdrLabel}>Δ</span>
         <span className={styles.hdrLabel}>IV</span>
         <span className={styles.hdrLabel}>SPREAD</span>
-        <span className={styles.hdrLabel} data-align="right">MID</span>
+        <span className={styles.hdrLabel} data-align="right">BID</span>
+        <span className={styles.hdrLabel} data-align="right">ASK</span>
         <span className={styles.hdrLabel} data-align="center">STRIKE</span>
-        <span className={styles.hdrLabel}>MID</span>
+        <span className={styles.hdrLabel}>BID</span>
+        <span className={styles.hdrLabel}>ASK</span>
         <span className={styles.hdrLabel}>SPREAD</span>
         <span className={styles.hdrLabel}>IV</span>
         <span className={styles.hdrLabel} data-align="right">Δ</span>

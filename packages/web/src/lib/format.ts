@@ -5,14 +5,11 @@
 
 export function fmtUsd(v: number | null | undefined): string {
   if (v == null || v === 0) return "–";
-  if (Math.abs(v) >= 1_000_000_000)
-    return `$${(v / 1_000_000_000).toFixed(2)}B`;
-  if (Math.abs(v) >= 1_000_000)
-    return `$${(v / 1_000_000).toFixed(1)}M`;
-  if (Math.abs(v) >= 1_000)
-    return `$${v.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
-  if (Math.abs(v) >= 100) return `$${v.toFixed(1)}`;
-  return `$${v.toFixed(2)}`;
+  const sign = v < 0 ? "-" : "";
+  const abs = Math.abs(v);
+  if (abs >= 100)
+    return `${sign}$${abs.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+  return `${sign}$${abs.toFixed(2)}`;
 }
 
 export function fmtUsdCompact(v: number | null | undefined): string {

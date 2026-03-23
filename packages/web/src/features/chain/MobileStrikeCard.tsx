@@ -21,10 +21,22 @@ interface SideSummaryProps {
   venues:  string[];
 }
 
+function bestBidAsk(side: EnrichedSide, venues: string[]): { bid: number | null; ask: number | null } {
+  let bestBid: number | null = null;
+  let bestAsk: number | null = null;
+  for (const [v, q] of Object.entries(side.venues)) {
+    if (!venues.includes(v) || !q) continue;
+    if (q.bid != null && (bestBid == null || q.bid > bestBid)) bestBid = q.bid;
+    if (q.ask != null && (bestAsk == null || q.ask < bestAsk)) bestAsk = q.ask;
+  }
+  return { bid: bestBid, ask: bestAsk };
+}
+
 function SideSummary({ side, type, itm, venues }: SideSummaryProps) {
   const bestQ = side.bestVenue != null
     ? side.venues[side.bestVenue] ?? null
     : null;
+  const bba = bestBidAsk(side, venues);
 
   return (
     <div className={styles.side} data-type={type} data-itm={itm}>
@@ -48,8 +60,12 @@ function SideSummary({ side, type, itm, venues }: SideSummaryProps) {
       </div>
       <div className={styles.sideRow}>
         <div className={styles.sideMetric}>
-          <span className={styles.metricLabel}>MID</span>
-          <span className={styles.metricValue}>{fmtUsd(bestQ?.mid ?? null)}</span>
+          <span className={styles.metricLabel}>BID</span>
+          <span className={styles.metricBid}>{fmtUsd(bba.bid)}</span>
+        </div>
+        <div className={styles.sideMetric}>
+          <span className={styles.metricLabel}>ASK</span>
+          <span className={styles.metricAsk}>{fmtUsd(bba.ask)}</span>
         </div>
         <div className={styles.sideMetric}>
           <span className={styles.metricLabel}>IV</span>
@@ -58,10 +74,6 @@ function SideSummary({ side, type, itm, venues }: SideSummaryProps) {
         <div className={styles.sideMetric}>
           <span className={styles.metricLabel}>Δ</span>
           <span className={styles.metricDelta}>{fmtDelta(bestQ?.delta ?? null)}</span>
-        </div>
-        <div className={styles.sideMetric}>
-          <span className={styles.metricLabel}>SPR</span>
-          <SpreadPill spreadPct={bestQ?.spreadPct ?? null} />
         </div>
       </div>
     </div>

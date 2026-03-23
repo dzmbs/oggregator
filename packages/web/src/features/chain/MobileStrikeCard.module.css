@@ -161,6 +161,20 @@
   text-overflow: ellipsis;
 }
 
+.metricBid {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-profit);
+  font-variant-numeric: tabular-nums;
+}
+
+.metricAsk {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-loss);
+  font-variant-numeric: tabular-nums;
+}
+
 .metricDelta {
   font-size: 12px;
   color: var(--text-tertiary);
