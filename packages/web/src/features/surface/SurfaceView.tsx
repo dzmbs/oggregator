@@ -1,7 +1,7 @@
 import type { IvSurfaceRow, TermStructure } from "@shared/enriched";
 
 import { useAppStore } from "@stores/app-store";
-import { Spinner, EmptyState, AssetPickerButton } from "@components/ui";
+import { Spinner, EmptyState, AssetPickerButton, VenueIndicator } from "@components/ui";
 import { fmtIv, formatExpiry, dteDays } from "@lib/format";
 import { heatmapColor } from "@lib/colors";
 import { useSurface } from "./queries";
@@ -114,7 +114,7 @@ export default function SurfaceView() {
             <AssetPickerButton />
           </div>
           <span className={styles.subtitle}>
-            Best IV (lowest mark across venues) per delta level and expiry
+            Best IV (lowest mark) per delta level and expiry · <VenueIndicator />
           </span>
         </div>
         <div className={styles.termStructure}>

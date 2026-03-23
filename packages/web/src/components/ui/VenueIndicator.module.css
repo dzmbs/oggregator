@@ -1,0 +1,26 @@
+.wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.label {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.logo {
+  width: 14px;
+  height: 14px;
+  object-fit: contain;
+  opacity: 0.7;
+}
+
+.tag {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--text-dim);
+  padding: 1px 3px;
+  background: var(--bg-elevated);
+  border-radius: 2px;
+}

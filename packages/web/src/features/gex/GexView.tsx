@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 
 import { useAppStore } from "@stores/app-store";
-import { AssetPickerButton, Spinner, EmptyState } from "@components/ui";
+import { AssetPickerButton, Spinner, EmptyState, VenueIndicator } from "@components/ui";
 import { fmtUsd, dteDays, formatExpiry } from "@lib/format";
 import { useChainQuery, useExpiries } from "@features/chain/queries";
 import { useIsMobile } from "@hooks/useIsMobile";
@@ -50,7 +50,7 @@ export default function GexView() {
             <AssetPickerButton />
           </div>
           <span className={styles.subtitle}>
-            Dealer hedging pressure per strike in $M. Where dealers must buy dips (green) or sell into dips (red).
+            Dealer hedging pressure per strike in $M · <VenueIndicator />
           </span>
         </div>
         {spotPrice != null && (
