@@ -178,6 +178,14 @@ function OiByStrikeChart({ data, spotPrice }: { data: StrikeOi[]; spotPrice: num
   const listRef = useRef<HTMLDivElement | null>(null);
   const spotRef = useRef<HTMLDivElement | null>(null);
 
+  // Single closest strike to spot — no duplicates
+  const spotStrike = spotPrice != null
+    ? data.reduce<number | null>((best, d) => {
+        if (best === null) return d.strike;
+        return Math.abs(d.strike - spotPrice) < Math.abs(best - spotPrice) ? d.strike : best;
+      }, null)
+    : null;
+
   useEffect(() => {
     if (spotRef.current && listRef.current) {
       const list = listRef.current;
@@ -185,14 +193,14 @@ function OiByStrikeChart({ data, spotPrice }: { data: StrikeOi[]; spotPrice: num
       const offset = spot.offsetTop - list.offsetTop - list.clientHeight / 2 + spot.clientHeight / 2;
       list.scrollTop = Math.max(0, offset);
     }
-  }, [data, spotPrice]);
+  }, [data, spotStrike]);
 
   return (
     <div className={styles.card}>
       <div className={styles.cardTitle}>Open Interest by Strike</div>
       <div className={styles.oiList} ref={listRef}>
         {data.map((d) => {
-          const isSpot = spotPrice != null && Math.abs(d.strike - spotPrice) / spotPrice < 0.005;
+          const isSpot = d.strike === spotStrike;
           const callPct = (d.callOi / maxOi) * 100;
           const putPct  = (d.putOi / maxOi) * 100;
           return (
@@ -240,7 +248,7 @@ export default function AnalyticsView() {
     );
   }
 
-  const spotPrice    = chains[0]?.stats.spotIndexUsd ?? null;
+  const spotPrice    = chains.find((c) => c.stats.spotIndexUsd != null)?.stats.spotIndexUsd ?? null;
   const venueVolume  = aggregateVenueVolume(chains);
   const strikeOi     = aggregateStrikeOi(chains, spotPrice);
   const expiryPcr    = aggregateExpiryPcr(chains);
