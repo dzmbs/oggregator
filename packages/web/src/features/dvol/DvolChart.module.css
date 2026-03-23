@@ -41,11 +41,13 @@
 
 .picker {
   display: flex;
+  align-items: center;
   background: var(--bg-base);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   padding: 2px;
   gap: 1px;
+  height: 30px;
 }
 
 .pickerBtn {
@@ -53,7 +55,8 @@
   font-size: var(--text-xs);
   font-weight: 600;
   letter-spacing: 0.04em;
-  padding: 4px 12px;
+  padding: 0 12px;
+  height: 100%;
   border: none;
   border-radius: calc(var(--radius-md) - 2px);
   background: transparent;

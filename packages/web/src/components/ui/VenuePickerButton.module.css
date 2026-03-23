@@ -6,11 +6,14 @@
   z-index: 30;
 }
 
+/* Trigger — matches AssetPickerButton and mode pickers exactly */
+
 .trigger {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 12px;
+  height: 30px;
+  padding: 0 10px;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   background: var(--bg-base);
@@ -32,10 +35,10 @@
 }
 
 .logo {
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
   object-fit: contain;
-  opacity: 0.2;
+  opacity: 0.22;
   transition: opacity var(--transition-fast);
 }
 
@@ -45,15 +48,13 @@
 
 .count {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--text-xs);
   font-weight: 600;
   color: var(--text-dim);
-  min-width: 12px;
-  text-align: center;
 }
 
 .chevron {
-  font-size: 10px;
+  font-size: 9px;
   color: var(--text-dim);
   transition: transform var(--transition-fast);
 }
@@ -62,13 +63,13 @@
   transform: rotate(180deg);
 }
 
-/* ── Panel ───────────────────────────────────────────── */
+/* ── Dropdown panel ──────────────────────────────────── */
 
 .panel {
   position: absolute;
   top: calc(100% + 6px);
   left: 0;
-  padding: 6px;
+  padding: 4px;
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
   background: var(--bg-surface);
@@ -77,14 +78,15 @@
 
 .grid {
   display: flex;
-  gap: 4px;
+  gap: 3px;
 }
 
 .option {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
+  gap: 5px;
+  height: 30px;
+  padding: 0 10px;
   border: 1px solid transparent;
   border-radius: calc(var(--radius-md) - 2px);
   background: transparent;
@@ -103,8 +105,8 @@
 }
 
 .optionLogo {
-  width: 14px;
-  height: 14px;
+  width: 13px;
+  height: 13px;
   object-fit: contain;
   flex-shrink: 0;
 }
