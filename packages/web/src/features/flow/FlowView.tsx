@@ -130,7 +130,9 @@ function TradeRow({ trade, isNew }: TradeRowProps) {
         {trade.iv != null ? fmtIv(trade.iv) : "–"}
       </span>
 
-      {trade.isBlock && <span className={styles.blockBadge}>BLOCK</span>}
+      <span className={styles.tagCell}>
+        {trade.isBlock ? <span className={styles.blockBadge}>BLOCK</span> : null}
+      </span>
     </div>
   );
 }
@@ -253,6 +255,7 @@ export default function FlowView() {
             <span>SIZE</span>
             <span>NOTIONAL</span>
             <span>IV</span>
+            <span>TAG</span>
           </div>
 
           <div className={styles.list}>

@@ -2,12 +2,11 @@
   position: relative;
 }
 
-.picker[open] {
+.picker[data-open] {
   z-index: 30;
 }
 
 .trigger {
-  list-style: none;
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
@@ -21,12 +20,8 @@
   transition: all var(--transition-fast);
 }
 
-.trigger::-webkit-details-marker {
-  display: none;
-}
-
 .trigger:hover,
-.picker[open] .trigger {
+.picker[data-open] .trigger {
   border-color: var(--border-default);
   background: color-mix(in srgb, var(--bg-elevated) 90%, transparent);
 }
