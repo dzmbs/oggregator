@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import type { EnrichedChainResponse } from "@shared/enriched";
 
 import { useAppStore } from "@stores/app-store";
@@ -174,17 +175,28 @@ function PcrChart({ data }: { data: ExpiryPcr[] }) {
 
 function OiByStrikeChart({ data, spotPrice }: { data: StrikeOi[]; spotPrice: number | null }) {
   const maxOi = Math.max(...data.map((d) => Math.max(d.callOi, d.putOi)), 1);
+  const listRef = useRef<HTMLDivElement | null>(null);
+  const spotRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (spotRef.current && listRef.current) {
+      const list = listRef.current;
+      const spot = spotRef.current;
+      const offset = spot.offsetTop - list.offsetTop - list.clientHeight / 2 + spot.clientHeight / 2;
+      list.scrollTop = Math.max(0, offset);
+    }
+  }, [data, spotPrice]);
 
   return (
     <div className={styles.card}>
       <div className={styles.cardTitle}>Open Interest by Strike</div>
-      <div className={styles.oiList}>
+      <div className={styles.oiList} ref={listRef}>
         {data.map((d) => {
           const isSpot = spotPrice != null && Math.abs(d.strike - spotPrice) / spotPrice < 0.005;
           const callPct = (d.callOi / maxOi) * 100;
           const putPct  = (d.putOi / maxOi) * 100;
           return (
-            <div key={d.strike} className={styles.oiRow} data-spot={isSpot || undefined}>
+            <div key={d.strike} className={styles.oiRow} data-spot={isSpot || undefined} ref={isSpot ? spotRef : undefined}>
               <div className={styles.oiStrike} data-spot={isSpot || undefined}>
                 {d.strike.toLocaleString()}
                 {isSpot && <span className={styles.spotTag}>SPOT</span>}
