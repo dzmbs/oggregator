@@ -8,18 +8,15 @@ export default function VenueIndicator() {
 
   return (
     <span className={styles.wrap}>
-      {allActive ? (
-        <span className={styles.label}>All venues</span>
-      ) : (
-        activeVenues.map((v) => {
-          const meta = VENUES[v];
-          return meta?.logo ? (
-            <img key={v} src={meta.logo} alt={meta.shortLabel} className={styles.logo} title={meta.label} />
-          ) : (
-            <span key={v} className={styles.tag}>{meta?.shortLabel ?? v}</span>
-          );
-        })
-      )}
+      {activeVenues.map((v) => {
+        const meta = VENUES[v];
+        return meta?.logo ? (
+          <img key={v} src={meta.logo} alt={meta.shortLabel} className={styles.logo} title={meta.label} />
+        ) : (
+          <span key={v} className={styles.tag}>{meta?.shortLabel ?? v}</span>
+        );
+      })}
+      <span className={styles.label}>{allActive ? "All venues" : `${activeVenues.length} venues`}</span>
     </span>
   );
 }
