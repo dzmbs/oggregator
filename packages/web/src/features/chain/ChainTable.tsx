@@ -196,15 +196,26 @@ export default function NewChainTable({
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const atmRef  = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const hasScrolledRef = useRef(false);
   const isMobile = useIsMobile();
 
+  // Reset scroll flag when the strike set changes (expiry switch)
+  const strikeCount = strikes.length;
+  const firstStrike = strikes[0]?.strike;
   useEffect(() => {
+    hasScrolledRef.current = false;
+  }, [strikeCount, firstStrike]);
+
+  // Scroll to ATM once per strike set, not on every live price tick
+  useEffect(() => {
+    if (hasScrolledRef.current) return;
     const timer = setTimeout(() => {
       if (atmRef.current && listRef.current) {
         const listRect = listRef.current.getBoundingClientRect();
         const atmRect  = atmRef.current.getBoundingClientRect();
         const offset   = atmRect.top - listRect.top - listRect.height / 3;
         listRef.current.scrollTop += offset;
+        hasScrolledRef.current = true;
       }
     }, 60);
     return () => clearTimeout(timer);
