@@ -2,11 +2,14 @@ import { useEffect, useRef } from "react";
 import type { EnrichedChainResponse } from "@shared/enriched";
 
 import { useAppStore } from "@stores/app-store";
-import { AssetPickerButton, Spinner } from "@components/ui";
+import { AssetPickerButton, Spinner, VenuePickerButton } from "@components/ui";
 import { fmtUsdCompact, formatExpiry } from "@lib/format";
 import { VENUES } from "@lib/venue-meta";
 import { DvolChart } from "@features/dvol";
 import { useAllExpiriesChain } from "./queries";
+import VolCurves from "./VolCurves";
+import DeltaCurves from "./DeltaCurves";
+import OiSummary from "./OiSummary";
 import styles from "./AnalyticsView.module.css";
 
 // ── Data aggregation helpers ────────────────────────────────────
@@ -259,6 +262,7 @@ export default function AnalyticsView() {
         <div className={styles.titleRow}>
           <span className={styles.title}>Analytics</span>
           <AssetPickerButton />
+          <VenuePickerButton />
         </div>
         <span className={styles.subtitle}>
           Aggregated across {chains.length} expiries · {activeVenues.length} venues
@@ -266,12 +270,15 @@ export default function AnalyticsView() {
       </div>
 
       <div className={styles.grid}>
+        <OiSummary chains={chains} />
         <VenueVolumeChart data={venueVolume} />
+        <VolCurves chains={chains} spotPrice={spotPrice} />
+        <DeltaCurves chains={chains} spotPrice={spotPrice} />
         <PcrChart data={expiryPcr} />
+        <OiByStrikeChart data={strikeOi} spotPrice={spotPrice} />
         <div className={styles.dvolWrap}>
           <DvolChart />
         </div>
-        <OiByStrikeChart data={strikeOi} spotPrice={spotPrice} />
       </div>
     </div>
   );
