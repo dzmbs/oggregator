@@ -184,11 +184,22 @@ export function detectStrategy(legs: Leg[]): string {
     }
   }
 
+  // Butterfly: 3 legs (buy 1 / sell 2× / buy 1) — detected before 4-leg
+  if (legs.length === 3 && sameExpiry) {
+    const uniqueStrikes = [...new Set(strikes)];
+    if (uniqueStrikes.length === 3 && types.every((t) => t === types[0])) {
+      const midLeg = sorted[1];
+      if (midLeg && midLeg.quantity === 2 && midLeg.direction !== sorted[0]!.direction) {
+        return types[0] === "call" ? "Call Butterfly" : "Put Butterfly";
+      }
+    }
+  }
+
   if (legs.length === 4 && sameExpiry) {
     const calls = sorted.filter((l) => l.type === "call");
     const puts = sorted.filter((l) => l.type === "put");
 
-    // Iron condor: sell put, buy put (lower), sell call, buy call (higher)
+    // Iron condor: buy put, sell put, sell call, buy call
     if (calls.length === 2 && puts.length === 2) {
       const buyPuts = puts.filter((l) => l.direction === "buy");
       const sellPuts = puts.filter((l) => l.direction === "sell");
@@ -198,12 +209,6 @@ export function detectStrategy(legs: Leg[]): string {
       if (buyPuts.length === 1 && sellPuts.length === 1 && buyCalls.length === 1 && sellCalls.length === 1) {
         return "Iron Condor";
       }
-    }
-
-    // Butterfly: 3 strikes, buy 1 / sell 2 / buy 1 (or inverse)
-    const uniqueStrikes = [...new Set(strikes)];
-    if (uniqueStrikes.length === 3 && types.every((t) => t === types[0])) {
-      return types[0] === "call" ? "Call Butterfly" : "Put Butterfly";
     }
   }
 

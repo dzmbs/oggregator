@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { useAppStore } from "@stores/app-store";
 import { AssetPickerButton, VenuePickerButton, EmptyState } from "@components/ui";
 import { useChainQuery, useExpiries } from "@features/chain/queries";
-import { fmtUsd, formatExpiry } from "@lib/format";
+import { fmtUsd, formatExpiry, dteDays } from "@lib/format";
 import { useStrategyStore } from "./strategy-store";
 import { computePayoff, computeMetrics, detectStrategy, type Leg } from "./payoff";
 import PayoffChart from "./PayoffChart";
@@ -35,7 +35,15 @@ export default function ArchitectView() {
   const expiry       = useAppStore((s) => s.expiry);
   const activeVenues = useAppStore((s) => s.activeVenues);
   const { data: expiriesData } = useExpiries(underlying);
-  const defaultExpiry = expiry || expiriesData?.expiries?.[1] || expiriesData?.expiries?.[0] || "";
+  const allExpiries = expiriesData?.expiries ?? [];
+
+  // Pick a sensible expiry: prefer the global selection if it has ≥2 DTE,
+  // otherwise find the first expiry with enough time for sell-side liquidity.
+  const defaultExpiry = (() => {
+    if (expiry && allExpiries.includes(expiry) && dteDays(expiry) >= 2) return expiry;
+    const viable = allExpiries.find((e) => dteDays(e) >= 3);
+    return viable ?? allExpiries[1] ?? allExpiries[0] ?? "";
+  })();
   const { data: chain } = useChainQuery(underlying, defaultExpiry, activeVenues, { refetchInterval: 10_000 });
 
   const legs      = useStrategyStore((s) => s.legs);
