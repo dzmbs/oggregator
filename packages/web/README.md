@@ -4,10 +4,11 @@ React 19 + Vite + TypeScript dashboard for cross-venue crypto options data. Mobi
 
 ## Views
 
-- **Chain** — Option chain with calls/puts mirrored around strike, best-price highlighting, IV chips, spread pills, expandable per-venue detail
+- **Chain** — Option chain with calls/puts mirrored around strike, best-price highlighting, IV chips, spread pills, expandable per-venue detail, and quick trade
+- **Builder** — Multi-leg options builder with templates, custom legs, live repricing, draggable payoff strikes, and venue comparison
 - **Surface** — IV surface heatmap (expiry × delta grid) with term structure indicator
-- **Flow** — Live options trade flow with whale detection (🐋 $100K+) and block trade badges
-- **Analytics** — OI by venue, put/call ratio by expiry, DVOL chart with HV overlay, OI by strike
+- **Flow** — Live options trade flow with whale detection (🐋 $100K+) plus an institutional RFQ / block trade mode
+- **Analytics** — OI by venue, call/put summary, put/call ratio by expiry, DVOL chart with HV overlay, OI by strike, and cross-expiry curves
 - **GEX** — Gamma exposure by strike showing dealer positioning (magnet vs accelerator)
 
 ## Mobile

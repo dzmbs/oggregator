@@ -78,10 +78,11 @@ Data flows: **Exchange WS → Core Adapter → Normalizer → Enrichment → Ser
 
 The web dashboard includes:
 
-- **Chain** — Cross-venue option chain with best-price highlighting, IV chips, spread pills, and expandable per-venue detail
+- **Chain** — Cross-venue option chain with best-price highlighting, IV chips, spread pills, expandable per-venue detail, and quick trade
+- **Builder** — Multi-leg options builder with templates, custom legs, live repricing, payoff chart editing, and venue comparison
 - **Surface** — IV surface heatmap across delta levels and expiries with term structure indicator
-- **Flow** — Live options trade flow with whale detection and block trade badges
-- **Analytics** — OI by venue, put/call ratio by expiry, DVOL chart with HV overlay, OI by strike
+- **Flow** — Live options trade flow plus institutional RFQ / block trade mode
+- **Analytics** — OI by venue, call/put summary, put/call ratio by expiry, DVOL chart with HV overlay, OI by strike, and cross-expiry curves
 - **GEX** — Gamma exposure by strike with dealer positioning explanation
 
 Mobile responsive with bottom navigation, shared toolbar, and full-screen settings drawer.
