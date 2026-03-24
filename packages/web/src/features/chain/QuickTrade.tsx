@@ -1,6 +1,5 @@
 import type { EnrichedSide } from "@shared/enriched";
-import { VENUES } from "@lib/venue-meta";
-import { fmtUsd, fmtIv } from "@lib/format";
+import { VenueCard, type VenueCardDetail } from "@components/ui";
 import { useStrategyStore } from "@features/architect/strategy-store";
 import { useAppStore } from "@stores/app-store";
 import styles from "./QuickTrade.module.css";
@@ -53,9 +52,7 @@ export default function QuickTrade({ strike, type, direction, side, onClose }: Q
       entryPrice: v.price, venue: v.venueId,
       delta: v.delta, gamma: v.gamma, theta: v.theta, vega: v.vega, iv: v.iv,
     });
-    if (!isOnArchitect) {
-      setActiveTab("architect");
-    }
+    if (!isOnArchitect) setActiveTab("architect");
     onClose();
   }
 
@@ -74,42 +71,31 @@ export default function QuickTrade({ strike, type, direction, side, onClose }: Q
 
       <div className={styles.venueList}>
         {venues.map((v, i) => {
-          const meta = VENUES[v.venueId];
-          const isBest = i === 0;
+          const detail: VenueCardDetail = {
+            label: `${strike}`,
+            strike,
+            type,
+            direction,
+            price: v.price,
+            spreadPct: v.spreadPct,
+            iv: v.iv,
+            size: v.size,
+            spreadCost: v.spreadCost,
+          };
+
           return (
-            <div key={v.venueId} className={styles.venueCard} data-best={isBest || undefined}>
-              <div className={styles.venueCardHeader}>
-                {meta?.logo && <img src={meta.logo} className={styles.venueLogo} alt="" />}
-                <span className={styles.venueName}>{meta?.label ?? v.venueId}</span>
-                {isBest && <span className={styles.bestTag}>BEST</span>}
-                <span className={styles.venuePrice}>{fmtUsd(v.price)}</span>
-              </div>
-
-              <div className={styles.venueDetails}>
-                <div className={styles.detailRow}>
-                  <span className={styles.detailLabel}>IV</span>
-                  <span className={styles.detailValue}>{v.iv != null ? fmtIv(v.iv) : "–"}</span>
-                  <span className={styles.detailLabel}>Spread</span>
-                  <span className={styles.detailValue}>{v.spreadPct != null ? `${v.spreadPct.toFixed(1)}%` : "–"}</span>
-                </div>
-                <div className={styles.detailRow}>
-                  <span className={styles.detailLabel}>Delta</span>
-                  <span className={styles.detailValue}>{v.delta?.toFixed(3) ?? "–"}</span>
-                  <span className={styles.detailLabel}>Size</span>
-                  <span className={styles.detailValue}>{v.size != null ? v.size.toFixed(1) : "–"}</span>
-                </div>
-                {v.spreadCost != null && (
-                  <div className={styles.detailRow}>
-                    <span className={styles.detailLabel}>Spread cost</span>
-                    <span className={styles.detailValue}>{fmtUsd(v.spreadCost)}</span>
-                  </div>
-                )}
-              </div>
-
-              <button className={styles.addBtn} onClick={() => handleAdd(v)}>
-                {isOnArchitect ? "+ Add Leg" : "+ Architect"}
-              </button>
-            </div>
+            <VenueCard
+              key={v.venueId}
+              venueId={v.venueId}
+              total={v.price}
+              isBest={i === 0}
+              available
+              details={[detail]}
+              action={{
+                label: isOnArchitect ? "+ Add Leg" : "+ Architect",
+                onClick: () => handleAdd(v),
+              }}
+            />
           );
         })}
         {venues.length === 0 && (

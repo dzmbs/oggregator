@@ -1,7 +1,7 @@
 .view {
   flex: 1;
-  display: grid;
-  grid-template-columns: 1fr 280px;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
 }
 
@@ -337,6 +337,34 @@
   inset: 0;
   width: 100%;
   height: 100%;
+}
+
+/* ── Compare venues button ────────────────────────────── */
+
+.compareBtn {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  padding: 10px 0;
+  border: 1px solid var(--accent-primary);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--accent-primary) 8%, transparent);
+  color: var(--accent-primary);
+  cursor: pointer;
+  text-align: center;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.compareBtn:hover {
+  background: color-mix(in srgb, var(--accent-primary) 18%, transparent);
+}
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 45;
 }
 
 /* ── Mobile ──────────────────────────────────────────── */

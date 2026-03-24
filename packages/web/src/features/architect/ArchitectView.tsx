@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 import { useAppStore } from "@stores/app-store";
 import { AssetPickerButton, VenuePickerButton, EmptyState } from "@components/ui";
@@ -7,7 +7,7 @@ import { fmtUsd, formatExpiry } from "@lib/format";
 import { useStrategyStore } from "./strategy-store";
 import { computePayoff, computeMetrics, detectStrategy, type Leg } from "./payoff";
 import PayoffChart from "./PayoffChart";
-import VenueComparison from "./VenueComparison";
+import VenueSlideover from "./VenueSlideover";
 import StrategyTemplates from "./StrategyTemplates";
 import LegInput from "./LegInput";
 import styles from "./Architect.module.css";
@@ -41,6 +41,7 @@ export default function ArchitectView() {
   const legs      = useStrategyStore((s) => s.legs);
   const clearLegs = useStrategyStore((s) => s.clearLegs);
   const removeLeg = useStrategyStore((s) => s.removeLeg);
+  const [showVenues, setShowVenues] = useState(false);
 
   const spotPrice = chain?.stats.spotIndexUsd ?? chain?.stats.forwardPriceUsd ?? 0;
 
@@ -141,10 +142,24 @@ export default function ArchitectView() {
             </>
           )}
         </div>
+        {legs.length > 0 && (
+          <button className={styles.compareBtn} onClick={() => setShowVenues(true)}>
+            Compare Venues
+          </button>
+        )}
       </div>
 
-      {/* Right sidebar — always visible */}
-      <VenueComparison legs={legs} chain={chain ?? null} activeVenues={activeVenues} />
+      {showVenues && (
+        <>
+          <div className={styles.backdrop} onClick={() => setShowVenues(false)} />
+          <VenueSlideover
+            legs={legs}
+            chain={chain ?? null}
+            activeVenues={activeVenues}
+            onClose={() => setShowVenues(false)}
+          />
+        </>
+      )}
     </div>
   );
 }
