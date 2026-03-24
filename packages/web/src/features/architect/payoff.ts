@@ -145,6 +145,67 @@ export function computeMetrics(legs: Leg[], spotPrice: number): StrategyMetrics 
   };
 }
 
+/**
+ * Compute P&L at a point in time before expiry using Black-Scholes approximation.
+ * Uses leg IV + shift to estimate option value at the given DTE.
+ */
+function bsApprox(type: "call" | "put", S: number, K: number, iv: number, dte: number): number {
+  if (dte <= 0) return type === "call" ? Math.max(0, S - K) : Math.max(0, K - S);
+  const T = dte / 365;
+  const sigma = iv;
+  const sqrtT = Math.sqrt(T);
+  const d1 = (Math.log(S / K) + 0.5 * sigma * sigma * T) / (sigma * sqrtT);
+  const d2 = d1 - sigma * sqrtT;
+  const nd1 = 0.5 * (1 + erf(d1 / Math.SQRT2));
+  const nd2 = 0.5 * (1 + erf(d2 / Math.SQRT2));
+  if (type === "call") return S * nd1 - K * nd2;
+  return K * (1 - nd2) - S * (1 - nd1);
+}
+
+function erf(x: number): number {
+  const a1 = 0.254829592, a2 = -0.284496736, a3 = 1.421413741, a4 = -1.453152027, a5 = 1.061405429, p = 0.3275911;
+  const sign = x < 0 ? -1 : 1;
+  const t = 1 / (1 + p * Math.abs(x));
+  const y = 1 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
+  return sign * y;
+}
+
+/** Compute scenario P&L with IV shift and/or DTE shift. */
+export function computeScenarioPayoff(
+  legs: Leg[],
+  spotPrice: number,
+  ivShift: number,
+  dteShift: number,
+  baseDte: number,
+  numPoints = 200,
+): PayoffPoint[] {
+  if (legs.length === 0) return [];
+  const strikes = legs.map((l) => l.strike);
+  const minStrike = Math.min(...strikes);
+  const maxStrike = Math.max(...strikes);
+  const rangeCenter = spotPrice;
+  const rangeHalf = Math.max((maxStrike - minStrike) * 1.5, spotPrice * 0.3);
+  const low = Math.max(0, rangeCenter - rangeHalf);
+  const high = rangeCenter + rangeHalf;
+  const step = (high - low) / numPoints;
+
+  const targetDte = Math.max(0, baseDte + dteShift);
+
+  const points: PayoffPoint[] = [];
+  for (let i = 0; i <= numPoints; i++) {
+    const price = low + i * step;
+    let totalPnl = 0;
+    for (const leg of legs) {
+      const sign = leg.direction === "buy" ? 1 : -1;
+      const iv = (leg.iv ?? 0.5) + ivShift;
+      const optionVal = bsApprox(leg.type, price, leg.strike, Math.max(0.01, iv), targetDte);
+      totalPnl += sign * (optionVal - leg.entryPrice) * leg.quantity;
+    }
+    points.push({ underlyingPrice: price, pnl: totalPnl });
+  }
+  return points;
+}
+
 /** Detect common strategy names from leg configuration. */
 export function detectStrategy(legs: Leg[]): string {
   if (legs.length === 0) return "Empty";

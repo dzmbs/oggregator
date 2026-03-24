@@ -57,7 +57,7 @@ function off(chain: EnrichedChainResponse, atm: number, n: number): number {
   return sorted[Math.max(0, Math.min(sorted.length - 1, idx + n))]!;
 }
 
-const TEMPLATES: StrategyTemplate[] = [
+export const TEMPLATES: StrategyTemplate[] = [
   { name: "Long Call", sentiment: "bullish", description: "Unlimited upside, limited risk",
     build: (c, e) => { const a = findAtmStrike(c); const p = getBestPrice(c, a, "call", "buy"); return p ? [ml(p, { type: "call", direction: "buy", strike: a, expiry: e, quantity: 1 })] : []; } },
   { name: "Long Put", sentiment: "bearish", description: "Profit from price drops",
@@ -159,7 +159,17 @@ export default function StrategyTemplates({ chain, expiry, underlying }: Props) 
 
       <div className={styles.templateGrid}>
         {filtered.map((t) => (
-          <button key={t.name} className={styles.templateCard} data-sentiment={t.sentiment} onClick={() => handleApply(t)}>
+          <button
+            key={t.name}
+            className={styles.templateCard}
+            data-sentiment={t.sentiment}
+            onClick={() => handleApply(t)}
+            draggable
+            onDragStart={(e) => {
+              e.dataTransfer.setData("text/plain", t.name);
+              e.dataTransfer.effectAllowed = "copy";
+            }}
+          >
             <MiniPayoff shape={STRATEGY_SHAPES[t.name] ?? [[0, 0], [1, 0]]} width={140} height={56} />
             <span className={styles.templateCardName}>{t.name}</span>
             <span className={styles.templateCardDesc}>{t.description}</span>

@@ -15,6 +15,10 @@ interface PayoffChartProps {
   strikes?:     number[];
   /** Called when user drags a leg handle to a new strike */
   onLegStrikeDrag?: (legId: string, newStrike: number) => void;
+  /** Scenario overlay: IV-shifted payoff curve */
+  scenarioIvPoints?:  PayoffPoint[];
+  /** Scenario overlay: DTE-shifted payoff curve */
+  scenarioDtePoints?: PayoffPoint[];
 }
 
 interface HoverInfo {
@@ -33,13 +37,14 @@ interface DragState {
 export default function PayoffChart({
   points, breakevens, spotPrice, legs, maxProfit, maxLoss,
   strikes = [], onLegStrikeDrag,
+  scenarioIvPoints, scenarioDtePoints,
 }: PayoffChartProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [hover, setHover] = useState<HoverInfo | null>(null);
   const [drag, setDrag] = useState<DragState | null>(null);
-  const dataRef = useRef({ points, breakevens, spotPrice, legs, maxProfit, maxLoss, strikes });
-  dataRef.current = { points, breakevens, spotPrice, legs, maxProfit, maxLoss, strikes };
+  const dataRef = useRef({ points, breakevens, spotPrice, legs, maxProfit, maxLoss, strikes, scenarioIvPoints, scenarioDtePoints });
+  dataRef.current = { points, breakevens, spotPrice, legs, maxProfit, maxLoss, strikes, scenarioIvPoints, scenarioDtePoints };
 
   // Layout constants
   const PAD = { top: 24, right: 55, bottom: 28, left: 10 };
@@ -132,6 +137,28 @@ export default function PayoffChart({
       ctx.lineTo(toX(curr.underlyingPrice), toY(curr.pnl));
       ctx.stroke();
     }
+
+    // Scenario overlay curves
+    const { scenarioIvPoints: ivPts, scenarioDtePoints: dtePts } = dataRef.current;
+    const drawScenarioCurve = (scenPts: PayoffPoint[], color: string) => {
+      if (!scenPts || scenPts.length < 2) return;
+      ctx.setLineDash([4, 3]);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.5;
+      ctx.lineJoin = "round";
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      let started = false;
+      for (const p of scenPts) {
+        const sx = toX(p.underlyingPrice);
+        const sy = toY(p.pnl);
+        if (!started) { ctx.moveTo(sx, sy); started = true; } else { ctx.lineTo(sx, sy); }
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
+    };
+    if (ivPts && ivPts.length > 0) drawScenarioCurve(ivPts, "rgba(174, 159, 249, 0.6)");
+    if (dtePts && dtePts.length > 0) drawScenarioCurve(dtePts, "rgba(254, 249, 160, 0.55)");
 
     // Spot marker
     if (spot >= layout.minX && spot <= layout.maxX) {
@@ -292,7 +319,7 @@ export default function PayoffChart({
 
   useEffect(() => {
     draw(hover, drag);
-  }, [points, breakevens, spotPrice, legs, maxProfit, maxLoss, hover, drag, draw]);
+  }, [points, breakevens, spotPrice, legs, maxProfit, maxLoss, hover, drag, draw, scenarioIvPoints, scenarioDtePoints]);
 
   useEffect(() => {
     const container = containerRef.current;
