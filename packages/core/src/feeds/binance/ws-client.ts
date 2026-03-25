@@ -1,4 +1,5 @@
 import WebSocket from 'ws';
+import { BINANCE_MARK_WS_URL, BINANCE_REST_BASE_URL } from '../shared/endpoints.js';
 import { SdkBaseAdapter, type CachedInstrument, type LiveQuote } from '../shared/sdk-base.js';
 import type { VenueId } from '../../types/common.js';
 import { feedLogger } from '../../utils/logger.js';
@@ -10,9 +11,6 @@ import {
 } from './types.js';
 
 const log = feedLogger('binance');
-
-const EAPI_BASE = 'https://eapi.binance.com';
-const WS_BASE = 'wss://fstream.binance.com/market/stream';
 
 /**
  * Binance European Options (EAPI) adapter.
@@ -166,7 +164,7 @@ export class BinanceWsAdapter extends SdkBaseAdapter {
       if (this.ws?.readyState === WebSocket.OPEN) { resolve(); return; }
 
       this.shouldReconnect = true;
-      this.ws = new WebSocket(WS_BASE);
+      this.ws = new WebSocket(BINANCE_MARK_WS_URL);
 
       this.ws.on('open', () => {
         log.info('ws connected');
@@ -368,7 +366,7 @@ export class BinanceWsAdapter extends SdkBaseAdapter {
   // ── helpers ───────────────────────────────────────────────────
 
   private async fetchEapi(path: string): Promise<unknown> {
-    const res = await fetch(`${EAPI_BASE}${path}`);
+    const res = await fetch(`${BINANCE_REST_BASE_URL}${path}`);
     if (!res.ok) throw new Error(`Binance EAPI ${path} returned ${res.status}`);
     return res.json() as Promise<unknown>;
   }

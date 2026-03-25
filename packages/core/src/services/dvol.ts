@@ -1,10 +1,9 @@
 import { z } from 'zod';
+import { DERIBIT_WS_URL } from '../feeds/shared/endpoints.js';
 import { JsonRpcWsClient } from '../feeds/shared/jsonrpc-client.js';
 import { feedLogger } from '../utils/logger.js';
 
 const log = feedLogger('dvol');
-
-const DERIBIT_WS = 'wss://www.deribit.com/ws/api/v2';
 
 // ── Types ─────────────────────────────────────────────────────
 
@@ -65,7 +64,7 @@ export class DvolService {
   async start(currencies: string[] = ['BTC', 'ETH']): Promise<void> {
     this.currencies = currencies;
 
-    this.rpc = new JsonRpcWsClient(DERIBIT_WS, 'dvol', {
+    this.rpc = new JsonRpcWsClient(DERIBIT_WS_URL, 'dvol', {
       heartbeatIntervalSec: 30,
     });
 

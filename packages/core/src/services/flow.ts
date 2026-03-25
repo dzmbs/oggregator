@@ -1,5 +1,15 @@
 import WebSocket from 'ws';
 import { z } from 'zod';
+import {
+  BINANCE_OPTIONS_WS_URL,
+  BYBIT_REST_BASE_URL,
+  BYBIT_WS_URL,
+  DERIBIT_REST_BASE_URL,
+  DERIBIT_WS_URL,
+  DERIVE_WS_URL,
+  OKX_REST_BASE_URL,
+  OKX_WS_URL,
+} from '../feeds/shared/endpoints.js';
 import { feedLogger } from '../utils/logger.js';
 import { backoffDelay } from '../utils/reconnect.js';
 import type { VenueId } from '../types/common.js';
@@ -59,19 +69,30 @@ export class FlowService {
   }
 
   private async seedFromRest(underlying: string): Promise<void> {
+    const seedStreams = VENUE_STREAMS.filter((stream) => stream.seed != null);
     const results = await Promise.allSettled(
-      VENUE_STREAMS.filter(s => s.seed != null).map(s => s.seed!(underlying)),
+      seedStreams.map((stream) => stream.seed!(underlying)),
     );
 
     let total = 0;
-    for (const r of results) {
-      if (r.status === 'fulfilled' && r.value.length > 0) {
-        this.pushTrades(underlying, r.value);
-        total += r.value.length;
+    for (const [index, result] of results.entries()) {
+      const stream = seedStreams[index];
+      if (!stream) continue;
+
+      if (result.status === 'rejected') {
+        log.warn({ venue: stream.venue, underlying, err: String(result.reason) }, 'trade seed failed');
+        continue;
       }
+
+      const count = result.value.length;
+      log.info({ venue: stream.venue, underlying, count }, 'trade seed completed');
+
+      if (count === 0) continue;
+      this.pushTrades(underlying, result.value);
+      total += count;
     }
 
-    if (total > 0) log.info({ underlying, count: total }, 'seeded trades from REST');
+    if (total > 0) log.info({ underlying, count: total }, 'seeded trades total');
   }
 
   getTrades(underlying: string, minNotional = 0): TradeEvent[] {
@@ -239,7 +260,7 @@ function deribitTradeToEvent(raw: z.infer<typeof DeribitTradeSchema>, underlying
 const VENUE_STREAMS: VenueStream[] = [
   {
     venue: 'deribit',
-    url: 'wss://www.deribit.com/ws/api/v2',
+    url: DERIBIT_WS_URL,
     connect(ws, underlying) {
       ws.send(JSON.stringify({
         jsonrpc: '2.0', id: 1,
@@ -263,7 +284,7 @@ const VENUE_STREAMS: VenueStream[] = [
       return trades;
     },
     async seed(underlying) {
-      const ws = new WebSocket('wss://www.deribit.com/ws/api/v2');
+      const ws = new WebSocket(DERIBIT_WS_URL);
       return new Promise<TradeEvent[]>((resolve) => {
         ws.on('open', () => {
           ws.send(JSON.stringify({ jsonrpc: '2.0', id: 1,
@@ -292,7 +313,7 @@ const VENUE_STREAMS: VenueStream[] = [
   },
   {
     venue: 'okx',
-    url: 'wss://ws.okx.com:8443/ws/v5/public',
+    url: OKX_WS_URL,
     // OKX drops idle connections — must send "ping" text every 25s
     startKeepalive(ws) {
       return setInterval(() => { if (ws.readyState === WebSocket.OPEN) ws.send('ping'); }, 25_000);
@@ -324,7 +345,7 @@ const VENUE_STREAMS: VenueStream[] = [
     async seed(underlying) {
       try {
         const res = await fetch(
-          `https://www.okx.com/api/v5/market/option/instrument-family-trades?instFamily=${underlying}-USD`,
+          `${OKX_REST_BASE_URL}/api/v5/market/option/instrument-family-trades?instFamily=${underlying}-USD`,
           { signal: AbortSignal.timeout(10_000) },
         );
         const data = await res.json() as Record<string, unknown>;
@@ -355,7 +376,7 @@ const VENUE_STREAMS: VenueStream[] = [
   },
   {
     venue: 'bybit',
-    url: 'wss://stream.bybit.com/v5/public/option',
+    url: BYBIT_WS_URL,
     // Bybit requires JSON ping every 20s — not WS-level ping frames
     startKeepalive(ws) {
       return setInterval(() => { if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ op: 'ping' })); }, 20_000);
@@ -385,7 +406,7 @@ const VENUE_STREAMS: VenueStream[] = [
     },
     async seed(underlying) {
       try {
-        const res = await fetch(`https://api.bybit.com/v5/market/recent-trade?category=option&baseCoin=${underlying}&limit=50`, { signal: AbortSignal.timeout(10_000) });
+        const res = await fetch(`${BYBIT_REST_BASE_URL}/v5/market/recent-trade?category=option&baseCoin=${underlying}&limit=50`, { signal: AbortSignal.timeout(10_000) });
         const data = await res.json() as Record<string, unknown>;
         const result = data['result'] as Record<string, unknown> | undefined;
         const list = result?.['list'] as Array<Record<string, unknown>> | undefined;
@@ -418,7 +439,7 @@ const VENUE_STREAMS: VenueStream[] = [
   },
   {
     venue: 'binance',
-    url: 'wss://fstream.binance.com/public/stream',
+    url: BINANCE_OPTIONS_WS_URL,
     connect(ws, underlying) {
       ws.send(JSON.stringify({
         method: 'SUBSCRIBE',
@@ -449,7 +470,7 @@ const VENUE_STREAMS: VenueStream[] = [
   },
   {
     venue: 'derive',
-    url: 'wss://api.lyra.finance/ws',
+    url: DERIVE_WS_URL,
     connect(ws, underlying) {
       ws.send(JSON.stringify({
         jsonrpc: '2.0', id: 1,
@@ -482,7 +503,7 @@ const VENUE_STREAMS: VenueStream[] = [
       return trades;
     },
     async seed(underlying) {
-      const ws = new WebSocket('wss://api.lyra.finance/ws');
+      const ws = new WebSocket(DERIVE_WS_URL);
       return new Promise<TradeEvent[]>((resolve) => {
         let settled = false;
         const finish = (trades: TradeEvent[]) => {
@@ -502,7 +523,8 @@ const VENUE_STREAMS: VenueStream[] = [
               instrument_type: 'option',
               page: 999999,
               page_size: 100,
-            },
+            }, // last page = newest trades per Derive docs
+
           }));
         });
 

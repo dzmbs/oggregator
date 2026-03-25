@@ -1,3 +1,4 @@
+import { DERIBIT_WS_URL } from '../shared/endpoints.js';
 import { JsonRpcWsClient } from '../shared/jsonrpc-client.js';
 import { SdkBaseAdapter, type CachedInstrument, type LiveQuote } from '../shared/sdk-base.js';
 import type { VenueId } from '../../types/common.js';
@@ -17,8 +18,6 @@ import {
 import { z } from 'zod';
 
 const log = feedLogger('deribit');
-
-const DERIBIT_WS_URL = 'wss://www.deribit.com/ws/api/v2';
 
 // Deribit charges 3k credits per subscribe call regardless of channel count,
 // and supports up to 500 channels per call. Batching large keeps call count low.

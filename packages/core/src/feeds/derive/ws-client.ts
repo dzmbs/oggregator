@@ -1,3 +1,4 @@
+import { DERIVE_WS_URL } from '../shared/endpoints.js';
 import { JsonRpcWsClient } from '../shared/jsonrpc-client.js';
 import { SdkBaseAdapter, type CachedInstrument, type LiveQuote } from '../shared/sdk-base.js';
 import type { VenueId } from '../../types/common.js';
@@ -8,7 +9,6 @@ import { DeriveTickerSchema, DeriveInstrumentSchema, type DeriveTicker, type Der
 const log = feedLogger('derive');
 
 // Production still uses the legacy lyra.finance domain
-const DERIVE_WS_URL = 'wss://api.lyra.finance/ws';
 const CURRENCIES = ['BTC', 'ETH', 'SOL', 'HYPE'];
 
 /**

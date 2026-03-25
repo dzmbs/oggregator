@@ -1,9 +1,8 @@
 import { z } from 'zod';
+import { BYBIT_REST_BASE_URL } from '../feeds/shared/endpoints.js';
 import { feedLogger } from '../utils/logger.js';
 
 const log = feedLogger('spot');
-
-const BYBIT_TICKER_URL = 'https://api.bybit.com/v5/market/tickers';
 
 export interface SpotSnapshot {
   symbol: string;
@@ -58,7 +57,7 @@ export class SpotService {
   private async poll(): Promise<void> {
     for (const symbol of this.symbols) {
       try {
-        const res = await fetch(`${BYBIT_TICKER_URL}?category=spot&symbol=${symbol}`);
+        const res = await fetch(`${BYBIT_REST_BASE_URL}/v5/market/tickers?category=spot&symbol=${symbol}`);
         if (!res.ok) { log.warn({ symbol, status: res.status }, 'spot fetch failed'); continue; }
 
         const parsed = BybitSpotTickerSchema.safeParse(await res.json());

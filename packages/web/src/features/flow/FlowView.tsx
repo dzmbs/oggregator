@@ -9,9 +9,8 @@ import type { TradeEvent } from "./queries";
 import BlockFlowView from "./BlockFlowView";
 import styles from "./FlowView.module.css";
 
-// Notional thresholds for visual treatment
-const WHALE_THRESHOLD   = 100_000; // $100k+ notional
-const LARGE_THRESHOLD   = 25_000;  // $25k+ notional
+const WHALE_THRESHOLD = 100_000;
+const SHARK_THRESHOLD = 10_000;
 
 const MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
 
@@ -83,24 +82,33 @@ interface TradeRowProps {
   isNew: boolean;
 }
 
+function getTradeTier(notionalUsd: number): "shrimp" | "shark" | "whale" {
+  if (notionalUsd >= WHALE_THRESHOLD) return "whale";
+  if (notionalUsd >= SHARK_THRESHOLD) return "shark";
+  return "shrimp";
+}
+
+function getTradeBadge(tier: "shrimp" | "shark" | "whale"): string {
+  if (tier === "whale") return "🐋";
+  if (tier === "shark") return "🦈";
+  return "🦐";
+}
+
 function TradeRow({ trade, isNew }: TradeRowProps) {
-  const meta      = VENUES[trade.venue];
+  const meta = VENUES[trade.venue];
   const { strike, type } = parseStrikeAndType(trade.instrument);
-  const expiry    = parseExpiry(trade.instrument);
-  const not       = notional(trade);
-  const isWhale   = not >= WHALE_THRESHOLD;
-  const isLarge   = not >= LARGE_THRESHOLD;
-  const sizeClass = isWhale ? "whale" : isLarge ? "large" : undefined;
+  const expiry = parseExpiry(trade.instrument);
+  const not = notional(trade);
+  const tier = getTradeTier(not);
 
   return (
     <div
       className={styles.row}
       data-side={trade.side}
       data-new={isNew || undefined}
-      data-size={sizeClass}
+      data-size={tier}
       data-block={trade.isBlock || undefined}
     >
-      {isWhale && <span className={styles.whaleIcon}>🐋</span>}
 
       <span className={styles.time}>{formatTime(trade.timestamp)}</span>
 
@@ -121,7 +129,7 @@ function TradeRow({ trade, isNew }: TradeRowProps) {
 
       <span className={styles.size}>{trade.size}</span>
 
-      <span className={styles.notional} data-size={sizeClass}>
+      <span className={styles.notional} data-size={tier}>
         {fmtNotional(not)}
       </span>
 
@@ -131,6 +139,7 @@ function TradeRow({ trade, isNew }: TradeRowProps) {
 
       <span className={styles.tagCell}>
         {trade.isBlock ? <span className={styles.blockBadge}>BLOCK</span> : null}
+        <span className={styles.tradeBadge} data-kind={tier}>{getTradeBadge(tier)}</span>
       </span>
     </div>
   );

@@ -1,4 +1,5 @@
 import WebSocket from 'ws';
+import { OKX_REST_BASE_URL, OKX_WS_URL } from '../shared/endpoints.js';
 import { SdkBaseAdapter, type CachedInstrument, type LiveQuote } from '../shared/sdk-base.js';
 import type { VenueId } from '../../types/common.js';
 import { EMPTY_GREEKS, type OptionGreeks } from '../../core/types.js';
@@ -18,9 +19,6 @@ import {
 } from './types.js';
 
 const log = feedLogger('okx');
-
-const REST_BASE = 'https://www.okx.com';
-const WS_URL = 'wss://ws.okx.com:8443/ws/v5/public';
 
 /**
  * OKX options adapter using raw WebSocket + fetch.
@@ -227,7 +225,7 @@ export class OkxWsAdapter extends SdkBaseAdapter {
   private connectWs(): Promise<void> {
     return new Promise((resolve, reject) => {
       this.shouldReconnect = true;
-      this.ws = new WebSocket(WS_URL);
+      this.ws = new WebSocket(OKX_WS_URL);
 
       this.ws.on('open', () => {
         log.info('ws connected');
@@ -463,7 +461,7 @@ export class OkxWsAdapter extends SdkBaseAdapter {
   // ── helpers ───────────────────────────────────────────────────
 
   private async fetchOkxApi(path: string, params: Record<string, string>): Promise<unknown[]> {
-    const url = new URL(path, REST_BASE);
+    const url = new URL(path, OKX_REST_BASE_URL);
     for (const [k, v] of Object.entries(params)) {
       url.searchParams.set(k, v);
     }

@@ -1,4 +1,5 @@
 import WebSocket from 'ws';
+import { BYBIT_REST_BASE_URL, BYBIT_WS_URL } from '../shared/endpoints.js';
 import { SdkBaseAdapter, type CachedInstrument, type LiveQuote } from '../shared/sdk-base.js';
 import type { VenueId } from '../../types/common.js';
 import { feedLogger } from '../../utils/logger.js';
@@ -15,8 +16,6 @@ import {
 
 const log = feedLogger('bybit');
 
-const REST_BASE = 'https://api.bybit.com';
-const WS_URL = 'wss://stream.bybit.com/v5/public/option';
 const MAX_TOPICS_PER_BATCH = 200;
 
 /**
@@ -60,7 +59,7 @@ export class BybitWsAdapter extends SdkBaseAdapter {
       let cursor: string | undefined;
 
       do {
-        const url = new URL('/v5/market/instruments-info', REST_BASE);
+        const url = new URL('/v5/market/instruments-info', BYBIT_REST_BASE_URL);
         url.searchParams.set('category', 'option');
         url.searchParams.set('baseCoin', baseCoin);
         url.searchParams.set('limit', '1000');
@@ -133,7 +132,7 @@ export class BybitWsAdapter extends SdkBaseAdapter {
 
     for (const baseCoin of baseCoins) {
       try {
-        const url = new URL('/v5/market/tickers', REST_BASE);
+        const url = new URL('/v5/market/tickers', BYBIT_REST_BASE_URL);
         url.searchParams.set('category', 'option');
         url.searchParams.set('baseCoin', baseCoin);
 
@@ -205,7 +204,7 @@ export class BybitWsAdapter extends SdkBaseAdapter {
   private connectWs(): Promise<void> {
     return new Promise((resolve, reject) => {
       this.shouldReconnect = true;
-      this.ws = new WebSocket(WS_URL);
+      this.ws = new WebSocket(BYBIT_WS_URL);
 
       this.ws.on('open', () => {
         log.info('ws connected');

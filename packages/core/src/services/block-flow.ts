@@ -1,5 +1,13 @@
 import WebSocket from 'ws';
 import { z } from 'zod';
+import {
+  BINANCE_REST_BASE_URL,
+  BYBIT_WS_URL,
+  DERIBIT_REST_BASE_URL,
+  DERIBIT_WS_URL,
+  DERIVE_REST_BASE_URL,
+  OKX_REST_BASE_URL,
+} from '../feeds/shared/endpoints.js';
 import { feedLogger } from '../utils/logger.js';
 import { backoffDelay } from '../utils/reconnect.js';
 import type { VenueId } from '../types/common.js';
@@ -141,7 +149,7 @@ function deribitBlockStream(): BlockVenueStream {
 
   function connect(attempt = 0): void {
     if (!shouldReconnect) return;
-    ws = new WebSocket('wss://www.deribit.com/ws/api/v2');
+    ws = new WebSocket(DERIBIT_WS_URL);
     let didOpen = false;
 
     ws.on('open', () => {
@@ -211,7 +219,7 @@ function deribitBlockStream(): BlockVenueStream {
   async function seed(): Promise<BlockTradeEvent[]> {
     try {
       const res = await fetch(
-        'https://www.deribit.com/api/v2/public/get_block_rfq_trades?currency=BTC&count=50',
+        `${DERIBIT_REST_BASE_URL}/api/v2/public/get_block_rfq_trades?currency=BTC&count=50`,
         { signal: AbortSignal.timeout(10_000) },
       );
       const json = await res.json() as Record<string, unknown>;
@@ -299,7 +307,7 @@ function bybitBlockStream(): BlockVenueStream {
 
   function connect(attempt = 0): void {
     if (!shouldReconnect) return;
-    ws = new WebSocket('wss://stream.bybit.com/v5/public/option');
+    ws = new WebSocket(BYBIT_WS_URL);
     let didOpen = false;
 
     ws.on('open', () => {
@@ -395,7 +403,7 @@ function okxBlockPoller(): BlockVenuePoller {
     intervalMs: 90_000,
     async poll() {
       try {
-        const res = await fetch('https://www.okx.com/api/v5/rfq/public-trades?limit=100', {
+        const res = await fetch(`${OKX_REST_BASE_URL}/api/v5/rfq/public-trades?limit=100`, {
           signal: AbortSignal.timeout(10_000),
         });
         const json = await res.json() as Record<string, unknown>;
@@ -461,7 +469,7 @@ function binanceBlockPoller(): BlockVenuePoller {
     intervalMs: 120_000,
     async poll() {
       try {
-        const res = await fetch('https://eapi.binance.com/eapi/v1/blockTrades?limit=100', {
+        const res = await fetch(`${BINANCE_REST_BASE_URL}/eapi/v1/blockTrades?limit=100`, {
           signal: AbortSignal.timeout(10_000),
         });
         const items = await res.json() as unknown[];
@@ -527,7 +535,7 @@ function deriveBlockPoller(): BlockVenuePoller {
         const now = Date.now();
         const from = now - 7 * 24 * 60 * 60 * 1000; // 7 days back
         const res = await fetch(
-          `https://api.lyra.finance/public/get_trade_history?currency=BTC&instrument_type=option&page_size=200&page=1&from_timestamp=${from}&to_timestamp=${now}`,
+          `${DERIVE_REST_BASE_URL}/public/get_trade_history?currency=BTC&instrument_type=option&page_size=200&page=1&from_timestamp=${from}&to_timestamp=${now}`,
           { signal: AbortSignal.timeout(10_000) },
         );
         const json = await res.json() as Record<string, unknown>;

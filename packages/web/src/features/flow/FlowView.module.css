@@ -199,22 +199,13 @@
   animation: flashIn 1.5s ease-out, whaleGlow 3s ease-in-out 1.5s infinite;
 }
 
-.row[data-size="large"] {
+.row[data-size="shark"] {
   background: color-mix(in srgb, var(--accent-primary) 3%, transparent);
 }
 
 /* Block trade highlight */
 .row[data-block="true"] {
   border-right: 2px solid var(--color-info);
-}
-
-/* ── Whale icon ──────────────────────────────────────── */
-
-.whaleIcon {
-  position: absolute;
-  left: -28px;
-  font-size: 16px;
-  filter: drop-shadow(0 0 4px rgba(80, 210, 193, 0.4));
 }
 
 /* ── Cell styles ─────────────────────────────────────── */
@@ -304,7 +295,7 @@
   font-weight: 700;
 }
 
-.notional[data-size="large"] {
+.notional[data-size="shark"] {
   color: var(--text-primary);
   font-weight: 700;
 }
@@ -318,9 +309,11 @@
 .tagCell {
   display: flex;
   justify-content: flex-end;
+  gap: 4px;
 }
 
-.blockBadge {
+.blockBadge,
+.tradeBadge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -329,8 +322,26 @@
   letter-spacing: 0.08em;
   padding: 1px 5px;
   border-radius: 2px;
+}
+
+.blockBadge {
   background: color-mix(in srgb, var(--color-info) 15%, transparent);
   color: var(--color-info);
+}
+
+.tradeBadge[data-kind="whale"] {
+  background: color-mix(in srgb, var(--accent-primary) 16%, transparent);
+  color: var(--accent-primary);
+}
+
+.tradeBadge[data-kind="shark"] {
+  background: color-mix(in srgb, var(--color-warning, #f59e0b) 16%, transparent);
+  color: var(--color-warning, #f59e0b);
+}
+
+.tradeBadge[data-kind="shrimp"] {
+  background: color-mix(in srgb, var(--text-dim) 14%, transparent);
+  color: var(--text-dim);
 }
 
 /* ── Mobile ──────────────────────────────────────────── */
@@ -380,10 +391,4 @@
   .size { order: 6; text-align: left; }
   .iv { order: 7; text-align: left; }
   .tagCell { order: 8; justify-content: flex-start; }
-
-  .whaleIcon {
-    position: static;
-    left: unset;
-    order: 0;
-  }
 }
