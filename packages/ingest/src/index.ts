@@ -1,10 +1,10 @@
-import { createHash } from 'node:crypto';
-
 import { config as loadEnv } from 'dotenv';
 import {
   BlockFlowService,
   SpotService,
   FlowService,
+  buildBlockTradeUid,
+  buildLiveTradeUid,
   computeBlockTradeAmounts,
   computeLiveTradeAmounts,
   parseTradeInstrument,
@@ -139,16 +139,7 @@ function mapLiveTrade(trade: TradeEvent, spotService: SpotService): PersistedTra
   const amounts = computeLiveTradeAmounts(trade, referencePriceUsd);
 
   return {
-    tradeUid: trade.tradeId != null
-      ? `${trade.venue}:${trade.tradeId}`
-      : stableTradeUid('live', trade.venue, {
-          instrument: trade.instrument,
-          timestamp: trade.timestamp,
-          side: trade.side,
-          price: trade.price,
-          size: trade.size,
-          isBlock: trade.isBlock,
-        }),
+    tradeUid: buildLiveTradeUid(trade),
     mode: 'live',
     venue: trade.venue,
     underlying: trade.underlying.toUpperCase(),
@@ -198,10 +189,7 @@ function mapInstitutionalTrade(trade: BlockTradeEvent, spotService: SpotService)
   }));
 
   return {
-    tradeUid: stableTradeUid('institutional', trade.venue, {
-      tradeId: trade.tradeId,
-      timestamp: trade.timestamp,
-    }),
+    tradeUid: buildBlockTradeUid(trade),
     mode: 'institutional',
     venue: trade.venue,
     underlying: trade.underlying.toUpperCase(),
@@ -240,12 +228,6 @@ function mapInstitutionalTrade(trade: BlockTradeEvent, spotService: SpotService)
 function getSpotPriceUsd(spotService: SpotService, underlying: string): number | null {
   const snapshot = spotService.getSnapshot(underlying.toUpperCase());
   return snapshot?.lastPrice ?? null;
-}
-
-function stableTradeUid(mode: 'live' | 'institutional', venue: string, payload: Record<string, unknown>): string {
-  return createHash('sha256')
-    .update(JSON.stringify({ mode, venue, payload }))
-    .digest('hex');
 }
 
 void main().catch((error) => {

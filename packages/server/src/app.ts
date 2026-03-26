@@ -8,7 +8,7 @@ import fastifyStatic from '@fastify/static';
 import websocket from '@fastify/websocket';
 import { registerRoutes } from './routes/index.js';
 import { bootstrapAdapters } from './adapters.js';
-import { bootstrapServices } from './services.js';
+import { bootstrapServices, tradeStore } from './services.js';
 
 let ready = false;
 let shuttingDown = false;
@@ -50,6 +50,10 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(websocket);
 
   registerRoutes(app);
+
+  app.addHook('onClose', async () => {
+    await tradeStore.dispose();
+  });
 
   // Serve the built web SPA in production (single-service deploy)
   const here = dirname(fileURLToPath(import.meta.url));

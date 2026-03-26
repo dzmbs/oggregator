@@ -7,7 +7,7 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "typecheck": "pnpm --filter @oggregator/core build && tsc --noEmit",
+    "typecheck": "pnpm --filter @oggregator/core build && pnpm --filter @oggregator/db build && tsc --noEmit",
     "test": "vitest",
     "test:run": "vitest run"
   },
@@ -16,6 +16,7 @@
     "@fastify/static": "^9.0.0",
     "@fastify/websocket": "^11.0.0",
     "@oggregator/core": "workspace:*",
+    "@oggregator/db": "workspace:*",
     "@oggregator/protocol": "workspace:^",
     "dotenv": "^16.4.0",
     "fastify": "^5.0.0"

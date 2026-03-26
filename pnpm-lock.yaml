@@ -110,6 +110,9 @@ importers:
       '@oggregator/core':
         specifier: workspace:*
         version: link:../core
+      '@oggregator/db':
+        specifier: workspace:*
+        version: link:../db
       '@oggregator/protocol':
         specifier: workspace:^
         version: link:../protocol

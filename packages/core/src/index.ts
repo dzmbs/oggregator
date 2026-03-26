@@ -60,6 +60,8 @@ export { SpotService, type SpotSnapshot } from './services/spot.js';
 export { FlowService, type TradeEvent } from './services/flow.js';
 export { BlockFlowService, type BlockTradeEvent, type BlockTradeLeg } from './services/block-flow.js';
 export {
+  buildBlockTradeUid,
+  buildLiveTradeUid,
   computeBlockTradeAmounts,
   computeLiveTradeAmounts,
   getVenueContractMultiplier,

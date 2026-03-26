@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 import type { BlockTradeEvent, BlockTradeLeg } from './block-flow.js';
 import type { TradeEvent } from './flow.js';
 
@@ -46,6 +48,37 @@ export function getVenueContractMultiplier(venue: string, underlying: string): n
 
 export function isInversePremiumVenue(venue: string): boolean {
   return venue === 'deribit' || venue === 'okx';
+}
+
+export function buildLiveTradeUid(trade: TradeEvent): string {
+  if (trade.tradeId != null) return `${trade.venue}:${trade.tradeId}`;
+  return createHash('sha256')
+    .update(JSON.stringify({
+      mode: 'live',
+      venue: trade.venue,
+      payload: {
+        instrument: trade.instrument,
+        timestamp: trade.timestamp,
+        side: trade.side,
+        price: trade.price,
+        size: trade.size,
+        isBlock: trade.isBlock,
+      },
+    }))
+    .digest('hex');
+}
+
+export function buildBlockTradeUid(trade: BlockTradeEvent): string {
+  return createHash('sha256')
+    .update(JSON.stringify({
+      mode: 'institutional',
+      venue: trade.venue,
+      payload: {
+        tradeId: trade.tradeId,
+        timestamp: trade.timestamp,
+      },
+    }))
+    .digest('hex');
 }
 
 export function computeLiveTradeAmounts(trade: TradeEvent, referencePriceUsd: number | null): TradeAmounts {

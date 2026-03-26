@@ -11,7 +11,8 @@
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "migrate": "node dist/migrate.js"
+    "migrate": "node dist/migrate.js",
+    "seed:sample": "node dist/seed-sample.js"
   },
   "dependencies": {
     "pg": "^8.16.3"
