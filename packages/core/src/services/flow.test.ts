@@ -7,7 +7,7 @@ import type { TradeEvent } from './flow.js';
 
 function makeTrade(underlying: string, price = 70_000, size = 1): TradeEvent {
   return {
-    venue: 'deribit', instrument: `${underlying}-28MAR26-70000-C`,
+    venue: 'deribit', tradeId: null, instrument: `${underlying}-28MAR26-70000-C`,
     underlying, side: 'buy', price, size,
     iv: 0.5, markPrice: price, indexPrice: price,
     isBlock: false, timestamp: Date.now(),

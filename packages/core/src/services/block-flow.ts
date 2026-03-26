@@ -62,6 +62,7 @@ export class BlockFlowService {
   private seenIds = new Set<string>();
   private streams: BlockVenueStream[] = [];
   private pollTimers: ReturnType<typeof setInterval>[] = [];
+  private listeners = new Set<(trade: BlockTradeEvent) => void>();
 
   async start(): Promise<void> {
     const wsStreams = [deribitBlockStream(), bybitBlockStream()];
@@ -93,15 +94,31 @@ export class BlockFlowService {
     return this.buffer.filter((t) => t.underlying === upper);
   }
 
+  subscribe(listener: (trade: BlockTradeEvent) => void): () => void {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  }
+
   private pushTrades(trades: BlockTradeEvent[]): void {
+    const inserted: BlockTradeEvent[] = [];
+
     for (const t of trades) {
       const key = `${t.venue}:${t.tradeId}`;
       if (this.seenIds.has(key)) continue;
       this.seenIds.add(key);
       this.buffer.push(t);
+      inserted.push(t);
     }
 
     this.buffer.sort((a, b) => b.timestamp - a.timestamp);
+     
+    for (const trade of inserted) {
+      for (const listener of this.listeners) {
+        listener(trade);
+      }
+    }
 
     if (this.buffer.length > BUFFER_SIZE) {
       const removed = this.buffer.splice(BUFFER_SIZE);

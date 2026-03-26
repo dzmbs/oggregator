@@ -7,7 +7,7 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "pnpm --filter @oggregator/core build && tsc --noEmit",
     "test": "vitest",
     "test:run": "vitest run"
   },

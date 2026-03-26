@@ -6,8 +6,10 @@
   "scripts": {
     "dev:server": "pnpm -r --filter @oggregator/core --filter @oggregator/protocol build && pnpm --filter @oggregator/server dev",
     "dev:web": "pnpm --filter @oggregator/web dev",
+    "dev:ingest": "pnpm -r --filter @oggregator/core --filter @oggregator/db --filter @oggregator/protocol build && pnpm --filter @oggregator/ingest dev",
     "dev": "pnpm -r --filter @oggregator/core --filter @oggregator/protocol build && pnpm --filter @oggregator/server --filter @oggregator/web --parallel dev",
     "build": "pnpm -r build",
+    "db:migrate": "pnpm --filter @oggregator/db migrate",
     "start": "NODE_ENV=production node packages/server/dist/index.js",
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",

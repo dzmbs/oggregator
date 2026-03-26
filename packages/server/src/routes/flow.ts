@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
+import { computeLiveTradeAmounts, type TradeEvent } from '@oggregator/core';
 import { flowService, isFlowReady, spotService } from '../services.js';
-import type { TradeEvent } from '@oggregator/core';
 
 interface EnrichedTradeEvent extends TradeEvent {
   premiumUsd: number | null;
@@ -40,37 +40,17 @@ export async function flowRoute(app: FastifyInstance) {
 
 function enrichTrade(trade: TradeEvent): EnrichedTradeEvent {
   const referencePriceUsd = trade.indexPrice ?? getSpotPriceUsd(trade.underlying);
-  const contractMultiplier = getContractMultiplier(trade.venue, trade.underlying);
-  const sizeInUnderlying = trade.size * contractMultiplier;
-  const isInversePremium = trade.venue === 'deribit' || trade.venue === 'okx';
-
-  const premiumUsd = isInversePremium
-    ? referencePriceUsd != null && referencePriceUsd > 0
-      ? trade.price * sizeInUnderlying * referencePriceUsd
-      : null
-    : trade.price * sizeInUnderlying;
-
-  const notionalUsd = referencePriceUsd != null && referencePriceUsd > 0
-    ? sizeInUnderlying * referencePriceUsd
-    : null;
+  const amounts = computeLiveTradeAmounts(trade, referencePriceUsd);
 
   return {
     ...trade,
-    premiumUsd,
-    notionalUsd,
-    referencePriceUsd: referencePriceUsd ?? null,
+    premiumUsd: amounts.premiumUsd,
+    notionalUsd: amounts.notionalUsd,
+    referencePriceUsd: amounts.referencePriceUsd,
   };
 }
 
 function getSpotPriceUsd(underlying: string): number | null {
   const snapshot = spotService.getSnapshot(underlying.toUpperCase());
   return snapshot?.lastPrice ?? null;
-}
-
-function getContractMultiplier(venue: TradeEvent['venue'], underlying: string): number {
-  if (venue !== 'okx') return 1;
-  const upper = underlying.toUpperCase();
-  if (upper === 'BTC') return 0.01;
-  if (upper === 'ETH') return 0.1;
-  return 1;
 }

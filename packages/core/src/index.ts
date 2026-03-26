@@ -59,6 +59,15 @@ export { DvolService, type DvolSnapshot, type DvolCandle, type HvPoint } from '.
 export { SpotService, type SpotSnapshot } from './services/spot.js';
 export { FlowService, type TradeEvent } from './services/flow.js';
 export { BlockFlowService, type BlockTradeEvent, type BlockTradeLeg } from './services/block-flow.js';
+export {
+  computeBlockTradeAmounts,
+  computeLiveTradeAmounts,
+  getVenueContractMultiplier,
+  isInversePremiumVenue,
+  parseTradeInstrument,
+  type ParsedTradeInstrument,
+  type TradeAmounts,
+} from './services/trade-persistence.js';
 
 // feeds — venue adapters
 export { DeribitWsAdapter } from './feeds/deribit/index.js';

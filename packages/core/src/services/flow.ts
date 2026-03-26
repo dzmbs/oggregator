@@ -18,6 +18,7 @@ const log = feedLogger('flow');
 
 export interface TradeEvent {
   venue: VenueId;
+  tradeId: string | null;
   instrument: string;
   underlying: string;
   side: 'buy' | 'sell';
@@ -51,6 +52,7 @@ export class FlowService {
   private connections = new Map<string, WebSocket>();
   private keepaliveTimers = new Map<string, ReturnType<typeof setInterval>>();
   private reconnectTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  private listeners = new Set<(trade: TradeEvent) => void>();
   private shouldReconnect = true;
 
   async start(underlyings: string[] = ['BTC', 'ETH']): Promise<void> {
@@ -99,6 +101,13 @@ export class FlowService {
     const buffer = this.buffers.get(underlying) ?? [];
     if (minNotional <= 0) return buffer;
     return buffer.filter(t => t.price * t.size >= minNotional);
+  }
+
+  subscribe(listener: (trade: TradeEvent) => void): () => void {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
   }
 
   private connectStream(stream: VenueStream, underlying: string, attempt = 0): void {
@@ -161,6 +170,11 @@ export class FlowService {
     if (buffer.length > BUFFER_SIZE) {
       buffer.splice(0, buffer.length - BUFFER_SIZE);
     }
+    for (const trade of trades) {
+      for (const listener of this.listeners) {
+        listener(trade);
+      }
+    }
   }
 
   dispose(): void {
@@ -195,6 +209,8 @@ const DeribitTradeSchema = z.object({
   mark_price: z.number().optional(),
   index_price: z.number().optional(),
   block_trade_id: z.string().optional(),
+  trade_id: z.union([z.string(), z.number()]).optional().transform((value) => value != null ? String(value) : null),
+  trade_seq: z.union([z.string(), z.number()]).optional().transform((value) => value != null ? String(value) : null),
   timestamp: z.number(),
 });
 
@@ -204,6 +220,7 @@ const OkxTradeSchema = z.object({
   px: numStr,
   sz: numStr,
   fillVol: numStr.optional(),
+  tradeId: z.union([z.string(), z.number()]).optional().transform((value) => value != null ? String(value) : null),
   ts: numStr,
 });
 
@@ -215,6 +232,7 @@ const BybitTradeSchema = z.object({
   iv: numStr.optional(),
   mP: optNum,
   iP: optNum,
+  i: z.string().optional(),
   BT: z.boolean().optional(),
   T: z.number(),
 });
@@ -225,6 +243,7 @@ const BinanceTradeSchema = z.object({
   S: sideStr,
   p: numStr,
   q: numStr,
+  t: z.union([z.string(), z.number()]).optional().transform((value) => value != null ? String(value) : null),
   X: z.string().optional(),
   T: z.number(),
 });
@@ -232,6 +251,7 @@ const BinanceTradeSchema = z.object({
 const DeriveTradeSchema = z.object({
   instrument_name: z.string(),
   direction: sideStr,
+  trade_id: z.union([z.string(), z.number()]).optional().transform((value) => value != null ? String(value) : null),
   trade_price: numStr,
   trade_amount: numStr,
   mark_price: optNum,
@@ -243,6 +263,7 @@ const DeriveTradeSchema = z.object({
 function deribitTradeToEvent(raw: z.infer<typeof DeribitTradeSchema>, underlying: string): TradeEvent {
   return {
     venue: 'deribit',
+    tradeId: raw.trade_id ?? raw.trade_seq,
     instrument: raw.instrument_name,
     underlying,
     side: raw.direction,
@@ -332,7 +353,8 @@ const VENUE_STREAMS: VenueStream[] = [
         const parsed = OkxTradeSchema.safeParse(item);
         if (!parsed.success) continue;
         trades.push({
-          venue: 'okx', instrument: parsed.data.instId, underlying,
+          venue: 'okx', tradeId: parsed.data.tradeId,
+          instrument: parsed.data.instId, underlying,
           side: parsed.data.side,
           price: parsed.data.px, size: parsed.data.sz,
           iv: parsed.data.fillVol ?? null,
@@ -353,7 +375,12 @@ const VENUE_STREAMS: VenueStream[] = [
         if (!items) return [];
         // OKX REST groups trades by optType with a tradeInfo array
         const OkxRestTradeSchema = z.object({
-          instId: z.string(), side: sideStr, px: numStr, sz: numStr, ts: numStr,
+          instId: z.string(),
+          side: sideStr,
+          px: numStr,
+          sz: numStr,
+          tradeId: z.union([z.string(), z.number()]).optional().transform((value) => value != null ? String(value) : null),
+          ts: numStr,
         });
         const trades: TradeEvent[] = [];
         for (const group of items) {
@@ -363,7 +390,8 @@ const VENUE_STREAMS: VenueStream[] = [
             const p = OkxRestTradeSchema.safeParse(raw);
             if (!p.success) continue;
             trades.push({
-              venue: 'okx', instrument: p.data.instId, underlying,
+              venue: 'okx', tradeId: p.data.tradeId,
+              instrument: p.data.instId, underlying,
               side: p.data.side, price: p.data.px, size: p.data.sz,
               iv: null, markPrice: null, indexPrice: null,
               isBlock: false, timestamp: p.data.ts,
@@ -392,7 +420,8 @@ const VENUE_STREAMS: VenueStream[] = [
         const parsed = BybitTradeSchema.safeParse(item);
         if (!parsed.success) continue;
         trades.push({
-          venue: 'bybit', instrument: parsed.data.s,
+          venue: 'bybit', tradeId: parsed.data.i ?? null,
+          instrument: parsed.data.s,
           underlying: parsed.data.s.split('-')[0]!,
           side: parsed.data.S,
           price: parsed.data.p, size: parsed.data.v,
@@ -413,9 +442,14 @@ const VENUE_STREAMS: VenueStream[] = [
         if (!list) return [];
         // Bybit REST trade fields differ from WS — use a simple schema
         const RestTradeSchema = z.object({
-          symbol: z.string(), side: sideStr,
-          price: numStr, size: numStr,
-          iv: numStr.optional(), mP: optNum, iP: optNum,
+          symbol: z.string(),
+          side: sideStr,
+          execId: z.string().optional(),
+          price: numStr,
+          size: numStr,
+          iv: numStr.optional(),
+          mP: optNum,
+          iP: optNum,
           isBlockTrade: z.boolean().optional(),
           time: numStr,
         });
@@ -424,7 +458,8 @@ const VENUE_STREAMS: VenueStream[] = [
           const p = RestTradeSchema.safeParse(item);
           if (!p.success) continue;
           trades.push({
-            venue: 'bybit', instrument: p.data.symbol, underlying,
+            venue: 'bybit', tradeId: p.data.execId ?? null,
+            instrument: p.data.symbol, underlying,
             side: p.data.side,
             price: p.data.price, size: p.data.size,
             iv: p.data.iv ?? null,
@@ -456,6 +491,7 @@ const VENUE_STREAMS: VenueStream[] = [
 
       return [{
         venue: 'binance' as VenueId,
+        tradeId: parsed.data.t,
         instrument: parsed.data.s,
         underlying: parsed.data.s.split('-')[0]!,
         side: parsed.data.S,
@@ -490,7 +526,8 @@ const VENUE_STREAMS: VenueStream[] = [
         const parsed = DeriveTradeSchema.safeParse(item);
         if (!parsed.success) continue;
         trades.push({
-          venue: 'derive', instrument: parsed.data.instrument_name, underlying,
+          venue: 'derive', tradeId: parsed.data.trade_id,
+          instrument: parsed.data.instrument_name, underlying,
           side: parsed.data.direction,
           price: parsed.data.trade_price, size: parsed.data.trade_amount,
           iv: null,
@@ -545,6 +582,7 @@ const VENUE_STREAMS: VenueStream[] = [
             if (!parsed.success) continue;
             trades.push({
               venue: 'derive',
+              tradeId: parsed.data.trade_id,
               instrument: parsed.data.instrument_name,
               underlying,
               side: parsed.data.direction,

@@ -4,6 +4,7 @@ import { fetchJson } from "@lib/http";
 
 export interface TradeEvent {
   venue:             string;
+  tradeId?:          string | null;
   instrument:        string;
   underlying:        string;
   side:              "buy" | "sell";

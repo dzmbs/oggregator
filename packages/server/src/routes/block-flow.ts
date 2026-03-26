@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import type { BlockTradeEvent } from '@oggregator/core';
+import { computeBlockTradeAmounts, type BlockTradeEvent } from '@oggregator/core';
 import { blockFlowService, isBlockFlowReady, spotService } from '../services.js';
 
 interface EnrichedBlockTradeEvent extends BlockTradeEvent {
@@ -34,39 +34,17 @@ export async function blockFlowRoute(app: FastifyInstance) {
 
 function enrichTrade(trade: BlockTradeEvent): EnrichedBlockTradeEvent {
   const referencePriceUsd = trade.indexPrice ?? getSpotPriceUsd(trade.underlying);
-  const contractMultiplier = getContractMultiplier(trade.venue, trade.underlying);
-
-  const premiumUsd = trade.legs.reduce<number | null>((sum, leg) => {
-    const isInversePrice = leg.price > 0 && leg.price < 1;
-    if (isInversePrice && (referencePriceUsd == null || referencePriceUsd <= 0)) return null;
-    const legPriceUsd = isInversePrice ? leg.price * referencePriceUsd! : leg.price;
-    return (sum ?? 0) + legPriceUsd * leg.size * leg.ratio * contractMultiplier;
-  }, 0);
-
-  const notionalUsd = referencePriceUsd != null && referencePriceUsd > 0
-    ? trade.legs.reduce(
-      (sum, leg) => sum + (leg.size * leg.ratio * contractMultiplier * referencePriceUsd),
-      0,
-    )
-    : 0;
+  const amounts = computeBlockTradeAmounts(trade, referencePriceUsd);
 
   return {
     ...trade,
-    premiumUsd,
-    notionalUsd,
-    referencePriceUsd: referencePriceUsd ?? null,
+    premiumUsd: amounts.premiumUsd,
+    notionalUsd: amounts.notionalUsd ?? 0,
+    referencePriceUsd: amounts.referencePriceUsd,
   };
 }
 
 function getSpotPriceUsd(underlying: string): number | null {
   const snapshot = spotService.getSnapshot(underlying.toUpperCase());
   return snapshot?.lastPrice ?? null;
-}
-
-function getContractMultiplier(venue: BlockTradeEvent['venue'], underlying: string): number {
-  if (venue !== 'okx') return 1;
-  const upper = underlying.toUpperCase();
-  if (upper === 'BTC') return 0.01;
-  if (upper === 'ETH') return 0.1;
-  return 1;
 }
