@@ -65,15 +65,25 @@ describe('GET /flow', () => {
     const body = res.json();
     expect(body.underlying).toBe('BTC');
     expect(body.count).toBe(50);
-    expect(getTrades()).toHaveBeenCalledWith('BTC', 0);
+    expect(getTrades()).toHaveBeenCalledWith('BTC');
   });
 
-  it('passes underlying and minNotional to getTrades', async () => {
+  it('passes underlying to getTrades and applies minNotional after enrichment', async () => {
     setFlowReady(true);
-    getTrades().mockReturnValue([]);
+    getTrades().mockReturnValue([
+      {
+        venue: 'bybit', instrument: 'ETH-28MAR26-3000-C', underlying: 'ETH', side: 'buy', price: 10, size: 1,
+        iv: 0.5, markPrice: 10, indexPrice: 100, isBlock: false, timestamp: Date.now(),
+      } as TradeEvent,
+      {
+        venue: 'bybit', instrument: 'ETH-28MAR26-3000-C', underlying: 'ETH', side: 'buy', price: 10, size: 10,
+        iv: 0.5, markPrice: 10, indexPrice: 100, isBlock: false, timestamp: Date.now() + 1,
+      } as TradeEvent,
+    ]);
 
-    await app.inject({ method: 'GET', url: '/flow?underlying=ETH&minNotional=50000' });
-    expect(getTrades()).toHaveBeenCalledWith('ETH', 50_000);
+    const res = await app.inject({ method: 'GET', url: '/flow?underlying=ETH&minNotional=500' });
+    expect(getTrades()).toHaveBeenCalledWith('ETH');
+    expect(res.json().trades).toHaveLength(1);
   });
 
   it('clamps limit to 500 maximum', async () => {
@@ -99,7 +109,7 @@ describe('GET /flow', () => {
     getTrades().mockReturnValue([]);
 
     await app.inject({ method: 'GET', url: '/flow?minNotional=-999' });
-    expect(getTrades()).toHaveBeenCalledWith('BTC', 0);
+    expect(getTrades()).toHaveBeenCalledWith('BTC');
   });
 
   it('treats NaN limit as default (100)', async () => {

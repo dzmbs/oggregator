@@ -73,7 +73,10 @@ export async function blockFlowRoute(app: FastifyInstance) {
     }
 
     const rows = await tradeStore.loadHistory(historyQuery);
-    const trades = rows.map((row) => mapStoredBlockTrade(row));
+    const trades = rows.flatMap((row) => {
+      const trade = mapStoredBlockTrade(row);
+      return trade ? [trade] : [];
+    });
 
     return {
       available: true,
@@ -106,12 +109,15 @@ export async function blockFlowRoute(app: FastifyInstance) {
       notionalUsd: summary.notionalUsd,
       oldestTs: summary.oldestTs?.toISOString() ?? null,
       newestTs: summary.newestTs?.toISOString() ?? null,
-      venues: summary.venues.map((venue) => ({
-        venue: toVenueId(venue.venue),
-        count: venue.count,
-        premiumUsd: venue.premiumUsd,
-        notionalUsd: venue.notionalUsd,
-      })),
+      venues: summary.venues.flatMap((venue) => {
+        const venueId = toVenueId(venue.venue);
+        return venueId ? [{
+          venue: venueId,
+          count: venue.count,
+          premiumUsd: venue.premiumUsd,
+          notionalUsd: venue.notionalUsd,
+        }] : [];
+      }),
     };
   });
 }
@@ -129,11 +135,14 @@ function enrichLiveBlockTrade(trade: BlockTradeEvent): EnrichedBlockTradeEvent {
   };
 }
 
-function mapStoredBlockTrade(row: PersistedTradeRecord): EnrichedBlockTradeEvent {
+function mapStoredBlockTrade(row: PersistedTradeRecord): EnrichedBlockTradeEvent | null {
+  const venue = toVenueId(row.venue);
+  if (!venue) return null;
+
   const totalSize = getOptionalNumber(row.raw, 'totalSize') ?? row.contracts;
 
   return {
-    venue: toVenueId(row.venue),
+    venue,
     tradeUid: row.tradeUid,
     tradeId: getOptionalString(row.raw, 'tradeId') ?? extractTradeIdFromUid(row.tradeUid, row.venue) ?? row.tradeUid,
     timestamp: row.tradeTs.getTime(),
@@ -240,11 +249,11 @@ function getOptionalNumber(raw: Record<string, unknown>, key: string): number | 
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
-function toVenueId(value: string): BlockTradeEvent['venue'] {
+function toVenueId(value: string): BlockTradeEvent['venue'] | null {
   if (value === 'deribit' || value === 'okx' || value === 'bybit' || value === 'binance' || value === 'derive') {
     return value;
   }
-  throw new Error(`Unsupported venue in persisted block trade: ${value}`);
+  return null;
 }
 
 function extractTradeIdFromUid(tradeUid: string, venue: string): string | null {

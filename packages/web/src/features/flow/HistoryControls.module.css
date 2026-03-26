@@ -12,6 +12,13 @@
   flex-wrap: wrap;
 }
 
+.toolbarLeft {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
 .presetRow {
   display: flex;
   align-items: center;
@@ -32,6 +39,23 @@
   font-weight: 600;
   cursor: pointer;
   transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.experimentalBadge {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 10px;
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 22%, var(--border-subtle));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent-primary) 8%, transparent);
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: help;
 }
 
 .presetBtn[data-active="true"] {
@@ -154,6 +178,10 @@
   .toolbar {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .toolbarLeft {
+    align-items: flex-start;
   }
 
   .summaryGrid {

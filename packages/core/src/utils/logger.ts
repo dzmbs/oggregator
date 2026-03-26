@@ -10,6 +10,6 @@ if (process.env['NODE_ENV'] !== 'production') {
 
 export const logger = pino(opts);
 
-export function feedLogger(venue: string) {
-  return logger.child({ venue });
+export function feedLogger(component: string) {
+  return logger.child({ component });
 }

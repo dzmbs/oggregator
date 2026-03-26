@@ -11,6 +11,7 @@ import {
 import { feedLogger } from '../utils/logger.js';
 import { backoffDelay } from '../utils/reconnect.js';
 import type { VenueId } from '../types/common.js';
+import { computeBlockTradeAmounts } from './trade-persistence.js';
 
 const log = feedLogger('block-flow');
 
@@ -52,6 +53,7 @@ interface BlockVenuePoller {
 }
 
 const BUFFER_SIZE = 300;
+const SEEN_TRADE_RETENTION_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Aggregates block/RFQ trades across all venues.
@@ -59,7 +61,7 @@ const BUFFER_SIZE = 300;
  */
 export class BlockFlowService {
   private buffer: BlockTradeEvent[] = [];
-  private seenIds = new Set<string>();
+  private seenTradeTimestamps = new Map<string, number>();
   private streams: BlockVenueStream[] = [];
   private pollTimers: ReturnType<typeof setInterval>[] = [];
   private listeners = new Set<(trade: BlockTradeEvent) => void>();
@@ -104,25 +106,36 @@ export class BlockFlowService {
   private pushTrades(trades: BlockTradeEvent[]): void {
     const inserted: BlockTradeEvent[] = [];
 
-    for (const t of trades) {
-      const key = `${t.venue}:${t.tradeId}`;
-      if (this.seenIds.has(key)) continue;
-      this.seenIds.add(key);
-      this.buffer.push(t);
-      inserted.push(t);
+    for (const trade of trades) {
+      const key = `${trade.venue}:${trade.tradeId}`;
+      if (this.seenTradeTimestamps.has(key)) continue;
+      this.seenTradeTimestamps.set(key, trade.timestamp);
+      this.buffer.push(trade);
+      inserted.push(trade);
     }
 
     this.buffer.sort((a, b) => b.timestamp - a.timestamp);
-     
+    if (this.buffer.length > BUFFER_SIZE) {
+      this.buffer.splice(BUFFER_SIZE);
+    }
+    this.pruneSeenTrades();
+
     for (const trade of inserted) {
       for (const listener of this.listeners) {
         listener(trade);
       }
     }
+  }
 
-    if (this.buffer.length > BUFFER_SIZE) {
-      const removed = this.buffer.splice(BUFFER_SIZE);
-      for (const t of removed) this.seenIds.delete(`${t.venue}:${t.tradeId}`);
+  private pruneSeenTrades(): void {
+    const newestBufferedTs = this.buffer[0]?.timestamp;
+    if (newestBufferedTs == null) return;
+
+    const minTimestamp = newestBufferedTs - SEEN_TRADE_RETENTION_MS;
+    for (const [key, timestamp] of this.seenTradeTimestamps) {
+      if (timestamp < minTimestamp) {
+        this.seenTradeTimestamps.delete(key);
+      }
     }
   }
 
@@ -198,7 +211,7 @@ function deribitBlockStream(): BlockVenueStream {
           const indexPrice = idxKeys.length > 0 && d.index_prices ? (d.index_prices[idxKeys[0]!] ?? null) : null;
           const strategy = deriveStrategy(d.combo_id, d.legs.length);
 
-          trades.push({
+          const trade: BlockTradeEvent = {
             venue: 'deribit',
             tradeId: String(d.id),
             timestamp: d.timestamp,
@@ -213,9 +226,11 @@ function deribitBlockStream(): BlockVenueStream {
               ratio: l.ratio,
             })),
             totalSize: d.amount,
-            notionalUsd: indexPrice != null ? d.legs.reduce((sum, l) => sum + l.price * d.amount * l.ratio * indexPrice, 0) : 0,
+            notionalUsd: 0,
             indexPrice,
-          });
+          };
+          trade.notionalUsd = computeBlockTradeAmounts(trade, indexPrice).notionalUsd ?? 0;
+          trades.push(trade);
         }
         if (trades.length > 0) onTradesFn?.(trades);
       } catch (err) { log.debug({ err: String(err) }, 'malformed WS frame'); }
@@ -254,7 +269,7 @@ function deribitBlockStream(): BlockVenueStream {
         const indexPrice = idxKeys.length > 0 && d.index_prices ? (d.index_prices[idxKeys[0]!] ?? null) : null;
         const strategy = deriveStrategy(d.combo_id, d.legs.length);
 
-        trades.push({
+        const trade: BlockTradeEvent = {
           venue: 'deribit',
           tradeId: String(d.id),
           timestamp: d.timestamp,
@@ -269,9 +284,11 @@ function deribitBlockStream(): BlockVenueStream {
             ratio: l.ratio,
           })),
           totalSize: d.amount,
-          notionalUsd: indexPrice != null ? d.legs.reduce((sum, l) => sum + l.price * d.amount * l.ratio * indexPrice, 0) : 0,
+          notionalUsd: 0,
           indexPrice,
-        });
+        };
+        trade.notionalUsd = computeBlockTradeAmounts(trade, indexPrice).notionalUsd ?? 0;
+        trades.push(trade);
       }
       return trades;
     } catch (err) {

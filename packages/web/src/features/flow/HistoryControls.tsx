@@ -49,17 +49,26 @@ export function HistoryControls({
   return (
     <div className={styles.wrap}>
       <div className={styles.toolbar}>
-        <div className={styles.presetRow}>
-          {(["today", "yesterday", "last7d", "last30d", "custom"] as const).map((value) => (
-            <button
-              key={value}
-              className={styles.presetBtn}
-              data-active={preset === value}
-              onClick={() => onPresetChange(value)}
-            >
-              {getPresetLabel(value)}
-            </button>
-          ))}
+        <div className={styles.toolbarLeft}>
+          <div className={styles.presetRow}>
+            {(["today", "yesterday", "last7d", "last30d", "custom"] as const).map((value) => (
+              <button
+                key={value}
+                className={styles.presetBtn}
+                data-active={preset === value}
+                onClick={() => onPresetChange(value)}
+              >
+                {getPresetLabel(value)}
+              </button>
+            ))}
+          </div>
+
+          <span
+            className={styles.experimentalBadge}
+            title="History is experimental. Counts and venue coverage depend on exchange APIs, polling windows, and current ingest support, so accuracy is not guaranteed."
+          >
+            Experimental history
+          </span>
         </div>
 
         {preset === "custom" ? (

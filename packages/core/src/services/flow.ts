@@ -13,6 +13,7 @@ import {
 import { feedLogger } from '../utils/logger.js';
 import { backoffDelay } from '../utils/reconnect.js';
 import type { VenueId } from '../types/common.js';
+import { computeLiveTradeAmounts } from './trade-persistence.js';
 
 const log = feedLogger('flow');
 
@@ -100,7 +101,10 @@ export class FlowService {
   getTrades(underlying: string, minNotional = 0): TradeEvent[] {
     const buffer = this.buffers.get(underlying) ?? [];
     if (minNotional <= 0) return buffer;
-    return buffer.filter(t => t.price * t.size >= minNotional);
+    return buffer.filter((trade) => {
+      const amounts = computeLiveTradeAmounts(trade, trade.indexPrice);
+      return (amounts.notionalUsd ?? 0) >= minNotional;
+    });
   }
 
   subscribe(listener: (trade: TradeEvent) => void): () => void {
@@ -167,6 +171,7 @@ export class FlowService {
     const buffer = this.buffers.get(underlying);
     if (!buffer) return;
     buffer.push(...trades);
+    buffer.sort((a, b) => a.timestamp - b.timestamp);
     if (buffer.length > BUFFER_SIZE) {
       buffer.splice(0, buffer.length - BUFFER_SIZE);
     }

@@ -47,12 +47,14 @@ export async function flowRoute(app: FastifyInstance) {
     const minNotional = Number.isFinite(rawMinNotional) && rawMinNotional >= 0 ? rawMinNotional : 0;
     const limit = parseBoundedLimit(req.query.limit, 100, 500);
 
-    const trades = flowService.getTrades(underlying, minNotional);
+    const trades = flowService.getTrades(underlying)
+      .map((trade) => enrichLiveTrade(trade))
+      .filter((trade) => minNotional <= 0 || (trade.notionalUsd ?? 0) >= minNotional);
 
     return {
       underlying,
       count: trades.length,
-      trades: trades.slice(-limit).reverse().map((trade) => enrichLiveTrade(trade)),
+      trades: trades.slice(-limit).reverse(),
     };
   });
 
@@ -78,7 +80,10 @@ export async function flowRoute(app: FastifyInstance) {
     }
 
     const rows = await tradeStore.loadHistory(historyQuery);
-    const trades = rows.map((row) => mapStoredLiveTrade(row));
+    const trades = rows.flatMap((row) => {
+      const trade = mapStoredLiveTrade(row);
+      return trade ? [trade] : [];
+    });
 
     return {
       available: true,
@@ -111,12 +116,15 @@ export async function flowRoute(app: FastifyInstance) {
       notionalUsd: summary.notionalUsd,
       oldestTs: summary.oldestTs?.toISOString() ?? null,
       newestTs: summary.newestTs?.toISOString() ?? null,
-      venues: summary.venues.map((venue) => ({
-        venue: toVenueId(venue.venue),
-        count: venue.count,
-        premiumUsd: venue.premiumUsd,
-        notionalUsd: venue.notionalUsd,
-      })),
+      venues: summary.venues.flatMap((venue) => {
+        const venueId = toVenueId(venue.venue);
+        return venueId ? [{
+          venue: venueId,
+          count: venue.count,
+          premiumUsd: venue.premiumUsd,
+          notionalUsd: venue.notionalUsd,
+        }] : [];
+      }),
     };
   });
 }
@@ -134,9 +142,12 @@ function enrichLiveTrade(trade: TradeEvent): EnrichedTradeEvent {
   };
 }
 
-function mapStoredLiveTrade(row: PersistedTradeRecord): EnrichedTradeEvent {
+function mapStoredLiveTrade(row: PersistedTradeRecord): EnrichedTradeEvent | null {
+  const venue = toVenueId(row.venue);
+  if (!venue) return null;
+
   return {
-    venue: toVenueId(row.venue),
+    venue,
     tradeUid: row.tradeUid,
     tradeId: getOptionalString(row.raw, 'tradeId') ?? extractTradeIdFromUid(row.tradeUid, row.venue),
     instrument: row.instrumentName,
@@ -251,11 +262,11 @@ function getOptionalBoolean(raw: Record<string, unknown>, key: string): boolean 
   return typeof value === 'boolean' ? value : null;
 }
 
-function toVenueId(value: string): TradeEvent['venue'] {
+function toVenueId(value: string): TradeEvent['venue'] | null {
   if (value === 'deribit' || value === 'okx' || value === 'bybit' || value === 'binance' || value === 'derive') {
     return value;
   }
-  throw new Error(`Unsupported venue in persisted live trade: ${value}`);
+  return null;
 }
 
 function extractTradeIdFromUid(tradeUid: string, venue: string): string | null {

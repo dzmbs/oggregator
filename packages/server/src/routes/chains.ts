@@ -10,7 +10,13 @@ import {
   VENUE_IDS,
 } from '@oggregator/core';
 
-const activeSubscriptions = new Map<string, () => Promise<void>>();
+interface ActiveSubscription {
+  unsubscribe: () => Promise<void>;
+  lastUsedAt: number;
+}
+
+const SUBSCRIPTION_IDLE_TTL_MS = 15 * 60 * 1000;
+const activeSubscriptions = new Map<string, ActiveSubscription>();
 
 function subKey(venue: VenueId, underlying: string, expiry: string) {
   return `${venue}:${underlying}:${expiry}`;
@@ -18,13 +24,17 @@ function subKey(venue: VenueId, underlying: string, expiry: string) {
 
 async function ensureSubscribed(venueId: VenueId, underlying: string, expiry: string, log: FastifyInstance['log']) {
   const key = subKey(venueId, underlying, expiry);
-  if (activeSubscriptions.has(key)) return;
+  const existing = activeSubscriptions.get(key);
+  if (existing) {
+    existing.lastUsedAt = Date.now();
+    return;
+  }
 
   const adapter = getAdapter(venueId);
   if (!adapter.subscribe) return;
 
   try {
-    const unsub = await adapter.subscribe(
+    const unsubscribe = await adapter.subscribe(
       { underlying, expiry },
       {
         onDelta: () => {},
@@ -35,7 +45,7 @@ async function ensureSubscribed(venueId: VenueId, underlying: string, expiry: st
         },
       },
     );
-    activeSubscriptions.set(key, unsub);
+    activeSubscriptions.set(key, { unsubscribe, lastUsedAt: Date.now() });
     log.info({ venue: venueId, underlying }, 'ws subscription active');
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
@@ -44,6 +54,8 @@ async function ensureSubscribed(venueId: VenueId, underlying: string, expiry: st
 }
 
 async function fetchChains(underlying: string, expiry: string, requestedVenues: VenueId[], log: FastifyInstance['log']) {
+  cleanupStaleSubscriptions(log).catch(() => {});
+
   for (const venueId of requestedVenues) {
     ensureSubscribed(venueId, underlying, expiry, log).catch(() => {});
   }
@@ -64,6 +76,23 @@ async function fetchChains(underlying: string, expiry: string, requestedVenues: 
   return { request, successfulChains };
 }
 
+async function cleanupStaleSubscriptions(log: FastifyInstance['log']): Promise<void> {
+  const cutoff = Date.now() - SUBSCRIPTION_IDLE_TTL_MS;
+
+  for (const [key, subscription] of activeSubscriptions) {
+    if (subscription.lastUsedAt >= cutoff) continue;
+
+    activeSubscriptions.delete(key);
+    try {
+      await subscription.unsubscribe();
+      log.info({ key }, 'ws subscription released');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      log.warn({ key, err: message }, 'ws unsubscribe failed');
+    }
+  }
+}
+
 function parseVenues(venuesParam: string | undefined): VenueId[] {
   return venuesParam
     ? (venuesParam.split(',').filter((v) => VENUE_IDS.includes(v as VenueId)) as VenueId[])
@@ -71,6 +100,13 @@ function parseVenues(venuesParam: string | undefined): VenueId[] {
 }
 
 export async function chainsRoute(app: FastifyInstance) {
+  app.addHook('onClose', async () => {
+    for (const [key, subscription] of activeSubscriptions) {
+      activeSubscriptions.delete(key);
+      await subscription.unsubscribe();
+    }
+  });
+
   app.get<{
     Querystring: { underlying: string; expiry: string; venues?: string };
   }>('/chains', async (req, reply) => {
