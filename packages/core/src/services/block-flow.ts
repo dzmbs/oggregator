@@ -157,6 +157,23 @@ function extractUnderlying(instrument: string): string {
   return instrument.split('-')[0]!.replace(/_.*$/, '').toUpperCase();
 }
 
+function isOptionInstrument(instrument: string): boolean {
+  const parts = instrument.split('-');
+  const type = parts.at(-1);
+  const strike = parts.at(-2);
+  const expiry = parts.at(-3);
+
+  const hasOptionType = type === 'C' || type === 'P';
+  const hasStrike = strike != null && /^[0-9]+(?:\.[0-9]+)?$/.test(strike);
+  const hasExpiry = expiry != null && (/^\d{1,2}[A-Z]{3}\d{2}$/.test(expiry) || /^\d{6,8}$/.test(expiry));
+
+  return hasOptionType && hasStrike && hasExpiry;
+}
+
+function areOptionLegs(instruments: string[]): boolean {
+  return instruments.length > 0 && instruments.every((instrument) => isOptionInstrument(instrument));
+}
+
 async function fetchJson(url: string): Promise<unknown> {
   const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
   return response.json() as Promise<unknown>;
@@ -187,7 +204,10 @@ const DeribitBlockRfqResponseSchema = z.object({
   }).optional(),
 });
 
-function mapDeribitBlockTrade(trade: z.infer<typeof DeribitBlockRfqSchema>): BlockTradeEvent {
+function mapDeribitBlockTrade(trade: z.infer<typeof DeribitBlockRfqSchema>): BlockTradeEvent | null {
+  const instruments = trade.legs.map((leg) => leg.instrument_name);
+  if (!areOptionLegs(instruments)) return null;
+
   const underlying = extractUnderlying(trade.legs[0]?.instrument_name ?? 'BTC');
   const indexPriceEntries = Object.entries(trade.index_prices ?? {});
   const indexPrice = indexPriceEntries[0]?.[1] ?? null;
@@ -235,7 +255,9 @@ async function fetchDeribitSeedTrades(): Promise<BlockTradeEvent[]> {
       const tradeId = String(item.id);
       if (seen.has(tradeId)) continue;
       seen.add(tradeId);
-      trades.push(mapDeribitBlockTrade(item));
+      const trade = mapDeribitBlockTrade(item);
+      if (!trade) continue;
+      trades.push(trade);
       if (trades.length >= DERIBIT_SEED_COUNT) break;
     }
 
@@ -280,7 +302,9 @@ function deribitBlockStream(): BlockVenueStream {
         for (const item of items) {
           const parsed = DeribitBlockRfqSchema.safeParse(item);
           if (!parsed.success) continue;
-          trades.push(mapDeribitBlockTrade(parsed.data));
+          const trade = mapDeribitBlockTrade(parsed.data);
+          if (!trade) continue;
+          trades.push(trade);
         }
         if (trades.length > 0) onTradesFn?.(trades);
       } catch (err) { log.debug({ err: String(err) }, 'malformed WS frame'); }
@@ -357,14 +381,13 @@ const BybitBlockTradeSchema = z.object({
   })).min(1),
 });
 
-function mapBybitBlockTrade(trade: z.infer<typeof BybitBlockTradeSchema>): BlockTradeEvent {
-  const firstLeg = trade.legs[0];
-  if (!firstLeg) {
-    throw new Error('Bybit block trade is missing legs');
-  }
+function mapBybitBlockTrade(trade: z.infer<typeof BybitBlockTradeSchema>): BlockTradeEvent | null {
+  const optionLegs = trade.legs.filter((leg) => leg.category?.toLowerCase() === 'option' && isOptionInstrument(leg.symbol));
+  const firstLeg = optionLegs[0];
+  if (!firstLeg || optionLegs.length !== trade.legs.length) return null;
 
   const underlying = extractUnderlying(firstLeg.symbol);
-  const totalSize = trade.legs.reduce((sum, leg) => sum + Number(leg.qty), 0);
+  const totalSize = optionLegs.reduce((sum, leg) => sum + Number(leg.qty), 0);
 
   return {
     venue: 'bybit',
@@ -372,8 +395,8 @@ function mapBybitBlockTrade(trade: z.infer<typeof BybitBlockTradeSchema>): Block
     timestamp: Number(trade.updatedAt ?? trade.createdAt),
     underlying,
     direction: firstLeg.side.toLowerCase() as 'buy' | 'sell',
-    strategy: trade.strategyType?.trim() ? trade.strategyType.toUpperCase() : (trade.legs.length > 1 ? 'CUSTOM' : null),
-    legs: trade.legs.map((leg) => ({
+    strategy: trade.strategyType?.trim() ? trade.strategyType.toUpperCase() : (optionLegs.length > 1 ? 'CUSTOM' : null),
+    legs: optionLegs.map((leg) => ({
       instrument: leg.symbol,
       direction: leg.side.toLowerCase() as 'buy' | 'sell',
       price: Number(leg.price),
@@ -417,7 +440,9 @@ function bybitBlockStream(): BlockVenueStream {
         for (const item of data) {
           const parsed = BybitBlockTradeSchema.safeParse(item);
           if (!parsed.success) continue;
-          trades.push(mapBybitBlockTrade(parsed.data));
+          const trade = mapBybitBlockTrade(parsed.data);
+          if (!trade) continue;
+          trades.push(trade);
         }
         if (trades.length > 0) onTradesFn?.(trades);
       } catch (err) { log.debug({ err: String(err) }, 'malformed WS frame'); }
