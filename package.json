@@ -4,10 +4,10 @@
   "version": "0.0.1",
   "description": "Multi-venue crypto options aggregator dashboard",
   "scripts": {
-    "dev:server": "pnpm -r --filter @oggregator/core --filter @oggregator/protocol build && pnpm --filter @oggregator/server dev",
+    "dev:server": "pnpm -r --filter @oggregator/core --filter @oggregator/db --filter @oggregator/protocol build && pnpm --filter @oggregator/server dev",
     "dev:web": "pnpm --filter @oggregator/web dev",
     "dev:ingest": "pnpm -r --filter @oggregator/core --filter @oggregator/db --filter @oggregator/protocol build && pnpm --filter @oggregator/ingest dev",
-    "dev": "pnpm -r --filter @oggregator/core --filter @oggregator/protocol build && pnpm --filter @oggregator/server --filter @oggregator/web --parallel dev",
+    "dev": "pnpm -r --filter @oggregator/core --filter @oggregator/db --filter @oggregator/protocol build && pnpm --filter @oggregator/server --filter @oggregator/web --parallel dev",
     "build": "pnpm -r build",
     "db:migrate": "pnpm --filter @oggregator/db migrate",
     "db:seed:sample": "pnpm --filter @oggregator/db build && pnpm --filter @oggregator/db seed:sample",
