@@ -6,6 +6,7 @@ interface DropdownOption {
   value: string;
   label: string;
   meta?:  string;
+  icon?:  string;
 }
 
 interface DropdownPickerProps {
@@ -70,6 +71,7 @@ export default function DropdownPicker({ options, value, onChange, icon, size = 
         onClick={toggle}
       >
         {icon}
+        {selected?.icon && <img src={selected.icon} alt="" className={styles.icon} />}
         <span className={styles.label}>{selected?.label ?? value}</span>
         {selected?.meta && <span className={styles.meta}>{selected.meta}</span>}
         <span className={styles.chevron} data-open={isOpen || undefined}>▾</span>
@@ -85,6 +87,7 @@ export default function DropdownPicker({ options, value, onChange, icon, size = 
               data-active={opt.value === value || undefined}
               onClick={() => { onChange(opt.value); setOpenId(null); }}
             >
+              {opt.icon && <img src={opt.icon} alt="" className={styles.icon} />}
               <span className={styles.optionLabel}>{opt.label}</span>
               {opt.meta && <span className={styles.optionMeta}>{opt.meta}</span>}
             </button>

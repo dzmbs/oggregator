@@ -1,1 +1,1 @@
-export { default as SurfaceView } from "./SurfaceView";
+export { default as VolatilityView } from "./SurfaceView";

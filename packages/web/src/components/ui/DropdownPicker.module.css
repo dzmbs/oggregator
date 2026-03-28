@@ -32,6 +32,19 @@
   background: var(--bg-hover);
 }
 
+.icon {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.trigger[data-size="sm"] .icon {
+  width: 14px;
+  height: 14px;
+}
+
 .label {
   font-family: var(--font-mono);
   font-size: var(--text-xs);

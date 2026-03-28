@@ -264,7 +264,7 @@ function averageSideIv(side: EnrichedSide): number | null {
   return averageMetric(side.venues, (quote) => quote.markIv);
 }
 
-function closestDeltaStrike(
+export function closestDeltaStrike(
   strikes: EnrichedStrike[],
   targetDelta: number,
   side: 'call' | 'put',

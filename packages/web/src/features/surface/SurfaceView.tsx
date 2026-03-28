@@ -1,12 +1,15 @@
 import type { IvSurfaceRow, TermStructure } from "@shared/enriched";
 
 import { useAppStore } from "@stores/app-store";
-import { Spinner, EmptyState, AssetPickerButton, VenuePickerButton } from "@components/ui";
+import { Spinner, EmptyState } from "@components/ui";
 import { fmtIv, formatExpiry, dteDays } from "@lib/format";
 import { heatmapColor } from "@lib/colors";
 import { useSurface } from "./queries";
 import VolSmile from "./VolSmile";
+import AtmTermStructure from "./AtmTermStructure";
 import styles from "./SurfaceView.module.css";
+
+const SHOW_MATRIX = false;
 
 const DELTA_COLS = [
   { key: "delta10p" as const, label: "10Δp", title: "10-delta put (deep OTM put)" },
@@ -68,7 +71,7 @@ function computeMinMax(rows: IvSurfaceRow[]): { min: number; max: number } {
   return { min: min === Infinity ? 0 : min, max: max === -Infinity ? 1 : max };
 }
 
-export default function SurfaceView() {
+export default function VolatilityView() {
   const underlying   = useAppStore((s) => s.underlying);
   const activeVenues = useAppStore((s) => s.activeVenues);
   const { data, isLoading, error } = useSurface(underlying, activeVenues);
@@ -110,12 +113,10 @@ export default function SurfaceView() {
       <div className={styles.header}>
         <div className={styles.headerLeft}>
           <div className={styles.titleRow}>
-            <span className={styles.title}>IV Surface</span>
-            <AssetPickerButton />
-            <VenuePickerButton />
+            <span className={styles.title}>Volatility</span>
           </div>
           <span className={styles.subtitle}>
-            Average mark IV across selected venues per delta level and expiry
+            Cross-venue implied volatility
           </span>
         </div>
         <div className={styles.termStructure}>
@@ -128,49 +129,54 @@ export default function SurfaceView() {
       </div>
 
       <div className={styles.body}>
-        <div className={styles.matrixCol}>
-          <div className={styles.tableWrap}>
-            <table className={styles.table}>
-              <thead>
-                <tr>
-                  <th className={styles.thExpiry}>Expiry</th>
-                  <th className={styles.thDte}>DTE</th>
-                  {DELTA_COLS.map((col) => (
-                    <th key={col.key} className={styles.th} title={col.title}>
-                      {col.label}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {data.surface.map((row) => {
-                  const dte = dteDays(row.expiry);
-                  return (
-                    <tr key={row.expiry} className={styles.row}>
-                      <td className={styles.tdExpiry}>{formatExpiry(row.expiry)}</td>
-                      <td className={styles.tdDte} data-urgent={dte <= 1}>
-                        {dte}d
-                      </td>
-                      {DELTA_COLS.map((col) => (
-                        <HeatCell key={col.key} iv={row[col.key]} minIv={minIv} maxIv={maxIv} />
-                      ))}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+        {SHOW_MATRIX && (
+          <div className={styles.matrixCol}>
+            <div className={styles.tableWrap}>
+              <table className={styles.table}>
+                <thead>
+                  <tr>
+                    <th className={styles.thExpiry}>Expiry</th>
+                    <th className={styles.thDte}>DTE</th>
+                    {DELTA_COLS.map((col) => (
+                      <th key={col.key} className={styles.th} title={col.title}>
+                        {col.label}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.surface.map((row) => {
+                    const dte = dteDays(row.expiry);
+                    return (
+                      <tr key={row.expiry} className={styles.row}>
+                        <td className={styles.tdExpiry}>{formatExpiry(row.expiry)}</td>
+                        <td className={styles.tdDte} data-urgent={dte <= 1}>
+                          {dte}d
+                        </td>
+                        {DELTA_COLS.map((col) => (
+                          <HeatCell key={col.key} iv={row[col.key]} minIv={minIv} maxIv={maxIv} />
+                        ))}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
 
-          <div className={styles.legend}>
-            <span className={styles.legendLabel}>IV Scale:</span>
-            <div className={styles.legendBar} />
-            <span className={styles.legendMin}>{fmtIv(minIv)} low</span>
-            <span className={styles.legendMax}>high {fmtIv(maxIv)}</span>
+            <div className={styles.legend}>
+              <span className={styles.legendLabel}>IV Scale:</span>
+              <div className={styles.legendBar} />
+              <span className={styles.legendMin}>{fmtIv(minIv)} low</span>
+              <span className={styles.legendMax}>high {fmtIv(maxIv)}</span>
+            </div>
           </div>
-        </div>
+        )}
 
-        <div className={styles.smileCol}>
+        <div className={styles.chartPanel}>
           <VolSmile />
+        </div>
+        <div className={styles.chartPanel}>
+          <AtmTermStructure />
         </div>
       </div>
     </div>

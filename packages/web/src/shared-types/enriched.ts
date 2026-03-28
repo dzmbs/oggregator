@@ -80,9 +80,16 @@ export interface EnrichedChainResponse {
   gex:        GexStrike[];
 }
 
+export interface VenueAtmPoint {
+  expiry: string;
+  dte:    number;
+  atm:    number | null;
+}
+
 export interface IvSurfaceResponse {
   underlying:    string;
   surface:       IvSurfaceRow[];
+  venueAtm:      Record<string, VenueAtmPoint[]>;
   termStructure: TermStructure;
 }
 

@@ -37,6 +37,7 @@ export {
   computeDte,
   enrichComparisonRow,
   computeChainStats,
+  closestDeltaStrike,
 } from './core/enrichment.js';
 
 export type {

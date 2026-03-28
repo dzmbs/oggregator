@@ -2,9 +2,10 @@ import { useRef, useEffect, useState, useCallback } from "react";
 import { createChart, LineSeries, LineStyle, type IChartApi, type ISeriesApi, ColorType } from "lightweight-charts";
 
 import { useAppStore } from "@stores/app-store";
-import { useChainQuery, useExpiries } from "@features/chain/queries";
+import { useChainQuery, useExpiries, useUnderlyings } from "@features/chain/queries";
 import { Spinner, DropdownPicker } from "@components/ui";
 import { formatExpiry, dteDays } from "@lib/format";
+import { getTokenLogo } from "@lib/token-meta";
 import styles from "./VolSmile.module.css";
 
 type SmileMode = "both" | "call" | "put";
@@ -62,9 +63,16 @@ function extractSmile(
 }
 
 export default function VolSmile() {
-  const underlying   = useAppStore((s) => s.underlying);
-  const activeVenues = useAppStore((s) => s.activeVenues);
-  const expiry       = useAppStore((s) => s.expiry);
+  const globalUnderlying = useAppStore((s) => s.underlying);
+  const activeVenues     = useAppStore((s) => s.activeVenues);
+  const expiry           = useAppStore((s) => s.expiry);
+
+  const [localUnderlying, setLocalUnderlying] = useState(globalUnderlying);
+  const underlying = localUnderlying || globalUnderlying;
+
+  const { data: underlyingsData } = useUnderlyings();
+  const underlyings = underlyingsData?.underlyings ?? [];
+
   const { data: expiriesData } = useExpiries(underlying);
   const expiries = expiriesData?.expiries ?? [];
 
@@ -77,6 +85,11 @@ export default function VolSmile() {
 
   const handleExpiryChange = useCallback((value: string) => {
     setLocalExpiry(value);
+  }, []);
+
+  const handleUnderlyingChange = useCallback((value: string) => {
+    setLocalUnderlying(value);
+    setLocalExpiry("");
   }, []);
 
   const { data: chain } = useChainQuery(underlying, smileExpiry, ALL_VENUES);
@@ -184,6 +197,13 @@ export default function VolSmile() {
     <div className={styles.wrap}>
       <div className={styles.header}>
         <span className={styles.title}>Vol Smile</span>
+
+        <DropdownPicker
+          size="sm"
+          value={underlying}
+          onChange={handleUnderlyingChange}
+          options={underlyings.map((u) => ({ value: u, label: u, icon: getTokenLogo(u) }))}
+        />
 
         <DropdownPicker
           size="sm"

@@ -2,7 +2,7 @@ import { useEffect } from "react";
 
 import { AppShell } from "@components/layout";
 import { ChainView, useUnderlyings } from "@features/chain";
-import { SurfaceView }               from "@features/surface";
+import { VolatilityView }             from "@features/surface";
 import { GexView }                   from "@features/gex";
 import { FlowView }                  from "@features/flow";
 import { AnalyticsView }             from "@features/analytics";
@@ -14,7 +14,7 @@ import styles from "./App.module.css";
 const TABS = [
   { id: "chain",      label: "Chain" },
   { id: "architect",  label: "Builder" },
-  { id: "surface",    label: "Surface" },
+  { id: "surface",    label: "Volatility" },
   { id: "flow",       label: "Flow", badge: "LIVE" },
   { id: "analytics",  label: "Analytics" },
   { id: "gex",        label: "GEX" },
@@ -46,7 +46,7 @@ export default function App() {
       <div className={styles.panel}>
         {activeTab === "chain"     && <ChainView />}
         {activeTab === "architect" && <ArchitectView />}
-        {activeTab === "surface"   && <SurfaceView />}
+        {activeTab === "surface"   && <VolatilityView />}
         {activeTab === "flow"      && <FlowView />}
         {activeTab === "analytics" && <AnalyticsView />}
         {activeTab === "gex"       && <GexView />}
