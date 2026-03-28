@@ -120,8 +120,13 @@
   padding: 0 8px;
 }
 
-.option:hover {
+.option:hover:not([data-disabled]) {
   background: var(--bg-hover);
+}
+
+.option[data-disabled] {
+  opacity: 0.3;
+  cursor: not-allowed;
 }
 
 .option[data-active] {

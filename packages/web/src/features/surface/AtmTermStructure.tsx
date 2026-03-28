@@ -186,7 +186,7 @@ export default function AtmTermStructure() {
   return (
     <div className={styles.wrap}>
       <div className={styles.header}>
-        <span className={styles.title}>ATM Term Structure</span>
+        <span className={styles.title}>ATM Volatility Term Structure</span>
         <DropdownPicker
           size="sm"
           value={underlying}

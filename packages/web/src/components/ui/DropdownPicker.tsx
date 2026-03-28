@@ -3,10 +3,11 @@ import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 import styles from "./DropdownPicker.module.css";
 
 interface DropdownOption {
-  value: string;
-  label: string;
-  meta?:  string;
-  icon?:  string;
+  value:     string;
+  label:     string;
+  meta?:     string;
+  icon?:     string;
+  disabled?: boolean;
 }
 
 interface DropdownPickerProps {
@@ -85,6 +86,8 @@ export default function DropdownPicker({ options, value, onChange, icon, size = 
               type="button"
               className={styles.option}
               data-active={opt.value === value || undefined}
+              data-disabled={opt.disabled || undefined}
+              disabled={opt.disabled}
               onClick={() => { onChange(opt.value); setOpenId(null); }}
             >
               {opt.icon && <img src={opt.icon} alt="" className={styles.icon} />}

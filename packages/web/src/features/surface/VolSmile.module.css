@@ -55,41 +55,112 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
-.modeBtn[data-active="true"][data-type="call"] { color: var(--color-profit); }
-.modeBtn[data-active="true"][data-type="put"]  { color: var(--color-loss); }
+/* ── Body — sidebar + chart ──────────────────────────── */
 
-/* ── Legend ───────────────────────────────────────────── */
-
-.legend {
+.body {
   display: flex;
-  gap: var(--space-4);
-  font-size: 11px;
-  color: var(--text-dim);
+  flex: 1;
+  min-height: 0;
+  gap: var(--space-2);
 }
 
-.legendItem {
+/* ── Expiry sidebar ──────────────────────────────────── */
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  width: 110px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.allBtn {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 4px 6px;
+  text-align: left;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.allBtn:hover {
+  color: var(--text-secondary);
+  background: var(--bg-hover);
+}
+
+.allBtn[data-active] {
+  color: var(--text-primary);
+}
+
+.expiryBtn {
   display: flex;
   align-items: center;
-  gap: var(--space-1);
+  gap: 5px;
+  padding: 3px 6px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
 }
 
-.legendLine {
-  width: 14px;
-  height: 2px;
-  border-radius: 1px;
+.expiryBtn:hover {
+  background: var(--bg-hover);
 }
 
-.legendLine[data-type="call"] { background: var(--color-profit); }
-.legendLine[data-type="put"]  { background: var(--color-loss); }
+.expiryLabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--text-dim);
+  transition: color var(--transition-fast);
+}
 
-.legendLine[data-dashed] {
-  background: repeating-linear-gradient(
-    90deg,
-    var(--color-loss) 0px,
-    var(--color-loss) 3px,
-    transparent 3px,
-    transparent 5px
-  );
+.expiryBtn[data-active] .expiryLabel {
+  /* color set inline via style prop */
+}
+
+.expiryLine {
+  width: 10px;
+  height: 3px;
+  border-radius: 1.5px;
+  opacity: 0.25;
+  flex-shrink: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.expiryBtn[data-active] .expiryLine {
+  opacity: 1;
+}
+
+.expiryBtn:hover .expiryLine {
+  opacity: 0.6;
+}
+
+.expiryBtn[data-active]:hover .expiryLine {
+  opacity: 1;
+}
+
+.expiryDte {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-dim);
+  opacity: 0.5;
+  margin-left: auto;
+}
+
+.expiryBtn[data-active] .expiryDte {
+  opacity: 0.8;
 }
 
 /* ── Chart ────────────────────────────────────────────── */
@@ -105,4 +176,20 @@
   inset: 0;
   border-radius: var(--radius-md);
   overflow: hidden;
+}
+
+/* ── Mobile ──────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .sidebar {
+    width: 90px;
+  }
+
+  .expiryLabel {
+    font-size: 9px;
+  }
+
+  .expiryDte {
+    display: none;
+  }
 }
