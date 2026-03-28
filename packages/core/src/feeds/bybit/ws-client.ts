@@ -36,6 +36,12 @@ const MAX_TOPICS_PER_BATCH = 200;
  *
  * Settlement: USDT-settled, linear. No inverse conversion.
  */
+const INSTRUMENT_REFRESH_INTERVAL_MS = 10 * 60 * 1000;
+
+// Bybit requires explicit baseCoin — no wildcard like Deribit's currency:'any'.
+// These are all underlyings with active options as of 2026-03-28.
+const BASE_COINS = ['BTC', 'ETH', 'SOL', 'DOGE', 'XRP'] as const;
+
 export class BybitWsAdapter extends SdkBaseAdapter {
   readonly venue: VenueId = 'bybit';
 
@@ -43,6 +49,7 @@ export class BybitWsAdapter extends SdkBaseAdapter {
   private subscribedTopics = new Set<string>();
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private pingTimer: ReturnType<typeof setInterval> | null = null;
+  private refreshTimer: ReturnType<typeof setInterval> | null = null;
   private shouldReconnect = false;
 
   protected initClients(): void {}
@@ -52,10 +59,8 @@ export class BybitWsAdapter extends SdkBaseAdapter {
   protected async fetchInstruments(): Promise<CachedInstrument[]> {
     const instruments: CachedInstrument[] = [];
 
-    // Bybit returns only BTC when baseCoin is omitted — must query each explicitly
-    const baseCoins = ['BTC', 'ETH', 'SOL', 'DOGE', 'XRP'];
-
-    for (const baseCoin of baseCoins) {
+    // Bybit returns only BTC when baseCoin is omitted — must query each explicitly.
+    for (const baseCoin of BASE_COINS) {
       let cursor: string | undefined;
 
       do {
@@ -91,7 +96,108 @@ export class BybitWsAdapter extends SdkBaseAdapter {
 
     await this.fetchBulkTickers(instruments);
 
+    // Poll for new strikes/expiries every 10 minutes — Bybit has no instrument
+    // lifecycle push channel unlike Deribit's instrument.state.
+    this.refreshTimer = setInterval(() => { void this.refreshInstruments(); }, INSTRUMENT_REFRESH_INTERVAL_MS);
+
     return instruments;
+  }
+
+  /**
+   * Polls `get_instruments` for each baseCoin and subscribes any symbols
+   * not yet in our instrument map. Called every 10 minutes to pick up new
+   * strikes and expiries listed after boot without a server restart.
+   *
+   * Only adds instruments — expired ones are left in place and simply stop
+   * receiving ticker pushes, which is harmless for a read-only display.
+   */
+  private async refreshInstruments(): Promise<void> {
+    const activeSymbols = new Set<string>();
+    const newInstruments: CachedInstrument[] = [];
+
+    for (const baseCoin of BASE_COINS) {
+      try {
+        let cursor: string | undefined;
+
+        do {
+          const url = new URL('/v5/market/instruments-info', BYBIT_REST_BASE_URL);
+          url.searchParams.set('category', 'option');
+          url.searchParams.set('baseCoin', baseCoin);
+          url.searchParams.set('limit', '1000');
+          if (cursor) url.searchParams.set('cursor', cursor);
+
+          const raw = await this.fetchJson(url);
+          const parsed = BybitInstrumentsResponseSchema.safeParse(raw);
+          if (!parsed.success || parsed.data.retCode !== 0) break;
+
+          for (const item of parsed.data.result.list) {
+            if (item.status === 'Trading') activeSymbols.add(item.symbol);
+            if (this.instrumentMap.has(item.symbol)) continue;
+            if (item.status !== 'Trading') continue;
+            const inst = this.parseInstrument(item);
+            if (inst) newInstruments.push(inst);
+          }
+
+          cursor = parsed.data.result.nextPageCursor || undefined;
+        } while (cursor);
+      } catch (err: unknown) {
+        log.warn({ baseCoin, err: String(err) }, 'instrument refresh failed');
+        // If a baseCoin fetch fails, skip expiry detection for that coin to
+        // avoid incorrectly removing instruments we just couldn't reach.
+        for (const inst of this.instruments) {
+          if (inst.base === baseCoin) activeSymbols.add(inst.exchangeSymbol);
+        }
+      }
+    }
+
+    // Remove instruments no longer present in the active set.
+    const expiredSymbols = this.instruments
+      .map((i) => i.exchangeSymbol)
+      .filter((sym) => !activeSymbols.has(sym));
+
+    if (expiredSymbols.length > 0) {
+      const expiredTopics = expiredSymbols.map((sym) => `tickers.${sym}`);
+
+      for (const sym of expiredSymbols) {
+        const inst = this.instrumentMap.get(sym);
+        if (!inst) continue;
+        this.instrumentMap.delete(sym);
+        this.symbolIndex.delete(inst.symbol);
+        this.quoteStore.delete(sym);
+        this.subscribedTopics.delete(`tickers.${sym}`);
+      }
+      this.instruments = this.instruments.filter((i) => !expiredSymbols.includes(i.exchangeSymbol));
+
+      if (this.ws?.readyState === WebSocket.OPEN) {
+        for (let i = 0; i < expiredTopics.length; i += MAX_TOPICS_PER_BATCH) {
+          this.sendJson({ op: 'unsubscribe', args: expiredTopics.slice(i, i + MAX_TOPICS_PER_BATCH) });
+        }
+      }
+
+      log.info({ count: expiredSymbols.length }, 'removed expired instruments from refresh');
+    }
+
+    // Add and subscribe new instruments.
+    if (newInstruments.length > 0) {
+      for (const inst of newInstruments) {
+        this.instruments.push(inst);
+        this.instrumentMap.set(inst.exchangeSymbol, inst);
+        this.symbolIndex.set(inst.symbol, inst.exchangeSymbol);
+      }
+
+      const newTopics = newInstruments
+        .map((inst) => `tickers.${inst.exchangeSymbol}`)
+        .filter((topic) => !this.subscribedTopics.has(topic));
+
+      if (newTopics.length > 0 && this.ws?.readyState === WebSocket.OPEN) {
+        for (const topic of newTopics) this.subscribedTopics.add(topic);
+        for (let i = 0; i < newTopics.length; i += MAX_TOPICS_PER_BATCH) {
+          this.sendJson({ op: 'subscribe', args: newTopics.slice(i, i + MAX_TOPICS_PER_BATCH) });
+        }
+      }
+
+      log.info({ count: newInstruments.length }, 'added new instruments from refresh');
+    }
   }
 
   private parseInstrument(item: BybitInstrument): CachedInstrument | null {
@@ -101,9 +207,9 @@ export class BybitWsAdapter extends SdkBaseAdapter {
     const base = match[1]!;
     const expiryRaw = match[2]!;
     const strikeStr = match[3]!;
-    const rightChar = match[4]!;
     const expiry = this.parseExpiry(expiryRaw);
-    const right = rightChar === 'C' ? 'call' as const : 'put' as const;
+    // optionsType from the API ("Call"/"Put") is authoritative over the regex suffix.
+    const right = item.optionsType === 'Call' ? 'call' as const : 'put' as const;
     // item.settleCoin is authoritative — regex suffix is fallback for edge cases
     const settle = item.settleCoin || match[5] || 'USDT';
 
@@ -111,7 +217,7 @@ export class BybitWsAdapter extends SdkBaseAdapter {
       symbol: this.buildCanonicalSymbol(base, settle, expiry, Number(strikeStr), right),
       exchangeSymbol: item.symbol,
       base,
-      quote: 'USD',
+      quote: item.quoteCoin,
       settle,
       expiry,
       strike: Number(strikeStr),
@@ -373,6 +479,7 @@ export class BybitWsAdapter extends SdkBaseAdapter {
     this.shouldReconnect = false;
     this.stopPing();
     if (this.reconnectTimer) { clearTimeout(this.reconnectTimer); this.reconnectTimer = null; }
+    if (this.refreshTimer) { clearInterval(this.refreshTimer); this.refreshTimer = null; }
     await this.unsubscribeAll();
     this.ws?.close();
     this.ws = null;

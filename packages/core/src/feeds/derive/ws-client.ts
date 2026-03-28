@@ -11,6 +11,9 @@ const log = feedLogger('derive');
 // Production still uses the legacy lyra.finance domain
 const CURRENCIES = ['BTC', 'ETH', 'SOL', 'HYPE'];
 
+// Derive has no instrument lifecycle push channel — poll for new strikes/expiries.
+const INSTRUMENT_REFRESH_INTERVAL_MS = 10 * 60 * 1000;
+
 /**
  * Derive (formerly Lyra Finance) adapter using direct JSON-RPC over WebSocket.
  *
@@ -33,6 +36,7 @@ export class DeriveWsAdapter extends SdkBaseAdapter {
   private rpc!: JsonRpcWsClient;
   private subscribedTickers = new Set<string>();
   private expiryDates = new Map<string, Set<string>>();
+  private refreshTimer: ReturnType<typeof setInterval> | null = null;
 
   protected initClients(): void {
     if (this.rpc) return;
@@ -46,7 +50,7 @@ export class DeriveWsAdapter extends SdkBaseAdapter {
     });
 
     this.rpc.onSubscription((channel, data) => {
-      if (channel.startsWith('ticker_slim.') || channel.startsWith('ticker.')) {
+      if (channel.startsWith('ticker_slim.')) {
         this.handleTicker(channel, data);
       }
     });
@@ -84,6 +88,9 @@ export class DeriveWsAdapter extends SdkBaseAdapter {
 
     await this.fetchBulkTickers();
 
+    // Derive has no instrument lifecycle push channel — poll for new listings.
+    this.refreshTimer = setInterval(() => { void this.refreshInstruments(); }, INSTRUMENT_REFRESH_INTERVAL_MS);
+
     // Prune instruments for expiries where Derive returned zero tickers.
     // Derive's get_instruments lists expiries that have no actual market data,
     // which causes ghost expiry tabs in the UI.
@@ -103,6 +110,7 @@ export class DeriveWsAdapter extends SdkBaseAdapter {
 
     const inst = parsed.data;
     if (inst.instrument_type !== 'option') return null;
+    if (inst.is_active === false) return null;
 
     const name = inst.instrument_name;
 
@@ -144,7 +152,7 @@ export class DeriveWsAdapter extends SdkBaseAdapter {
       symbol: this.buildCanonicalSymbol(base, settle, expiry, strike, right),
       exchangeSymbol: name,
       base,
-      quote: 'USD',
+      quote: inst.quote_currency ?? 'USDC',
       settle,
       expiry,
       strike,
@@ -244,6 +252,45 @@ export class DeriveWsAdapter extends SdkBaseAdapter {
     this.subscribedTickers.clear();
   }
 
+  /**
+   * Poll get_instruments every 10 minutes to pick up new strikes and expiries.
+   * Derive has no instrument lifecycle push channel.
+   */
+  private async refreshInstruments(): Promise<void> {
+    for (const currency of CURRENCIES) {
+      try {
+        const result = await this.rpc.call('public/get_instruments', {
+          currency,
+          instrument_type: 'option',
+          expired: false,
+        });
+
+        const list = Array.isArray(result) ? result : (result?.instruments ?? []);
+        const newInstruments: CachedInstrument[] = [];
+
+        for (const item of list) {
+          const inst = this.parseInstrument(item);
+          if (!inst || this.instrumentMap.has(inst.exchangeSymbol)) continue;
+          newInstruments.push(inst);
+        }
+
+        if (newInstruments.length === 0) continue;
+
+        for (const inst of newInstruments) {
+          this.instruments.push(inst);
+          this.instrumentMap.set(inst.exchangeSymbol, inst);
+          this.symbolIndex.set(inst.symbol, inst.exchangeSymbol);
+          if (!this.expiryDates.has(inst.base)) this.expiryDates.set(inst.base, new Set());
+          this.expiryDates.get(inst.base)!.add(inst.expiry.replace(/-/g, ''));
+        }
+
+        log.info({ count: newInstruments.length, currency }, 'added new instruments from refresh');
+      } catch (err: unknown) {
+        log.warn({ currency, err: String(err) }, 'instrument refresh failed');
+      }
+    }
+  }
+
   // ─── WS message handlers ─────────────────────────────────────
 
   private handleTicker(channel: string, data: unknown): void {
@@ -305,6 +352,7 @@ export class DeriveWsAdapter extends SdkBaseAdapter {
   }
 
   override async dispose(): Promise<void> {
+    if (this.refreshTimer) { clearInterval(this.refreshTimer); this.refreshTimer = null; }
     await this.rpc?.disconnect();
   }
 }

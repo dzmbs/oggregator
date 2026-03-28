@@ -8,43 +8,44 @@ import {
   BinanceCombinedStreamSchema,
   BinanceInstrumentSchema,
   BinanceMarkPriceSchema,
+  BinanceNewSymbolSchema,
+  BinanceOiEventSchema,
+  BinanceRestTickerSchema,
 } from './types.js';
 
 const log = feedLogger('binance');
 
+// Volume and lastPrice are not in the WS stream — refresh from REST on this interval.
+const TICKER_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
+
 /**
  * Binance European Options (EAPI) adapter.
  *
- * REST (instrument loading only):
- *   - GET /eapi/v1/exchangeInfo → instrument catalog
+ * REST (boot only):
+ *   GET /eapi/v1/exchangeInfo  — instrument catalog
+ *   GET /eapi/v1/ticker        — initial volume + lastPrice snapshot
+ *   GET /eapi/v1/openInterest  — initial OI snapshot per base/expiry
  *
- * WebSocket (all live data via bulk streams):
- *   - `btcusdt@optionMarkPrice` on /market/stream
- *   - Delivers ALL option data for an underlying in one push every 1s:
- *     mark price, greeks, bid/ask, IV, index price
+ * WebSocket (all on wss://fstream.binance.com/market/stream):
+ *   {underlying}@optionMarkPrice — mark price, bid/ask, IV, greeks (1s)
+ *   {underlying}@openInterest@{expiry} — OI per expiry (60s)
+ *   !optionSymbol — new instrument listings (50ms); replaces polling
  *
- * WS field mapping (verified live 2026-03-20):
- *   s=symbol, mp=markPrice, i=indexPrice, bo=bestBid, ao=bestAsk,
- *   bq=bidQty, aq=askQty, vo=markIV, b=bidIV, a=askIV,
- *   d=delta, t=theta, g=gamma, v=vega, rf=riskFreeRate,
- *   E=eventTime, e=eventType("markPrice")
- *
- * Underlying name format: "btcusdt" (lowercase, includes quote asset)
- * Stream name: "<underlying>@optionMarkPrice"
- * URL: wss://fstream.binance.com/market/stream (combined stream endpoint)
- *
- * Settlement: USDT-settled, linear. No inverse conversion needed.
+ * Binance sends a WS-level ping every 5 minutes — we must pong within 15 minutes.
+ * Connections are forcibly closed at 24 hours; on reconnect we re-fetch exchangeInfo
+ * to pick up any instruments listed during the disconnect window.
  */
 export class BinanceWsAdapter extends SdkBaseAdapter {
   readonly venue: VenueId = 'binance';
 
-  // Binance optionMarkPrice is already a bulk stream covering ALL options.
-  // No need for per-expiry eager subscription.
+  // optionMarkPrice is a bulk per-underlying stream covering all options.
+  // No per-expiry eager subscription needed.
   protected override eagerExpiryCount = 0;
 
   private ws: WebSocket | null = null;
   private subscribedStreams = new Set<string>();
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private tickerRefreshTimer: ReturnType<typeof setInterval> | null = null;
   private shouldReconnect = false;
   private msgId = 0;
 
@@ -73,8 +74,13 @@ export class BinanceWsAdapter extends SdkBaseAdapter {
     await this.connectAndSubscribe(instruments);
     await this.waitForFirstData();
 
-    // WS optionMarkPrice has no volume or OI — supplement from REST
     await this.fetchTickerSnapshot(instruments);
+
+    // Refresh volume + lastPrice periodically — WS stream doesn't carry either.
+    this.tickerRefreshTimer = setInterval(
+      () => { void this.fetchTickerSnapshot(this.instruments); },
+      TICKER_REFRESH_INTERVAL_MS,
+    );
 
     return instruments;
   }
@@ -85,28 +91,37 @@ export class BinanceWsAdapter extends SdkBaseAdapter {
 
     const { symbol: sym, status, quoteAsset, unit, minQty, filters } = parsed.data;
     if (status && status !== 'TRADING') return null;
-    // Strike can be decimal for low-price assets (DOGE: 0.085, XRP: 1.5)
+
+    // Symbol format: BTC-YYMMDD-STRIKE-C/P
     const parts = sym.match(/^(\w+)-(\d{6})-([\d.]+)-([CP])$/);
     if (!parts) return null;
 
     const base = parts[1]!;
-    const expiryRaw = parts[2]!;
-    const strikeStr = parts[3]!;
-    const rightChar = parts[4]!;
     const settle = quoteAsset ?? 'USDT';
-    const expiry = this.parseExpiry(expiryRaw);
-    const right = rightChar === 'C' ? 'call' as const : 'put' as const;
+
+    // Use API fields when present — more reliable than parsing the symbol name.
+    const right = parsed.data.side === 'CALL' ? 'call' as const
+      : parsed.data.side === 'PUT'  ? 'put'  as const
+      : (parts[4] === 'C'           ? 'call' as const : 'put' as const);
+
+    const strike = parsed.data.strikePrice != null
+      ? Number(parsed.data.strikePrice)
+      : Number(parts[3]);
+
+    const expiry = parsed.data.expiryDate != null
+      ? new Date(parsed.data.expiryDate).toISOString().slice(0, 10)
+      : this.parseExpiry(parts[2]!);
 
     const priceFilter = filters?.find(f => f.filterType === 'PRICE_FILTER');
 
     return {
-      symbol: this.buildCanonicalSymbol(base, settle, expiry, Number(strikeStr), right),
+      symbol: this.buildCanonicalSymbol(base, settle, expiry, strike, right),
       exchangeSymbol: sym,
       base,
       quote: settle,
       settle,
       expiry,
-      strike: Number(strikeStr),
+      strike,
       right,
       inverse: false,
       contractSize: this.safeNum(unit) ?? 1,
@@ -124,8 +139,7 @@ export class BinanceWsAdapter extends SdkBaseAdapter {
     return new Promise((resolve) => {
       const check = setInterval(() => {
         for (const key of this.quoteStore.keys()) {
-          const base = key.split('-')[0]!.toLowerCase();
-          seen.add(base);
+          seen.add(key.split('-')[0]!.toLowerCase());
         }
         if (seen.size >= target) {
           clearInterval(check);
@@ -137,26 +151,41 @@ export class BinanceWsAdapter extends SdkBaseAdapter {
     });
   }
 
-  // ── WebSocket connection ──────────────────────────────────────
+  // ── WebSocket ─────────────────────────────────────────────────
 
   private async connectAndSubscribe(instruments: CachedInstrument[]): Promise<void> {
-    // Binance stream names use lowercase underlying+settle: "btcusdt", "ethusdt"
+    // One optionMarkPrice stream covers all options for an underlying.
     const underlyings = new Set<string>();
     for (const inst of instruments) {
       underlyings.add(`${inst.base.toLowerCase()}${inst.settle.toLowerCase()}`);
     }
 
-    const streams = [...underlyings].map(u => `${u}@optionMarkPrice`);
+    const streams: string[] = [
+      ...[...underlyings].map(u => `${u}@optionMarkPrice`),
+      // Real-time new listing notifications — replaces polling for new instruments.
+      '!optionSymbol',
+    ];
+
+    // OI stream per base/expiry pair — updates every 60s, keeps OI live after boot.
+    const oiStreams = this.buildOiStreams(instruments);
+    streams.push(...oiStreams);
 
     await this.connectWs();
 
-    for (const stream of streams) {
-      if (!this.subscribedStreams.has(stream)) {
-        this.subscribedStreams.add(stream);
-      }
-    }
+    for (const s of streams) this.subscribedStreams.add(s);
+    this.sendSubscribe(streams);
+  }
 
-    this.sendSubscribe([...this.subscribedStreams]);
+  private buildOiStreams(instruments: CachedInstrument[]): string[] {
+    const seen = new Set<string>();
+    const streams: string[] = [];
+    for (const inst of instruments) {
+      const match = inst.exchangeSymbol.match(/-(\d{6})-/);
+      if (!match) continue;
+      const key = `${inst.base.toLowerCase()}${inst.settle.toLowerCase()}@openInterest@${match[1]}`;
+      if (!seen.has(key)) { seen.add(key); streams.push(key); }
+    }
+    return streams;
   }
 
   private connectWs(): Promise<void> {
@@ -174,8 +203,7 @@ export class BinanceWsAdapter extends SdkBaseAdapter {
 
       this.ws.on('message', (raw: WebSocket.RawData) => {
         try {
-          const msg = JSON.parse(raw.toString());
-          this.handleWsMessage(msg);
+          this.handleWsMessage(JSON.parse(raw.toString()));
         } catch (e: unknown) { log.debug({ err: String(e) }, 'malformed WS frame'); }
       });
 
@@ -190,20 +218,15 @@ export class BinanceWsAdapter extends SdkBaseAdapter {
         if (this.ws?.readyState !== WebSocket.OPEN) reject(err);
       });
 
-      this.ws.on('ping', () => {
-        this.ws?.pong();
-      });
+      // Binance sends WS-level pings every 5 minutes — must pong within 15 minutes.
+      this.ws.on('ping', () => { this.ws?.pong(); });
     });
   }
 
   private sendSubscribe(streams: string[]): void {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
-    this.ws.send(JSON.stringify({
-      method: 'SUBSCRIBE',
-      params: streams,
-      id: ++this.msgId,
-    }));
-    log.info({ count: streams.length, streams }, 'subscribed to streams');
+    this.ws.send(JSON.stringify({ method: 'SUBSCRIBE', params: streams, id: ++this.msgId }));
+    log.info({ count: streams.length }, 'subscribed to streams');
   }
 
   private reconnectAttempt = 0;
@@ -219,6 +242,9 @@ export class BinanceWsAdapter extends SdkBaseAdapter {
         if (this.subscribedStreams.size > 0) {
           this.sendSubscribe([...this.subscribedStreams]);
         }
+        // Connections close at 24h — re-fetch exchangeInfo to pick up anything
+        // listed during the disconnect window that !optionSymbol may have missed.
+        void this.refreshInstrumentsFromExchangeInfo();
       } catch (e: unknown) {
         log.warn({ err: String(e) }, 'reconnect failed');
         this.scheduleReconnect();
@@ -226,28 +252,71 @@ export class BinanceWsAdapter extends SdkBaseAdapter {
     }, delay);
   }
 
+  /**
+   * On reconnect after a 24-hour forced disconnect, diff exchangeInfo against
+   * our current map and add anything new. Short gaps are already covered by
+   * !optionSymbol; this handles the disconnect window itself.
+   */
+  private async refreshInstrumentsFromExchangeInfo(): Promise<void> {
+    try {
+      const eapiInfo = await this.fetchEapi('/eapi/v1/exchangeInfo');
+      const info = eapiInfo as Record<string, unknown>;
+      const symbols: unknown[] = Array.isArray(info?.['optionSymbols']) ? (info['optionSymbols'] as unknown[]) : [];
+
+      const newInstruments: CachedInstrument[] = [];
+      for (const sym of symbols) {
+        const inst = this.parseInstrument(sym);
+        if (!inst || this.instrumentMap.has(inst.exchangeSymbol)) continue;
+        newInstruments.push(inst);
+      }
+
+      if (newInstruments.length === 0) return;
+
+      const newOiStreams: string[] = [];
+      for (const inst of newInstruments) {
+        this.instruments.push(inst);
+        this.instrumentMap.set(inst.exchangeSymbol, inst);
+        this.symbolIndex.set(inst.symbol, inst.exchangeSymbol);
+
+        const oiStreams = this.buildOiStreams([inst]);
+        for (const s of oiStreams) {
+          if (!this.subscribedStreams.has(s)) { this.subscribedStreams.add(s); newOiStreams.push(s); }
+        }
+      }
+
+      if (newOiStreams.length > 0) this.sendSubscribe(newOiStreams);
+      log.info({ count: newInstruments.length }, 'added instruments from reconnect refresh');
+    } catch (err: unknown) {
+      log.warn({ err: String(err) }, 'reconnect instrument refresh failed');
+    }
+  }
+
   // ── subscriptions ─────────────────────────────────────────────
 
   protected async subscribeChain(
     underlying: string,
     _expiry: string,
-    _instruments: CachedInstrument[],
+    instruments: CachedInstrument[],
   ): Promise<void> {
-    // optionMarkPrice is a bulk stream — one sub covers ALL options for an underlying
     const stream = `${underlying.toLowerCase()}usdt@optionMarkPrice`;
-    if (this.subscribedStreams.has(stream)) return;
+    const newStreams: string[] = [];
 
-    this.subscribedStreams.add(stream);
-    this.sendSubscribe([stream]);
+    if (!this.subscribedStreams.has(stream)) {
+      this.subscribedStreams.add(stream);
+      newStreams.push(stream);
+    }
+
+    // Subscribe OI streams for any expiries not already tracked.
+    for (const s of this.buildOiStreams(instruments)) {
+      if (!this.subscribedStreams.has(s)) { this.subscribedStreams.add(s); newStreams.push(s); }
+    }
+
+    if (newStreams.length > 0) this.sendSubscribe(newStreams);
   }
 
   protected async unsubscribeAll(): Promise<void> {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN || this.subscribedStreams.size === 0) return;
-    this.ws.send(JSON.stringify({
-      method: 'UNSUBSCRIBE',
-      params: [...this.subscribedStreams],
-      id: ++this.msgId,
-    }));
+    this.ws.send(JSON.stringify({ method: 'UNSUBSCRIBE', params: [...this.subscribedStreams], id: ++this.msgId }));
     this.subscribedStreams.clear();
   }
 
@@ -257,59 +326,139 @@ export class BinanceWsAdapter extends SdkBaseAdapter {
     const envelope = BinanceCombinedStreamSchema.safeParse(msg);
     if (!envelope.success) return;
 
-    for (const rawItem of envelope.data.data) {
-      const item = BinanceMarkPriceSchema.safeParse(rawItem);
-      if (!item.success) continue;
+    const { stream, data } = envelope.data;
 
-      const exchangeSymbol = item.data.s;
-      // instrumentMap isn't populated until after fetchInstruments returns — store first, emit later
+    if (stream === '!optionSymbol') {
+      for (const item of data) this.handleNewSymbol(item);
+      return;
+    }
 
-      // Binance sends "0.000" for bid/ask when no order exists, and "-1.0"
-      // for bid/ask IV when no quote is available. Treat both as null.
-      const bidPrice = this.positiveOrNull(item.data.bo);
-      const askPrice = this.positiveOrNull(item.data.ao);
-      const bidIv    = this.positiveOrNull(item.data.b);
-      const askIv    = this.positiveOrNull(item.data.a);
+    if (stream.includes('@openInterest@')) {
+      for (const item of data) this.handleOiEvent(item);
+      return;
+    }
 
-      // Preserve volume and OI from the REST snapshot — WS stream doesn't carry them
-      const prev = this.quoteStore.get(exchangeSymbol);
-
-      const quote: LiveQuote = {
-        bidPrice,
-        askPrice,
-        bidSize: bidPrice != null ? this.safeNum(item.data.bq) : null,
-        askSize: askPrice != null ? this.safeNum(item.data.aq) : null,
-        markPrice: this.safeNum(item.data.mp),
-        lastPrice: null,
-        underlyingPrice: this.safeNum(item.data.i),
-        indexPrice: this.safeNum(item.data.i),
-        volume24h: prev?.volume24h ?? null,
-        openInterest: prev?.openInterest ?? null,
-        openInterestUsd: prev?.openInterestUsd ?? null,
-        volume24hUsd: prev?.volume24hUsd ?? null,
-        greeks: {
-          delta: this.safeNum(item.data.d),
-          gamma: this.safeNum(item.data.g),
-          theta: this.safeNum(item.data.t),
-          vega: this.safeNum(item.data.v),
-          rho: null,
-          markIv: this.safeNum(item.data.vo),
-          bidIv,
-          askIv,
-        },
-        timestamp: item.data.E ?? Date.now(),
-      };
-
-      this.quoteStore.set(exchangeSymbol, quote);
-
-      if (this.instrumentMap.has(exchangeSymbol)) {
-        this.emitQuoteUpdate(exchangeSymbol, quote);
+    if (stream.includes('@optionMarkPrice')) {
+      for (const rawItem of data) {
+        const item = BinanceMarkPriceSchema.safeParse(rawItem);
+        if (!item.success) continue;
+        this.handleMarkPrice(item.data);
       }
     }
   }
 
-  // ── REST supplement — WS optionMarkPrice has no volume or OI ──
+  private handleMarkPrice(item: import('./types.js').BinanceMarkPrice): void {
+    const exchangeSymbol = item.s;
 
+    // Binance sends "0.000" for empty bid/ask and "-1.0" for unavailable IV.
+    const bidPrice = this.binancePositiveOrNull(item.bo);
+    const askPrice = this.binancePositiveOrNull(item.ao);
+    const bidIv    = this.binancePositiveOrNull(item.b);
+    const askIv    = this.binancePositiveOrNull(item.a);
+
+    const prev = this.quoteStore.get(exchangeSymbol);
+
+    const quote: LiveQuote = {
+      bidPrice,
+      askPrice,
+      bidSize: bidPrice != null ? this.safeNum(item.bq) : null,
+      askSize: askPrice != null ? this.safeNum(item.aq) : null,
+      markPrice: this.safeNum(item.mp),
+      lastPrice: prev?.lastPrice ?? null,
+      underlyingPrice: this.safeNum(item.i),
+      indexPrice: this.safeNum(item.i),
+      volume24h: prev?.volume24h ?? null,
+      openInterest: prev?.openInterest ?? null,
+      openInterestUsd: prev?.openInterestUsd ?? null,
+      volume24hUsd: prev?.volume24hUsd ?? null,
+      greeks: {
+        delta: this.safeNum(item.d),
+        gamma: this.safeNum(item.g),
+        theta: this.safeNum(item.t),
+        vega:  this.safeNum(item.v),
+        rho:   null,
+        markIv: this.safeNum(item.vo),
+        bidIv,
+        askIv,
+      },
+      timestamp: item.E ?? Date.now(),
+    };
+
+    this.quoteStore.set(exchangeSymbol, quote);
+    if (this.instrumentMap.has(exchangeSymbol)) {
+      this.emitQuoteUpdate(exchangeSymbol, quote);
+    }
+  }
+
+  /**
+   * !optionSymbol stream — new instrument listed on Binance at 50ms.
+   * Adds the instrument to all maps and subscribes its OI stream.
+   */
+  private handleNewSymbol(raw: unknown): void {
+    const parsed = BinanceNewSymbolSchema.safeParse(raw);
+    if (!parsed.success) return;
+
+    const d = parsed.data;
+    if (d.cs && d.cs !== 'TRADING') return;
+    if (this.instrumentMap.has(d.s)) return;
+
+    const parts = d.s.match(/^(\w+)-(\d{6})-([\d.]+)-([CP])$/);
+    if (!parts) return;
+
+    const base   = parts[1]!;
+    const settle = d.qa;
+    const right  = d.d === 'CALL' ? 'call' as const : 'put' as const;
+    const strike = Number(d.sp);
+    const expiry = new Date(d.dt).toISOString().slice(0, 10);
+
+    const inst: CachedInstrument = {
+      symbol: this.buildCanonicalSymbol(base, settle, expiry, strike, right),
+      exchangeSymbol: d.s,
+      base,
+      quote: settle,
+      settle,
+      expiry,
+      strike,
+      right,
+      inverse: false,
+      contractSize: d.u ?? 1,
+      tickSize: null,
+      minQty: null,
+      makerFee: 0.0002,
+      takerFee: 0.0005,
+    };
+
+    this.instruments.push(inst);
+    this.instrumentMap.set(inst.exchangeSymbol, inst);
+    this.symbolIndex.set(inst.symbol, inst.exchangeSymbol);
+
+    // Subscribe OI stream for this instrument's expiry if not already tracked.
+    const oiStreams = this.buildOiStreams([inst]).filter(s => !this.subscribedStreams.has(s));
+    for (const s of oiStreams) this.subscribedStreams.add(s);
+    if (oiStreams.length > 0) this.sendSubscribe(oiStreams);
+
+    log.info({ symbol: d.s }, 'added new instrument from !optionSymbol');
+  }
+
+  // underlying@openInterest@YYMMDD — updates every 60s
+  private handleOiEvent(raw: unknown): void {
+    const parsed = BinanceOiEventSchema.safeParse(raw);
+    if (!parsed.success) return;
+
+    const prev = this.quoteStore.get(parsed.data.s);
+    if (!prev) return;
+
+    prev.openInterest = this.safeNum(parsed.data.o);
+    prev.openInterestUsd = this.safeNum(parsed.data.h);
+  }
+
+  // ── REST supplement ───────────────────────────────────────────
+
+  /**
+   * Fetch volume + lastPrice from REST ticker and OI from REST openInterest.
+   * Called at boot and every 5 minutes for volume (WS stream carries neither).
+   * OI is seeded here once; the WS openInterest stream keeps it current after.
+   */
   private async fetchTickerSnapshot(instruments: CachedInstrument[]): Promise<void> {
     try {
       const raw = await this.fetchEapi('/eapi/v1/ticker');
@@ -317,21 +466,22 @@ export class BinanceWsAdapter extends SdkBaseAdapter {
 
       let merged = 0;
       for (const item of raw) {
-        const t = item as { symbol?: string; volume?: string };
-        if (typeof t.symbol !== 'string') continue;
-        const prev = this.quoteStore.get(t.symbol);
-        if (prev) {
-          prev.volume24h = this.safeNum(t.volume);
-          merged++;
-        }
+        const t = BinanceRestTickerSchema.safeParse(item);
+        if (!t.success) continue;
+        const prev = this.quoteStore.get(t.data.symbol);
+        if (!prev) continue;
+        if (t.data.volume != null)    prev.volume24h  = this.safeNum(t.data.volume);
+        if (t.data.lastPrice != null) prev.lastPrice  = this.safeNum(t.data.lastPrice);
+        merged++;
       }
-      log.info({ count: merged }, 'merged ticker volume from REST');
+      log.info({ count: merged }, 'refreshed volume + lastPrice from ticker');
     } catch (err: unknown) {
       log.warn({ err: String(err) }, 'ticker snapshot failed');
     }
 
-    // OI endpoint: /eapi/v1/openInterest?underlyingAsset=BTC&expiration=YYMMDD
-    // Only query exact base/expiry pairs that exist in exchangeInfo.
+    // OI REST call only on first run — WS openInterest streams keep it updated.
+    if (this.quoteStore.size > 0 && [...this.quoteStore.values()].some(q => q.openInterest != null)) return;
+
     const oiPairs = new Set<string>();
     for (const inst of instruments) {
       const match = inst.exchangeSymbol.match(/-(\d{6})-/);
@@ -341,23 +491,18 @@ export class BinanceWsAdapter extends SdkBaseAdapter {
     for (const pair of oiPairs) {
       const [base, expiry] = pair.split(':');
       if (!base || !expiry) continue;
-
       try {
         const raw = await this.fetchEapi(`/eapi/v1/openInterest?underlyingAsset=${base}&expiration=${expiry}`);
         if (!Array.isArray(raw)) continue;
-
-        let merged = 0;
         for (const item of raw) {
           const t = item as { symbol?: string; sumOpenInterest?: string; sumOpenInterestUsd?: string };
           if (typeof t.symbol !== 'string') continue;
           const prev = this.quoteStore.get(t.symbol);
           if (prev) {
-            prev.openInterest = this.safeNum(t.sumOpenInterest);
+            prev.openInterest    = this.safeNum(t.sumOpenInterest);
             prev.openInterestUsd = this.safeNum(t.sumOpenInterestUsd);
-            merged++;
           }
         }
-        if (merged > 0) log.info({ base, expiry, count: merged }, 'merged OI from REST');
       } catch (err: unknown) {
         log.warn({ base, expiry, err: String(err) }, 'OI fetch failed');
       }
@@ -372,9 +517,16 @@ export class BinanceWsAdapter extends SdkBaseAdapter {
     return res.json() as Promise<unknown>;
   }
 
+  /** Treats "0.000" and negative values as null — Binance uses these for empty/unavailable. */
+  private binancePositiveOrNull(val: string | undefined): number | null {
+    const n = this.safeNum(val);
+    return n != null && n > 0 ? n : null;
+  }
+
   override async dispose(): Promise<void> {
     this.shouldReconnect = false;
-    if (this.reconnectTimer) { clearTimeout(this.reconnectTimer); this.reconnectTimer = null; }
+    if (this.reconnectTimer)      { clearTimeout(this.reconnectTimer);       this.reconnectTimer = null; }
+    if (this.tickerRefreshTimer)  { clearInterval(this.tickerRefreshTimer);  this.tickerRefreshTimer = null; }
     await this.unsubscribeAll();
     this.ws?.close();
     this.ws = null;

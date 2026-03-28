@@ -11,10 +11,11 @@ export const OkxInstrumentSchema = z.object({
   ctVal: z.string().optional(),
   ctMult: z.string().optional(),
   ctValCcy: z.string().optional(),
-  optType: z.string().optional(),
-  stk: z.string().optional(),
+  // Available directly — no need to parse from instId string
+  optType: z.string().optional(),   // "C" | "P"
+  stk: z.string().optional(),       // strike price
   listTime: z.string().optional(),
-  expTime: z.string().optional(),
+  expTime: z.string().optional(),   // ms timestamp
   tickSz: z.string().optional(),
   lotSz: z.string().optional(),
   minSz: z.string().optional(),
@@ -29,8 +30,7 @@ export const OkxRestResponseSchema = z.object({
 });
 export type OkxRestResponse = z.infer<typeof OkxRestResponseSchema>;
 
-// ── REST: GET /api/v5/market/tickers?instType=OPTION ───────────
-// Per-instrument bid/ask/last/volume
+// ── REST/WS: tickers ───────────────────────────────────────────
 
 export const OkxTickerSchema = z.object({
   instType: z.string(),
@@ -52,9 +52,7 @@ export const OkxTickerSchema = z.object({
 });
 export type OkxTicker = z.infer<typeof OkxTickerSchema>;
 
-// ── REST/WS: opt-summary (greeks for all options) ──────────────
-// Fields are the same for REST GET /api/v5/public/opt-summary
-// and WS channel "opt-summary"
+// ── REST/WS: opt-summary (greeks + IV, no markPx) ─────────────
 
 export const OkxOptSummarySchema = z.object({
   instType: z.string(),
@@ -79,6 +77,19 @@ export const OkxOptSummarySchema = z.object({
 });
 export type OkxOptSummary = z.infer<typeof OkxOptSummarySchema>;
 
+// ── REST/WS: mark-price ────────────────────────────────────────
+// GET /api/v5/public/mark-price?instType=OPTION&instFamily=BTC-USD
+// WS channel: { channel: 'mark-price', instId: '...' }
+// Confirmed live: { instId, instType, markPx, ts } — no bulk WS variant.
+
+export const OkxMarkPriceSchema = z.object({
+  instType: z.string(),
+  instId: z.string(),
+  markPx: z.string(),
+  ts: z.string(),
+});
+export type OkxMarkPrice = z.infer<typeof OkxMarkPriceSchema>;
+
 // ── WS message wrappers ────────────────────────────────────────
 
 export const OkxWsOptSummaryMsgSchema = z.object({
@@ -99,6 +110,26 @@ export const OkxWsTickerMsgSchema = z.object({
 });
 export type OkxWsTickerMsg = z.infer<typeof OkxWsTickerMsgSchema>;
 
+export const OkxWsMarkPriceMsgSchema = z.object({
+  arg: z.object({
+    channel: z.literal('mark-price'),
+    instId: z.string(),
+  }),
+  data: z.array(OkxMarkPriceSchema),
+});
+export type OkxWsMarkPriceMsg = z.infer<typeof OkxWsMarkPriceMsgSchema>;
+
+export const OkxWsInstrumentsMsgSchema = z.object({
+  arg: z.object({
+    channel: z.literal('instruments'),
+    instType: z.string(),
+  }),
+  action: z.string().optional(), // "snapshot" | "update"
+  data: z.array(OkxInstrumentSchema),
+});
+export type OkxWsInstrumentsMsg = z.infer<typeof OkxWsInstrumentsMsgSchema>;
+
 // ── Symbol regex ───────────────────────────────────────────────
 // Matches: BTC-USD-260328-60000-C
+// Still needed for base extraction — optType/stk cover right and strike.
 export const OKX_OPTION_SYMBOL_RE = /^(\w+)-(\w+)-(\d{6})-(\d+)-([CP])$/;

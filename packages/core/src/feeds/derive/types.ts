@@ -45,14 +45,14 @@ export const DeriveTickerSchema = z.object({
     ask_iv: numStr,
   }).nullable().optional(),
   stats: z.object({
-    oi: numStr,                 // open_interest
-    v: numStr,                  // volume
-    c: numStr,                  // 24h change
-    pr: numStr,                 // price
-    n: z.number().optional(),   // trade count (only non-string field)
-    h: numStr,                  // high
-    l: numStr,                  // low
-    p: numStr,                  // avg price
+    oi: numStr,                 // current open interest (contracts)
+    v: numStr,                  // notional volume traded last 24h (USD)
+    c: numStr,                  // contracts traded last 24h
+    pr: numStr,                 // premium volume traded last 24h (USDC)
+    n: z.number().optional(),   // number of trades last 24h (only non-string field)
+    h: numStr,                  // highest trade price last 24h
+    l: numStr,                  // lowest trade price last 24h
+    p: numStr,                  // 24h percent change in premium
   }).nullable().optional(),
   minp: numStr,                 // min order price
   maxp: numStr,                 // max order price

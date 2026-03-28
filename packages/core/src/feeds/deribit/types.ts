@@ -64,11 +64,19 @@ export const DeribitPriceIndexSchema = z.object({
 });
 export type DeribitPriceIndex = z.infer<typeof DeribitPriceIndexSchema>;
 
-// get_instruments response item
+// get_instruments / get_instrument response item
 export const DeribitInstrumentSchema = z.object({
   instrument_name: z.string(),
   settlement_currency: z.string().optional(),
+  // quote_currency from the API: "BTC" for inverse BTC, "ETH" for inverse ETH,
+  // "USDC" for all linear options. Never "USD".
+  quote_currency: z.string().optional(),
   instrument_type: z.string().optional(),
+  // strike and option_type come directly from the API — no need to regex-parse from name.
+  strike: z.number().optional(),
+  option_type: z.enum(['call', 'put']).optional(),
+  // price_index maps this instrument to its Deribit index (e.g. "btc_usdc", "avax_usdc").
+  price_index: z.string().optional(),
   contract_size: z.number().optional(),
   tick_size: z.number().optional(),
   min_trade_amount: z.number().optional(),
@@ -76,3 +84,11 @@ export const DeribitInstrumentSchema = z.object({
   taker_commission: z.number().optional(),
 });
 export type DeribitInstrument = z.infer<typeof DeribitInstrumentSchema>;
+
+// instrument.state.option.any — lifecycle notifications for options
+export const DeribitInstrumentStateSchema = z.object({
+  instrument_name: z.string(),
+  state: z.string(),
+  timestamp: z.number().optional(),
+});
+export type DeribitInstrumentState = z.infer<typeof DeribitInstrumentStateSchema>;

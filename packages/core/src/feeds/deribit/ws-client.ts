@@ -9,6 +9,7 @@ import {
   DeribitTickerSchema,
   DeribitBookSummarySchema,
   DeribitInstrumentSchema,
+  DeribitInstrumentStateSchema,
   DeribitPriceIndexSchema,
   type DeribitMarkPriceItem,
   type DeribitTicker,
@@ -26,10 +27,13 @@ const SUBSCRIBE_BATCH_SIZE = 500;
 // ~3.3 calls/sec sustained (30k credit pool, 3k per call).
 const SUBSCRIBE_BATCH_DELAY_MS = 300;
 
-// Eager subscriptions use agg2 (2s aggregation) to reduce traffic.
+// Eager subscriptions use agg2 (~1s aggregation) to reduce traffic.
 // On-demand subscriptions (user viewing a chain) use 100ms for tight updates.
 const EAGER_TICKER_INTERVAL = 'agg2';
 const ACTIVE_TICKER_INTERVAL = '100ms';
+
+// Higher number = more frequent. Used to decide when to upgrade a subscription.
+const INTERVAL_PRIORITY: Record<string, number> = { raw: 3, '100ms': 2, agg2: 1 };
 
 /** Regex for Deribit instrument names, supporting decimal strikes (e.g. 420d5 → 420.5). */
 const INSTRUMENT_RE = /^(\w+)-(\w+)-(\d+(?:d\d+)?)-([CP])$/;
@@ -45,11 +49,16 @@ const INSTRUMENT_RE = /^(\w+)-(\w+)-(\d+(?:d\d+)?)-([CP])$/;
  * Live data:
  *   - `deribit_price_index.{index_name}` — live spot price (~1s), keeps
  *     underlyingPrice fresh for USD conversion across ALL instruments.
- *   - `markprice.options.{index_name}` — bulk mark price + IV (2s) for all options.
+ *   - `markprice.options.{index_name}` — bulk mark price + IV (~1s) for all options.
  *   - `ticker.{instrument}.{interval}` — full bid/ask + greeks for subscribed chains.
+ *   - `instrument.state.option.any` — lifecycle events; used to pick up new
+ *     strikes/expiries listed after boot without restarting the server.
  *
  * Deribit is inverse for BTC/ETH: premiums quoted in the base asset.
  * We normalize to USD using underlyingPrice from the live price index.
+ *
+ * Linear USDC altcoin options (SOL, AVAX, XRP, TRX) quote mark_price per
+ * underlying unit. normPrice scales by contractSize to get per-contract USD.
  */
 export class DeribitWsAdapter extends SdkBaseAdapter {
   readonly venue: VenueId = 'deribit';
@@ -69,7 +78,7 @@ export class DeribitWsAdapter extends SdkBaseAdapter {
   private indexToInstruments = new Map<string, Set<string>>();
 
   // All expiries get ticker subscriptions at boot so bid/ask and greeks are
-  // live from second one. agg2 (2s aggregation) keeps traffic manageable.
+  // live from second one. agg2 (~1s aggregation) keeps traffic manageable.
   // Rate budget: ~4300 instruments ÷ 500/batch = 9 calls × 3000 credits = 27k
   // out of 30k pool (refills at 10k/sec).
   protected override async eagerSubscribe(): Promise<void> {
@@ -104,6 +113,8 @@ export class DeribitWsAdapter extends SdkBaseAdapter {
         this.handlePriceIndex(data);
       } else if (channel.startsWith('ticker.')) {
         this.handleTicker(channel, data);
+      } else if (channel.startsWith('instrument.state.')) {
+        void this.handleInstrumentState(data);
       }
     });
   }
@@ -113,8 +124,7 @@ export class DeribitWsAdapter extends SdkBaseAdapter {
   protected async fetchInstruments(): Promise<CachedInstrument[]> {
     await this.rpc.connect();
 
-    // `currency: 'any'` is the Deribit-documented way to fetch all currencies
-    // (BTC, ETH, USDC, USDT, EURR) in a single RPC call instead of looping.
+    // `currency: 'any'` fetches all currencies (BTC, ETH, USDC, USDT, EURR) in one call.
     const raw: unknown = await this.rpc.call('public/get_instruments', {
       currency: 'any',
       kind: 'option',
@@ -135,6 +145,10 @@ export class DeribitWsAdapter extends SdkBaseAdapter {
 
     log.info({ count: instruments.length }, 'loaded option instruments');
 
+    // Subscribe to lifecycle events so new strikes/expiries listed after boot
+    // are discovered without a server restart.
+    await this.rpc.subscribe(['instrument.state.option.any']);
+
     const currencies = [...new Set(instruments.map((i) => i.settle))];
     await this.fetchBulkSummaries(currencies);
 
@@ -142,11 +156,14 @@ export class DeribitWsAdapter extends SdkBaseAdapter {
   }
 
   /**
-   * Parse a raw `get_instruments` item into a `CachedInstrument`.
+   * Parse a raw `get_instruments` / `get_instrument` item into a `CachedInstrument`.
    *
-   * Deribit uses `d` as a decimal separator in strike prices
-   * (e.g. `BTC-28MAR26-420d5-C` means strike 420.5). The regex
-   * `\d+(?:d\d+)?` matches both integer and decimal forms.
+   * strike and option_type come directly from the API response.
+   * base and expiry are still parsed from the instrument name since the API
+   * doesn't return them as separate fields.
+   *
+   * Decimal strike notation in the name (e.g. `420d5` → 420.5) is only a
+   * display artifact — the API's `strike` field already has the numeric value.
    */
   private parseInstrument(item: unknown): CachedInstrument | null {
     const res = DeribitInstrumentSchema.safeParse(item);
@@ -159,23 +176,32 @@ export class DeribitWsAdapter extends SdkBaseAdapter {
     const parts = inst.instrument_name.match(INSTRUMENT_RE);
     if (!parts) return null;
 
-    const [, base, expiryRaw, strikeRaw, rightChar] = parts as [string, string, string, string, string];
+    const [, base, expiryRaw] = parts as [string, string, string, string, string];
 
-    // Convert Deribit decimal-strike notation: "420d5" → "420.5"
-    const strikeStr = strikeRaw.replace('d', '.');
-    const strike = Number(strikeStr);
+    // Use strike directly from the API; fall back to parsing from the name
+    // only if the field is absent (should not happen for current API version).
+    const strike = inst.strike ?? (() => {
+      const raw = (parts[3] as string).replace('d', '.');
+      return Number(raw);
+    })();
     if (!Number.isFinite(strike)) return null;
 
+    // option_type from the API ("call"/"put"); fall back to name suffix.
+    const right = inst.option_type ?? (parts[4] === 'C' ? 'call' : 'put');
+
     const expiry = this.parseExpiry(expiryRaw);
-    const right = rightChar === 'C' ? ('call' as const) : ('put' as const);
     const settle = inst.settlement_currency ?? base;
     const isInverse = inst.instrument_type === 'reversed';
+
+    // quote_currency from the API: "BTC" for inverse BTC, "ETH" for inverse ETH,
+    // "USDC" for all linear options. Hardcoding "USD" was always wrong.
+    const quote = inst.quote_currency ?? (isInverse ? base : 'USDC');
 
     return {
       symbol: this.buildCanonicalSymbol(base, settle, expiry, strike, right),
       exchangeSymbol: inst.instrument_name,
       base,
-      quote: 'USD',
+      quote,
       settle,
       expiry,
       strike,
@@ -279,6 +305,7 @@ export class DeribitWsAdapter extends SdkBaseAdapter {
   ): Promise<void> {
     const bulkChannels: string[] = [];
     const tickerChannels: string[] = [];
+    const channelsToUnsubscribe: string[] = [];
 
     const indexName = this.indexNameFor(underlying);
 
@@ -288,12 +315,10 @@ export class DeribitWsAdapter extends SdkBaseAdapter {
     }
 
     // deribit_price_index delivers the live spot price for USD conversion.
-    // One subscription per index covers all instruments under that underlying.
     if (!this.subscribedPriceIndexes.has(indexName)) {
       bulkChannels.push(`deribit_price_index.${indexName}`);
       this.subscribedPriceIndexes.add(indexName);
 
-      // Build the reverse lookup: index → instruments, for fan-out in handlePriceIndex
       if (!this.indexToInstruments.has(indexName)) {
         const syms = new Set<string>();
         for (const inst of this.instruments) {
@@ -305,9 +330,17 @@ export class DeribitWsAdapter extends SdkBaseAdapter {
       }
     }
 
+    const requestedPriority = INTERVAL_PRIORITY[interval] ?? 1;
+
     for (const inst of instruments) {
-      const existing = this.tickerIntervals.get(inst.exchangeSymbol);
-      if (!existing) {
+      const existingInterval = this.tickerIntervals.get(inst.exchangeSymbol);
+      const existingPriority = existingInterval != null ? (INTERVAL_PRIORITY[existingInterval] ?? 1) : 0;
+
+      if (requestedPriority > existingPriority) {
+        // Upgrade: unsubscribe the old channel before subscribing the faster one.
+        if (existingInterval) {
+          channelsToUnsubscribe.push(`ticker.${inst.exchangeSymbol}.${existingInterval}`);
+        }
         tickerChannels.push(`ticker.${inst.exchangeSymbol}.${interval}`);
         this.subscribedTickers.add(inst.exchangeSymbol);
         this.tickerIntervals.set(inst.exchangeSymbol, interval);
@@ -317,6 +350,10 @@ export class DeribitWsAdapter extends SdkBaseAdapter {
     if (bulkChannels.length > 0) {
       await this.rpc.subscribe(bulkChannels);
       log.info({ count: bulkChannels.length, underlying }, 'subscribed to bulk index channels');
+    }
+
+    if (channelsToUnsubscribe.length > 0) {
+      await this.rpc.unsubscribe(channelsToUnsubscribe);
     }
 
     // Batched to respect Deribit's rate limit (~3.3 subscribe calls/sec).
@@ -349,14 +386,99 @@ export class DeribitWsAdapter extends SdkBaseAdapter {
     this.tickerIntervals.clear();
   }
 
+  // ─── normalization override ───────────────────────────────────
+
+  /**
+   * Deribit linear USDC altcoin options (SOL, AVAX, XRP, TRX) quote mark_price
+   * per underlying unit, not per contract. Scale by contractSize to get the
+   * true USD value of one contract.
+   *
+   * Example: SOL_USDC-...-72-C with underlying ~$82.77
+   *   mark_price = 10.78 USDC/SOL (≈ intrinsic: 82.77 - 72 = 10.77)
+   *   contractSize = 10 SOL/contract
+   *   → usd = 10.78 × 10 = $107.8 per contract ✓
+   *
+   * BTC_USDC and ETH_USDC have contractSize = 1, so this is a no-op for them.
+   * Inverse options (BTC/ETH) fall through to the base implementation.
+   */
+  protected override normPrice(raw: number | null, inst: CachedInstrument) {
+    if (!inst.inverse && (inst.contractSize ?? 1) !== 1) {
+      const currency = inst.settle;
+      if (raw == null) return { raw: null as null, rawCurrency: currency, usd: null as null };
+      return { raw, rawCurrency: currency, usd: raw * (inst.contractSize ?? 1) };
+    }
+    return super.normPrice(raw, inst);
+  }
+
   // ─── WS message handlers ─────────────────────────────────────
+
+  /**
+   * `instrument.state.option.any` — lifecycle notifications for options.
+   *
+   * On `state: "open"`: fetch full instrument spec, add to all maps, subscribe ticker.
+   * On terminal states (`delivered`, `archivized`): remove from maps to avoid stale data.
+   */
+  private async handleInstrumentState(data: unknown): Promise<void> {
+    const parsed = DeribitInstrumentStateSchema.safeParse(data);
+    if (!parsed.success) return;
+
+    const { state, instrument_name } = parsed.data;
+
+    if (state === 'open') {
+      // Skip if already known (can fire on reconnect for existing instruments).
+      if (this.instrumentMap.has(instrument_name)) return;
+
+      try {
+        const raw: unknown = await this.rpc.call('public/get_instrument', { instrument_name });
+        const inst = this.parseInstrument(raw);
+        if (!inst) return;
+
+        this.instruments.push(inst);
+        this.instrumentMap.set(inst.exchangeSymbol, inst);
+        this.symbolIndex.set(inst.symbol, inst.exchangeSymbol);
+
+        // Keep the price index fan-out map current for handlePriceIndex.
+        const indexName = this.indexNameFor(inst.base);
+        const indexSet = this.indexToInstruments.get(indexName);
+        if (indexSet) {
+          indexSet.add(inst.exchangeSymbol);
+        }
+
+        await this.subscribeWithInterval(inst.base, [inst], EAGER_TICKER_INTERVAL);
+        log.info({ instrument_name }, 'added new instrument from instrument.state');
+      } catch (err: unknown) {
+        log.warn({ instrument_name, err: String(err) }, 'failed to fetch new instrument details');
+      }
+    } else if (state === 'delivered' || state === 'archivized') {
+      const inst = this.instrumentMap.get(instrument_name);
+      if (!inst) return;
+
+      this.instruments = this.instruments.filter((i) => i.exchangeSymbol !== instrument_name);
+      this.instrumentMap.delete(instrument_name);
+      this.symbolIndex.delete(inst.symbol);
+      this.quoteStore.delete(instrument_name);
+
+      const indexName = this.indexNameFor(inst.base);
+      this.indexToInstruments.get(indexName)?.delete(instrument_name);
+
+      // Unsubscribe the ticker channel and clean up tracking state so it
+      // isn't resubscribed on reconnect.
+      const interval = this.tickerIntervals.get(instrument_name);
+      if (interval) {
+        this.subscribedTickers.delete(instrument_name);
+        this.tickerIntervals.delete(instrument_name);
+        await this.rpc.unsubscribe([`ticker.${instrument_name}.${interval}`]);
+      }
+
+      log.info({ instrument_name, state }, 'removed expired instrument from instrument.state');
+    }
+  }
 
   /**
    * `markprice.options.{index_name}` — bulk update for all options under an index.
    *
-   * Per the official Deribit docs, the payload is always an **array of objects**
-   * with shape `{ instrument_name, mark_price, iv, timestamp? }`. There is no
-   * legacy array-of-tuples form in the current API.
+   * Payload is an array of objects: `{ instrument_name, mark_price, iv, timestamp? }`.
+   * IV is a fraction (0.49 = 49%), unlike ticker which sends percentage.
    */
   private handleMarkPriceOptions(data: unknown): void {
     const parsed = DeribitMarkPriceDataSchema.safeParse(data);
@@ -376,9 +498,8 @@ export class DeribitWsAdapter extends SdkBaseAdapter {
       const indexName = this.indexNameFor(inst.base);
       const liveUnderlying = this.liveIndexPrices.get(indexName);
 
-      // Safety net: if a ticker subscription is missing (shouldn't happen since
-      // eagerSubscribe covers all expiries), null stale bid/ask so enrichment
-      // falls back to markMid rather than showing boot-time prices.
+      // Safety net: if a ticker subscription is missing, null stale bid/ask so
+      // enrichment falls back to markMid rather than showing boot-time prices.
       const bidPrice = hasTicker ? (prev?.bidPrice ?? null) : null;
       const askPrice = hasTicker ? (prev?.askPrice ?? null) : null;
 
@@ -397,7 +518,7 @@ export class DeribitWsAdapter extends SdkBaseAdapter {
         volume24hUsd: prev?.volume24hUsd ?? null,
         greeks: {
           ...(prev?.greeks ?? EMPTY_GREEKS),
-          // markprice.options sends IV as fraction (0.49 = 49%), unlike ticker which sends percentage
+          // markprice.options iv is a fraction (0.49 = 49%); ticker sends percentage.
           markIv: this.safeNum(mp.iv),
         },
         timestamp: mp.timestamp ?? Date.now(),
@@ -435,6 +556,8 @@ export class DeribitWsAdapter extends SdkBaseAdapter {
    * Contains: `best_bid_price`, `best_ask_price`, `mark_price`, `last_price`,
    * `underlying_price`, `open_interest`, `mark_iv`, `bid_iv`, `ask_iv`,
    * `stats.volume`, and `greeks { delta, gamma, theta, vega, rho }`.
+   *
+   * mark_iv, bid_iv, ask_iv are in percentage (70.11 = 70.11% IV).
    */
   private handleTicker(channel: string, data: unknown): void {
     const parsed = DeribitTickerSchema.safeParse(data);
