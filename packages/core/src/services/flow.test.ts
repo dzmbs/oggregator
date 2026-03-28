@@ -1,6 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { EventEmitter } from 'node:events';
-import { FlowService } from './flow.js';
+import {
+  FlowService,
+  getDeribitTradeCurrency,
+  getDeribitUnderlyingFromInstrument,
+  normalizeTradeUnderlying,
+} from './flow.js';
 import type { TradeEvent } from './flow.js';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -21,6 +26,31 @@ function pushTrades(svc: FlowService, underlying: string, trades: TradeEvent[]) 
 function initBuffer(svc: FlowService, underlying: string) {
   (svc as unknown as { buffers: Map<string, TradeEvent[]> }).buffers.set(underlying, []);
 }
+
+// ── Deribit underlying routing ────────────────────────────────────────────────
+
+describe('FlowService — Deribit underlying routing', () => {
+  it('normalizes request underlyings to their base asset', () => {
+    expect(normalizeTradeUnderlying('BTC')).toBe('BTC');
+    expect(normalizeTradeUnderlying('AVAX_USDC')).toBe('AVAX');
+    expect(normalizeTradeUnderlying('trx_usdc')).toBe('TRX');
+  });
+
+  it('maps Deribit live-trade currencies by settlement family', () => {
+    expect(getDeribitTradeCurrency('BTC')).toBe('BTC');
+    expect(getDeribitTradeCurrency('ETH')).toBe('ETH');
+    expect(getDeribitTradeCurrency('AVAX')).toBe('USDC');
+    expect(getDeribitTradeCurrency('TRX_USDC')).toBe('USDC');
+    expect(getDeribitTradeCurrency('DOGE')).toBeNull();
+    expect(getDeribitTradeCurrency('HYPE')).toBeNull();
+  });
+
+  it('extracts base assets from Deribit instrument families', () => {
+    expect(getDeribitUnderlyingFromInstrument('BTC-29MAR26-70000-C')).toBe('BTC');
+    expect(getDeribitUnderlyingFromInstrument('SOL_USDC-3APR26-140-C')).toBe('SOL');
+    expect(getDeribitUnderlyingFromInstrument('TRX_USDC-10APR26-0d316-C')).toBe('TRX');
+  });
+});
 
 // ── ring buffer ───────────────────────────────────────────────────────────────
 

@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import {
   buildLiveTradeUid,
   computeLiveTradeAmounts,
+  normalizeTradeUnderlying,
   type TradeEvent,
 } from '@oggregator/core';
 import type { PersistedTradeRecord, TradeHistoryQuery } from '@oggregator/db';
@@ -42,7 +43,7 @@ export async function flowRoute(app: FastifyInstance) {
       return reply.status(503).send({ error: 'flow service not available' });
     }
 
-    const underlying = req.query.underlying ?? 'BTC';
+    const underlying = normalizeApiUnderlying(req.query.underlying ?? 'BTC');
     const rawMinNotional = Number(req.query.minNotional);
     const minNotional = Number.isFinite(rawMinNotional) && rawMinNotional >= 0 ? rawMinNotional : 0;
     const limit = parseBoundedLimit(req.query.limit, 100, 500);
@@ -185,7 +186,7 @@ function buildHistoryQuery(
     limit: parseBoundedLimit(query.limit, 100, 200),
   };
 
-  if (query.underlying) historyQuery.underlying = query.underlying;
+  if (query.underlying) historyQuery.underlying = normalizeApiUnderlying(query.underlying);
   const venues = parseVenues(query.venues);
   if (venues.length > 0) historyQuery.venues = venues;
   const startTs = parseDate(query.start);
@@ -206,7 +207,7 @@ function buildSummaryQuery(
   mode: 'live' | 'institutional',
 ) {
   const summaryQuery: TradeHistoryQuery = { mode, limit: 1 };
-  if (query.underlying) summaryQuery.underlying = query.underlying;
+  if (query.underlying) summaryQuery.underlying = normalizeApiUnderlying(query.underlying);
   const venues = parseVenues(query.venues);
   if (venues.length > 0) summaryQuery.venues = venues;
   const startTs = parseDate(query.start);
@@ -214,6 +215,10 @@ function buildSummaryQuery(
   const endTs = parseDate(query.end);
   if (endTs) summaryQuery.endTs = endTs;
   return summaryQuery;
+}
+
+function normalizeApiUnderlying(underlying: string): string {
+  return normalizeTradeUnderlying(underlying);
 }
 
 function parseCursor(beforeTs?: string, beforeUid?: string): { beforeTs: Date; beforeUid: string } | null {

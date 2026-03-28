@@ -57,7 +57,13 @@ export { BaseAdapter } from './feeds/shared/base.js';
 // services
 export { DvolService, type DvolSnapshot, type DvolCandle, type HvPoint } from './services/dvol.js';
 export { SpotService, type SpotSnapshot } from './services/spot.js';
-export { FlowService, type TradeEvent } from './services/flow.js';
+export {
+  FlowService,
+  getDeribitTradeCurrency,
+  getDeribitUnderlyingFromInstrument,
+  normalizeTradeUnderlying,
+  type TradeEvent,
+} from './services/flow.js';
 export { BlockFlowService, type BlockTradeEvent, type BlockTradeLeg } from './services/block-flow.js';
 export {
   buildBlockTradeUid,
