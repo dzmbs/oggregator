@@ -4,5 +4,3 @@ export function backoffDelay(attempt: number, baseMs = 500, maxMs = 30_000): num
 }
 
 /** Deribit allows ~3.3 subscribe calls/sec (30k credit pool, 3k per call). */
-export const WS_SUBSCRIBE_BATCH_SIZE = 200;
-export const WS_SUBSCRIBE_BATCH_DELAY_MS = 350;

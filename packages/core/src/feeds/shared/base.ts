@@ -12,6 +12,9 @@ export abstract class BaseAdapter implements OptionVenueAdapter {
   abstract fetchOptionChain(request: ChainRequest): Promise<VenueOptionChain>;
 
   protected safeNum(value: unknown): number | null {
+    if (value == null) return null;
+    if (typeof value === 'string' && value.trim() === '') return null;
+
     const n = Number(value);
     return Number.isFinite(n) ? n : null;
   }
@@ -29,9 +32,4 @@ export abstract class BaseAdapter implements OptionVenueAdapter {
     return Number.isFinite(n) ? n / 100 : null;
   }
 
-  protected expiryMatchesDate(expiryMs: number, dateStr: string): boolean {
-    const d = new Date(expiryMs);
-    const iso = d.toISOString().slice(0, 10);
-    return iso === dateStr;
-  }
 }

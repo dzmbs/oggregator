@@ -26,6 +26,7 @@ export interface CachedInstrument {
   right: OptionRight;
   inverse: boolean;
   contractSize: number | null;
+  contractValueCurrency?: string | null;
   tickSize: number | null;
   minQty: number | null;
   makerFee: number | null;
@@ -42,8 +43,9 @@ export interface LiveQuote {
   underlyingPrice: number | null;
   indexPrice: number | null;
   volume24h: number | null;
+  /** Open interest normalized to contract count. */
   openInterest: number | null;
-  /** USD-denominated OI when the venue provides it natively (Binance, OKX, Bybit). */
+  /** USD-denominated open interest notional, either venue-native or derived from contract metadata. */
   openInterestUsd: number | null;
   /** USD-denominated 24h volume when the venue provides it natively (Bybit turnover). */
   volume24hUsd: number | null;
@@ -64,6 +66,8 @@ export abstract class SdkBaseAdapter extends BaseAdapter {
   protected instrumentMap = new Map<string, CachedInstrument>();
   protected symbolIndex = new Map<string, string>();
   protected marketsLoaded = false;
+  protected requestRefCounts = new Map<string, number>();
+  protected handlerRefCounts = new Map<StreamHandlers, number>();
 
   protected abstract initClients(): void;
   protected abstract fetchInstruments(): Promise<CachedInstrument[]>;
@@ -72,6 +76,11 @@ export abstract class SdkBaseAdapter extends BaseAdapter {
     expiry: string,
     instruments: CachedInstrument[],
   ): Promise<void>;
+  protected async unsubscribeChain(
+    _underlying: string,
+    _expiry: string,
+    _instruments: CachedInstrument[],
+  ): Promise<void> {}
   protected abstract unsubscribeAll(): Promise<void>;
 
   // Number of nearest expiries to eagerly subscribe at boot.
@@ -150,21 +159,63 @@ export abstract class SdkBaseAdapter extends BaseAdapter {
     const matching = this.instruments.filter(
       (i) => i.base === request.underlying && i.expiry === request.expiry,
     );
+    const key = `${request.underlying}:${request.expiry}`;
 
     handlers.onStatus({ venue: this.venue, state: 'connected', ts: Date.now() });
-    this.deltaHandlers.add(handlers);
 
-    await this.subscribeChain(request.underlying, request.expiry, matching);
+    const handlerRefCount = this.handlerRefCounts.get(handlers) ?? 0;
+    this.handlerRefCounts.set(handlers, handlerRefCount + 1);
+    if (handlerRefCount === 0) {
+      this.deltaHandlers.add(handlers);
+    }
+
+    const requestRefCount = this.requestRefCounts.get(key) ?? 0;
+    this.requestRefCounts.set(key, requestRefCount + 1);
+    if (requestRefCount === 0) {
+      await this.subscribeChain(request.underlying, request.expiry, matching);
+    }
+
+    let released = false;
 
     return async () => {
-      this.deltaHandlers.delete(handlers);
-      await this.unsubscribeAll();
+      if (released) return;
+      released = true;
+
+      const nextHandlerRefCount = (this.handlerRefCounts.get(handlers) ?? 1) - 1;
+      if (nextHandlerRefCount <= 0) {
+        this.handlerRefCounts.delete(handlers);
+        this.deltaHandlers.delete(handlers);
+      } else {
+        this.handlerRefCounts.set(handlers, nextHandlerRefCount);
+      }
+
+      const nextRequestRefCount = (this.requestRefCounts.get(key) ?? 1) - 1;
+      if (nextRequestRefCount <= 0) {
+        this.requestRefCounts.delete(key);
+        await this.unsubscribeChain(request.underlying, request.expiry, matching);
+        return;
+      }
+
+      this.requestRefCounts.set(key, nextRequestRefCount);
     };
   }
 
-  /** Remove a handler without tearing down venue WS connections. */
+  /** Remove a handler without tearing down venue subscriptions. */
   removeDeltaHandler(handlers: StreamHandlers): void {
+    this.handlerRefCounts.delete(handlers);
     this.deltaHandlers.delete(handlers);
+  }
+
+  protected activeRequestsForUnderlying(underlying: string): number {
+    let count = 0;
+    for (const [key, refCount] of this.requestRefCounts) {
+      if (refCount <= 0) continue;
+      const [requestUnderlying] = key.split(':');
+      if (requestUnderlying === underlying) {
+        count += refCount;
+      }
+    }
+    return count;
   }
 
   async dispose(): Promise<void> {
@@ -185,42 +236,57 @@ export abstract class SdkBaseAdapter extends BaseAdapter {
   }
 
   protected emitQuoteUpdate(exchangeSymbol: string, quote: LiveQuote): void {
-    this.quoteStore.set(exchangeSymbol, quote);
+    this.emitQuoteUpdates([{ exchangeSymbol, quote }]);
+  }
 
-    if (this.deltaHandlers.size === 0) return;
+  protected emitQuoteUpdates(updates: Array<{ exchangeSymbol: string; quote: LiveQuote }>): void {
+    const deltas: VenueDelta[] = [];
 
-    const inst = this.instrumentMap.get(exchangeSymbol);
-    if (!inst) return;
+    for (const update of updates) {
+      this.quoteStore.set(update.exchangeSymbol, update.quote);
 
-    const delta: VenueDelta = {
-      venue: this.venue,
-      symbol: inst.symbol,
-      ts: quote.timestamp,
-      quote: {
-        bid: this.normPrice(quote.bidPrice, inst),
-        ask: this.normPrice(quote.askPrice, inst),
-        mark: this.normPrice(quote.markPrice, inst),
-        bidSize: quote.bidSize,
-        askSize: quote.askSize,
-        underlyingPriceUsd: quote.underlyingPrice,
-        indexPriceUsd: quote.indexPrice,
-        volume24h: quote.volume24h,
-        openInterest: quote.openInterest,
-        openInterestUsd: quote.openInterestUsd,
-        volume24hUsd: quote.volume24hUsd,
-        estimatedFees: inst ? this.estimateFees(
-          inst,
-          this.normPrice(quote.markPrice, inst).usd,
-          quote.underlyingPrice,
-        ) : null,
-        timestamp: quote.timestamp,
-        source: 'ws',
-      },
-      greeks: quote.greeks,
-    };
+      if (this.deltaHandlers.size === 0) continue;
+
+      const inst = this.instrumentMap.get(update.exchangeSymbol);
+      if (!inst) continue;
+
+      deltas.push({
+        venue: this.venue,
+        symbol: inst.symbol,
+        ts: update.quote.timestamp,
+        quote: {
+          bid: this.normPrice(update.quote.bidPrice, inst),
+          ask: this.normPrice(update.quote.askPrice, inst),
+          mark: this.normPrice(update.quote.markPrice, inst),
+          bidSize: update.quote.bidSize,
+          askSize: update.quote.askSize,
+          underlyingPriceUsd: update.quote.underlyingPrice,
+          indexPriceUsd: update.quote.indexPrice,
+          volume24h: update.quote.volume24h,
+          openInterest: update.quote.openInterest,
+          openInterestUsd: this.normalizeOpenInterestUsd(
+            inst,
+            update.quote.openInterest,
+            update.quote.openInterestUsd,
+            update.quote.underlyingPrice,
+          ),
+          volume24hUsd: update.quote.volume24hUsd,
+          estimatedFees: this.estimateFees(
+            inst,
+            this.normPrice(update.quote.markPrice, inst).usd,
+            update.quote.underlyingPrice,
+          ),
+          timestamp: update.quote.timestamp,
+          source: 'ws',
+        },
+        greeks: update.quote.greeks,
+      });
+    }
+
+    if (deltas.length === 0) return;
 
     for (const h of this.deltaHandlers) {
-      h.onDelta([delta]);
+      h.onDelta(deltas);
     }
   }
 
@@ -256,7 +322,7 @@ export abstract class SdkBaseAdapter extends BaseAdapter {
         indexPriceUsd: q.indexPrice,
         volume24h: q.volume24h,
         openInterest: q.openInterest,
-        openInterestUsd: q.openInterestUsd,
+        openInterestUsd: this.normalizeOpenInterestUsd(inst, q.openInterest, q.openInterestUsd, q.underlyingPrice),
         volume24hUsd: q.volume24hUsd,
         estimatedFees: this.estimateFees(
           inst,
@@ -280,7 +346,7 @@ export abstract class SdkBaseAdapter extends BaseAdapter {
 
     if (inst.inverse) {
       const underlyingPrice = this.quoteStore.get(inst.exchangeSymbol)?.underlyingPrice;
-      const usd = underlyingPrice != null ? raw * underlyingPrice : raw;
+      const usd = underlyingPrice != null ? raw * underlyingPrice : null;
       return { raw, rawCurrency: currency, usd };
     }
     return { raw, rawCurrency: currency, usd: raw };
@@ -294,6 +360,29 @@ export abstract class SdkBaseAdapter extends BaseAdapter {
    * without cap: 0.03% × $70K = $21 on a $5 option (420% of premium).
    * With 12.5% cap: 12.5% × $5 = $0.625.
    */
+  protected normalizeOpenInterestUsd(
+    inst: CachedInstrument,
+    openInterestContracts: number | null,
+    nativeOpenInterestUsd: number | null,
+    underlyingPriceUsd: number | null,
+  ): number | null {
+    if (nativeOpenInterestUsd != null) return nativeOpenInterestUsd;
+    if (openInterestContracts == null) return null;
+
+    const contractSize = inst.contractSize ?? 1;
+    const contractValueCurrency = (inst.contractValueCurrency ?? inst.base).toUpperCase();
+
+    if (contractValueCurrency === inst.base.toUpperCase()) {
+      return underlyingPriceUsd != null ? openInterestContracts * contractSize * underlyingPriceUsd : null;
+    }
+
+    if (contractValueCurrency === 'USD' || contractValueCurrency === 'USDT' || contractValueCurrency === 'USDC') {
+      return openInterestContracts * contractSize;
+    }
+
+    return null;
+  }
+
   protected estimateFees(
     inst: CachedInstrument,
     optionPriceUsd: number | null,
@@ -332,6 +421,32 @@ export abstract class SdkBaseAdapter extends BaseAdapter {
       greeks: { ...EMPTY_GREEKS },
       timestamp: 0,
     };
+  }
+
+  protected removeCachedInstruments(predicate: (instrument: CachedInstrument) => boolean): CachedInstrument[] {
+    const removed = this.instruments.filter(predicate);
+    if (removed.length === 0) return removed;
+
+    const removedExchangeSymbols = new Set(removed.map((instrument) => instrument.exchangeSymbol));
+    const removedSymbols = new Set(removed.map((instrument) => instrument.symbol));
+
+    this.instruments = this.instruments.filter((instrument) => !removedExchangeSymbols.has(instrument.exchangeSymbol));
+
+    for (const exchangeSymbol of removedExchangeSymbols) {
+      this.instrumentMap.delete(exchangeSymbol);
+      this.quoteStore.delete(exchangeSymbol);
+    }
+
+    for (const symbol of removedSymbols) {
+      this.symbolIndex.delete(symbol);
+    }
+
+    return removed;
+  }
+
+  protected sweepExpiredInstruments(now = Date.now()): CachedInstrument[] {
+    const today = new Date(now).toISOString().slice(0, 10);
+    return this.removeCachedInstruments((instrument) => instrument.expiry < today);
   }
 
   // ── symbol normalization ──────────────────────────────────────
