@@ -1,22 +1,41 @@
 import WebSocket from 'ws';
-import { BYBIT_REST_BASE_URL, BYBIT_WS_URL } from '../shared/endpoints.js';
-import { SdkBaseAdapter, type CachedInstrument, type LiveQuote } from '../shared/sdk-base.js';
+import {
+  BYBIT_INSTRUMENTS_INFO,
+  BYBIT_REST_BASE_URL,
+  BYBIT_SYSTEM_STATUS,
+  BYBIT_TICKERS,
+  BYBIT_WS_URL,
+} from '../shared/endpoints.js';
+import { SdkBaseAdapter, type CachedInstrument } from '../shared/sdk-base.js';
+import { TopicWsClient } from '../shared/topic-ws-client.js';
 import type { VenueId } from '../../types/common.js';
 import { feedLogger } from '../../utils/logger.js';
-import { backoffDelay } from '../../utils/reconnect.js';
 import {
-  BybitInstrumentsResponseSchema,
-  BybitTickersResponseSchema,
-  BybitWsMessageSchema,
-  BYBIT_OPTION_SYMBOL_RE,
-  type BybitRestTicker,
-  type BybitWsTicker,
-  type BybitInstrument,
-} from './types.js';
+  parseBybitInstrumentsResponse,
+  parseBybitRestTicker,
+  parseBybitSystemStatusResponse,
+  parseBybitTickersResponse,
+  parseBybitWsMessage,
+} from './codec.js';
+import { deriveBybitHealth } from './health.js';
+import {
+  BYBIT_MAX_TOPICS_PER_BATCH,
+  buildBybitExpiredTopics,
+  buildBybitSubscriptionTopics,
+  createBybitSubscriptionState,
+  resetBybitSubscriptionState,
+} from './planner.js';
+import { buildBybitRestQuote, buildBybitWsQuote } from './state.js';
+import { BYBIT_OPTION_SYMBOL_RE, type BybitInstrument } from './types.js';
 
 const log = feedLogger('bybit');
 
-const MAX_TOPICS_PER_BATCH = 200;
+// Bybit options don't expose per-instrument fees via public API
+const BYBIT_DEFAULT_MAKER_FEE = 0.0002;
+const BYBIT_DEFAULT_TAKER_FEE = 0.0005;
+
+// Bybit closes idle connections after 30s — ping well within that window
+const BYBIT_PING_INTERVAL_MS = 20_000;
 
 /**
  * Bybit options adapter using raw WebSocket + fetch.
@@ -37,6 +56,7 @@ const MAX_TOPICS_PER_BATCH = 200;
  * Settlement: USDT-settled, linear. No inverse conversion.
  */
 const INSTRUMENT_REFRESH_INTERVAL_MS = 10 * 60 * 1000;
+const HEALTH_CHECK_INTERVAL_MS = 60 * 1000;
 
 // Bybit requires explicit baseCoin — no wildcard like Deribit's currency:'any'.
 // These are all underlyings with active options as of 2026-03-28.
@@ -45,12 +65,10 @@ const BASE_COINS = ['BTC', 'ETH', 'SOL', 'DOGE', 'XRP'] as const;
 export class BybitWsAdapter extends SdkBaseAdapter {
   readonly venue: VenueId = 'bybit';
 
-  private ws: WebSocket | null = null;
-  private subscribedTopics = new Set<string>();
-  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-  private pingTimer: ReturnType<typeof setInterval> | null = null;
+  private wsClient: TopicWsClient | null = null;
   private refreshTimer: ReturnType<typeof setInterval> | null = null;
-  private shouldReconnect = false;
+  private healthTimer: ReturnType<typeof setInterval> | null = null;
+  private readonly subscriptions = createBybitSubscriptionState();
 
   protected initClients(): void {}
 
@@ -64,31 +82,31 @@ export class BybitWsAdapter extends SdkBaseAdapter {
       let cursor: string | undefined;
 
       do {
-        const url = new URL('/v5/market/instruments-info', BYBIT_REST_BASE_URL);
+        const url = new URL(BYBIT_INSTRUMENTS_INFO, BYBIT_REST_BASE_URL);
         url.searchParams.set('category', 'option');
         url.searchParams.set('baseCoin', baseCoin);
         url.searchParams.set('limit', '1000');
         if (cursor) url.searchParams.set('cursor', cursor);
 
         const raw = await this.fetchJson(url);
-        const parsed = BybitInstrumentsResponseSchema.safeParse(raw);
+        const parsed = parseBybitInstrumentsResponse(raw);
 
-        if (!parsed.success) {
-          log.warn({ baseCoin, error: parsed.error.message }, 'instruments response validation failed');
+        if (parsed == null) {
+          log.warn({ baseCoin }, 'instruments response validation failed');
           break;
         }
 
-        if (parsed.data.retCode !== 0) {
-          log.warn({ baseCoin, msg: parsed.data.retMsg }, 'instruments request failed');
+        if (parsed.retCode !== 0) {
+          log.warn({ baseCoin, msg: parsed.retMsg }, 'instruments request failed');
           break;
         }
 
-        for (const item of parsed.data.result.list) {
+        for (const item of parsed.result.list) {
           const inst = this.parseInstrument(item);
           if (inst) instruments.push(inst);
         }
 
-        cursor = parsed.data.result.nextPageCursor || undefined;
+        cursor = parsed.result.nextPageCursor || undefined;
       } while (cursor);
     }
 
@@ -99,6 +117,8 @@ export class BybitWsAdapter extends SdkBaseAdapter {
     // Poll for new strikes/expiries every 10 minutes — Bybit has no instrument
     // lifecycle push channel unlike Deribit's instrument.state.
     this.refreshTimer = setInterval(() => { void this.refreshInstruments(); }, INSTRUMENT_REFRESH_INTERVAL_MS);
+    this.healthTimer = setInterval(() => { void this.refreshHealth(); }, HEALTH_CHECK_INTERVAL_MS);
+    void this.refreshHealth();
 
     return instruments;
   }
@@ -120,17 +140,17 @@ export class BybitWsAdapter extends SdkBaseAdapter {
         let cursor: string | undefined;
 
         do {
-          const url = new URL('/v5/market/instruments-info', BYBIT_REST_BASE_URL);
+          const url = new URL(BYBIT_INSTRUMENTS_INFO, BYBIT_REST_BASE_URL);
           url.searchParams.set('category', 'option');
           url.searchParams.set('baseCoin', baseCoin);
           url.searchParams.set('limit', '1000');
           if (cursor) url.searchParams.set('cursor', cursor);
 
           const raw = await this.fetchJson(url);
-          const parsed = BybitInstrumentsResponseSchema.safeParse(raw);
-          if (!parsed.success || parsed.data.retCode !== 0) break;
+          const parsed = parseBybitInstrumentsResponse(raw);
+          if (parsed == null || parsed.retCode !== 0) break;
 
-          for (const item of parsed.data.result.list) {
+          for (const item of parsed.result.list) {
             if (item.status === 'Trading') activeSymbols.add(item.symbol);
             if (this.instrumentMap.has(item.symbol)) continue;
             if (item.status !== 'Trading') continue;
@@ -138,7 +158,7 @@ export class BybitWsAdapter extends SdkBaseAdapter {
             if (inst) newInstruments.push(inst);
           }
 
-          cursor = parsed.data.result.nextPageCursor || undefined;
+          cursor = parsed.result.nextPageCursor || undefined;
         } while (cursor);
       } catch (err: unknown) {
         log.warn({ baseCoin, err: String(err) }, 'instrument refresh failed');
@@ -156,7 +176,8 @@ export class BybitWsAdapter extends SdkBaseAdapter {
       .filter((sym) => !activeSymbols.has(sym));
 
     if (expiredSymbols.length > 0) {
-      const expiredTopics = expiredSymbols.map((sym) => `tickers.${sym}`);
+      const expiredTopics = buildBybitExpiredTopics(this.subscriptions, expiredSymbols);
+      const expiredSymbolSet = new Set(expiredSymbols);
 
       for (const sym of expiredSymbols) {
         const inst = this.instrumentMap.get(sym);
@@ -164,13 +185,12 @@ export class BybitWsAdapter extends SdkBaseAdapter {
         this.instrumentMap.delete(sym);
         this.symbolIndex.delete(inst.symbol);
         this.quoteStore.delete(sym);
-        this.subscribedTopics.delete(`tickers.${sym}`);
       }
-      this.instruments = this.instruments.filter((i) => !expiredSymbols.includes(i.exchangeSymbol));
+      this.instruments = this.instruments.filter((i) => !expiredSymbolSet.has(i.exchangeSymbol));
 
-      if (this.ws?.readyState === WebSocket.OPEN) {
-        for (let i = 0; i < expiredTopics.length; i += MAX_TOPICS_PER_BATCH) {
-          this.sendJson({ op: 'unsubscribe', args: expiredTopics.slice(i, i + MAX_TOPICS_PER_BATCH) });
+      if (this.wsClient?.isConnected) {
+        for (let i = 0; i < expiredTopics.length; i += BYBIT_MAX_TOPICS_PER_BATCH) {
+          this.sendJson({ op: 'unsubscribe', args: expiredTopics.slice(i, i + BYBIT_MAX_TOPICS_PER_BATCH) });
         }
       }
 
@@ -185,14 +205,11 @@ export class BybitWsAdapter extends SdkBaseAdapter {
         this.symbolIndex.set(inst.symbol, inst.exchangeSymbol);
       }
 
-      const newTopics = newInstruments
-        .map((inst) => `tickers.${inst.exchangeSymbol}`)
-        .filter((topic) => !this.subscribedTopics.has(topic));
+      const newTopics = buildBybitSubscriptionTopics(this.subscriptions, newInstruments);
 
-      if (newTopics.length > 0 && this.ws?.readyState === WebSocket.OPEN) {
-        for (const topic of newTopics) this.subscribedTopics.add(topic);
-        for (let i = 0; i < newTopics.length; i += MAX_TOPICS_PER_BATCH) {
-          this.sendJson({ op: 'subscribe', args: newTopics.slice(i, i + MAX_TOPICS_PER_BATCH) });
+      if (newTopics.length > 0 && this.wsClient?.isConnected) {
+        for (let i = 0; i < newTopics.length; i += BYBIT_MAX_TOPICS_PER_BATCH) {
+          this.sendJson({ op: 'subscribe', args: newTopics.slice(i, i + BYBIT_MAX_TOPICS_PER_BATCH) });
         }
       }
 
@@ -224,10 +241,11 @@ export class BybitWsAdapter extends SdkBaseAdapter {
       right,
       inverse: false,
       contractSize: 1,
+      contractValueCurrency: base,
       tickSize: this.safeNum(item.priceFilter.tickSize),
       minQty: this.safeNum(item.lotSizeFilter.minOrderQty),
-      makerFee: 0.0002,
-      takerFee: 0.0005,
+      makerFee: BYBIT_DEFAULT_MAKER_FEE,
+      takerFee: BYBIT_DEFAULT_TAKER_FEE,
     };
   }
 
@@ -238,25 +256,27 @@ export class BybitWsAdapter extends SdkBaseAdapter {
 
     for (const baseCoin of baseCoins) {
       try {
-        const url = new URL('/v5/market/tickers', BYBIT_REST_BASE_URL);
+        const url = new URL(BYBIT_TICKERS, BYBIT_REST_BASE_URL);
         url.searchParams.set('category', 'option');
         url.searchParams.set('baseCoin', baseCoin);
 
         const raw = await this.fetchJson(url);
-        const parsed = BybitTickersResponseSchema.safeParse(raw);
+        const parsed = parseBybitTickersResponse(raw);
 
-        if (!parsed.success) {
-          log.warn({ baseCoin, error: parsed.error.message }, 'tickers validation failed');
+        if (parsed == null) {
+          log.warn({ baseCoin }, 'tickers validation failed');
           continue;
         }
 
-        if (parsed.data.retCode !== 0) continue;
+        if (parsed.retCode !== 0) continue;
 
-        for (const item of parsed.data.result.list) {
-          this.quoteStore.set(item.symbol, this.restTickerToQuote(item));
+        for (const item of parsed.result.list) {
+          const ticker = parseBybitRestTicker(item);
+          if (ticker == null) continue;
+          this.quoteStore.set(ticker.symbol, buildBybitRestQuote(ticker, (value) => this.safeNum(value)));
         }
 
-        log.info({ count: parsed.data.result.list.length, baseCoin }, 'fetched tickers');
+        log.info({ count: parsed.result.list.length, baseCoin }, 'fetched tickers');
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
         log.warn({ baseCoin, err: message }, 'failed to fetch tickers');
@@ -271,107 +291,95 @@ export class BybitWsAdapter extends SdkBaseAdapter {
     _expiry: string,
     instruments: CachedInstrument[],
   ): Promise<void> {
-    const newTopics: string[] = [];
-    for (const inst of instruments) {
-      const topic = `tickers.${inst.exchangeSymbol}`;
-      if (!this.subscribedTopics.has(topic)) {
-        newTopics.push(topic);
-        this.subscribedTopics.add(topic);
-      }
-    }
+    const newTopics = buildBybitSubscriptionTopics(this.subscriptions, instruments);
 
     if (newTopics.length === 0) return;
 
     await this.ensureConnected();
 
-    for (let i = 0; i < newTopics.length; i += MAX_TOPICS_PER_BATCH) {
-      const batch = newTopics.slice(i, i + MAX_TOPICS_PER_BATCH);
+    for (let i = 0; i < newTopics.length; i += BYBIT_MAX_TOPICS_PER_BATCH) {
+      const batch = newTopics.slice(i, i + BYBIT_MAX_TOPICS_PER_BATCH);
       this.sendJson({ op: 'subscribe', args: batch });
     }
 
     log.info({ count: newTopics.length }, 'subscribed to option tickers');
   }
 
-  protected async unsubscribeAll(): Promise<void> {
-    if (this.subscribedTopics.size === 0 || !this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+  protected override async unsubscribeChain(
+    _underlying: string,
+    _expiry: string,
+    instruments: CachedInstrument[],
+  ): Promise<void> {
+    if (!this.wsClient?.isConnected) return;
 
-    const topics = [...this.subscribedTopics];
-    for (let i = 0; i < topics.length; i += MAX_TOPICS_PER_BATCH) {
-      this.sendJson({ op: 'unsubscribe', args: topics.slice(i, i + MAX_TOPICS_PER_BATCH) });
+    const topics = instruments
+      .map((instrument) => `tickers.${instrument.exchangeSymbol}`)
+      .filter((topic) => this.subscriptions.subscribedTopics.has(topic));
+
+    if (topics.length === 0) return;
+
+    for (let i = 0; i < topics.length; i += BYBIT_MAX_TOPICS_PER_BATCH) {
+      const batch = topics.slice(i, i + BYBIT_MAX_TOPICS_PER_BATCH);
+      this.sendJson({ op: 'unsubscribe', args: batch });
+      for (const topic of batch) {
+        this.subscriptions.subscribedTopics.delete(topic);
+      }
     }
-    this.subscribedTopics.clear();
+  }
+
+  protected async unsubscribeAll(): Promise<void> {
+    if (this.subscriptions.subscribedTopics.size === 0 || !this.wsClient?.isConnected) return;
+
+    const topics = [...this.subscriptions.subscribedTopics];
+    for (let i = 0; i < topics.length; i += BYBIT_MAX_TOPICS_PER_BATCH) {
+      this.sendJson({ op: 'unsubscribe', args: topics.slice(i, i + BYBIT_MAX_TOPICS_PER_BATCH) });
+    }
+    resetBybitSubscriptionState(this.subscriptions);
   }
 
   private async ensureConnected(): Promise<void> {
-    if (this.ws?.readyState === WebSocket.OPEN) return;
+    if (this.wsClient?.isConnected) return;
     await this.connectWs();
   }
 
   private connectWs(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      this.shouldReconnect = true;
-      this.ws = new WebSocket(BYBIT_WS_URL);
-
-      this.ws.on('open', () => {
-        log.info('ws connected');
-        this.reconnectAttempt = 0;
-        this.emitStatus('connected');
-        this.startPing();
-        resolve();
-      });
-
-      this.ws.on('message', (raw: WebSocket.RawData) => {
-        this.handleRawMessage(raw);
-      });
-
-      this.ws.on('close', () => {
-        log.warn('ws closed');
-        this.emitStatus('reconnecting', 'transport closed');
-        this.stopPing();
-        if (this.shouldReconnect) this.scheduleReconnect();
-      });
-
-      this.ws.on('error', (err) => {
-        log.error({ err: err.message }, 'ws error');
-        if (this.ws?.readyState !== WebSocket.OPEN) reject(err);
-      });
-    });
-  }
-
-  // Bybit requires application-level JSON pings, not WS-level ping frames.
-  // Without these, the server drops the connection after ~30s.
-  private startPing(): void {
-    this.stopPing();
-    this.pingTimer = setInterval(() => {
-      this.sendJson({ op: 'ping' });
-    }, 20_000);
-  }
-
-  private stopPing(): void {
-    if (this.pingTimer) { clearInterval(this.pingTimer); this.pingTimer = null; }
-  }
-
-  private reconnectAttempt = 0;
-
-  private scheduleReconnect(): void {
-    if (this.reconnectTimer) return;
-    const delay = backoffDelay(this.reconnectAttempt++);
-
-    this.reconnectTimer = setTimeout(async () => {
-      this.reconnectTimer = null;
-      try {
-        await this.connectWs();
-        if (this.subscribedTopics.size > 0) {
-          const topics = [...this.subscribedTopics];
-          for (let i = 0; i < topics.length; i += MAX_TOPICS_PER_BATCH) {
-            this.sendJson({ op: 'subscribe', args: topics.slice(i, i + MAX_TOPICS_PER_BATCH) });
+    if (this.wsClient == null) {
+      this.wsClient = new TopicWsClient(BYBIT_WS_URL, 'bybit-ws', {
+        pingIntervalMs: BYBIT_PING_INTERVAL_MS,
+        pingMessage: { op: 'ping' },
+        onStatusChange: (state) => {
+          this.emitStatus(state === 'connected' ? 'connected' : state === 'down' ? 'down' : 'reconnecting');
+        },
+        getReplayMessages: () => {
+          if (this.subscriptions.subscribedTopics.size === 0) return [];
+          const messages: Array<Record<string, unknown>> = [];
+          const topics = [...this.subscriptions.subscribedTopics];
+          for (let index = 0; index < topics.length; index += BYBIT_MAX_TOPICS_PER_BATCH) {
+            messages.push({ op: 'subscribe', args: topics.slice(index, index + BYBIT_MAX_TOPICS_PER_BATCH) });
           }
-        }
-      } catch (e: unknown) {
-        log.warn({ err: String(e) }, 'reconnect failed');
-        this.scheduleReconnect();
-      }
-    }, delay);
+          return messages;
+        },
+        onMessage: (raw) => {
+          this.handleRawMessage(raw);
+        },
+        onOpen: () => {},
+      });
+    }
+
+    return this.wsClient.connect();
+  }
+
+  private async refreshHealth(): Promise<void> {
+    try {
+      const url = new URL(BYBIT_SYSTEM_STATUS, BYBIT_REST_BASE_URL);
+      const raw = await this.fetchJson(url);
+      const parsed = parseBybitSystemStatusResponse(raw);
+      const health = deriveBybitHealth(parsed);
+      this.emitStatus(health.status, health.message);
+    } catch (error: unknown) {
+      const health = deriveBybitHealth(null, error);
+      this.emitStatus(health.status, health.message);
+    }
   }
 
   // ── WS message handling ───────────────────────────────────────
@@ -389,77 +397,14 @@ export class BybitWsAdapter extends SdkBaseAdapter {
     const obj = json as Record<string, unknown>;
     if (obj['op'] === 'subscribe' || obj['op'] === 'pong' || obj['success'] !== undefined) return;
 
-    const parsed = BybitWsMessageSchema.safeParse(json);
-    if (!parsed.success) return; // Not a ticker message — heartbeat, error, etc.
-
-    const msg = parsed.data;
+    const msg = parseBybitWsMessage(json);
+    if (msg == null) return;
     if (!msg.topic.startsWith('tickers.')) return;
 
     const exchangeSymbol = msg.data.symbol;
     if (!this.instrumentMap.has(exchangeSymbol)) return;
 
-    // ts is on the message envelope, not inside data
-    this.emitQuoteUpdate(exchangeSymbol, this.wsTickerToQuote(msg.data, msg.ts));
-  }
-
-  // ── Normalizers — separate for REST vs WS field names ─────────
-
-  /** REST uses bid1Price/ask1Price/bid1Size/ask1Size/bid1Iv/ask1Iv/markIv */
-  private restTickerToQuote(t: BybitRestTicker): LiveQuote {
-    return {
-      bidPrice: this.safeNum(t.bid1Price),
-      askPrice: this.safeNum(t.ask1Price),
-      bidSize: this.safeNum(t.bid1Size),
-      askSize: this.safeNum(t.ask1Size),
-      markPrice: this.safeNum(t.markPrice),
-      lastPrice: this.safeNum(t.lastPrice),
-      underlyingPrice: this.safeNum(t.underlyingPrice),
-      indexPrice: this.safeNum(t.indexPrice),
-      volume24h: this.safeNum(t.volume24h),
-      openInterest: this.safeNum(t.openInterest),
-      openInterestUsd: null,
-      volume24hUsd: this.safeNum(t.turnover24h),
-      greeks: {
-        delta: this.safeNum(t.delta),
-        gamma: this.safeNum(t.gamma),
-        theta: this.safeNum(t.theta),
-        vega: this.safeNum(t.vega),
-        rho: null,
-        markIv: this.safeNum(t.markIv),
-        bidIv: this.safeNum(t.bid1Iv),
-        askIv: this.safeNum(t.ask1Iv),
-      },
-      timestamp: Date.now(),
-    };
-  }
-
-  /** WS uses bidPrice/askPrice/bidSize/askSize/bidIv/askIv/markPriceIv */
-  private wsTickerToQuote(t: BybitWsTicker, envelopeTs: number): LiveQuote {
-    return {
-      bidPrice: this.safeNum(t.bidPrice),
-      askPrice: this.safeNum(t.askPrice),
-      bidSize: this.safeNum(t.bidSize),
-      askSize: this.safeNum(t.askSize),
-      markPrice: this.safeNum(t.markPrice),
-      lastPrice: this.safeNum(t.lastPrice),
-      underlyingPrice: this.safeNum(t.underlyingPrice),
-      indexPrice: this.safeNum(t.indexPrice),
-      volume24h: this.safeNum(t.volume24h),
-      openInterest: this.safeNum(t.openInterest),
-      openInterestUsd: null,
-      volume24hUsd: this.safeNum(t.turnover24h),
-      greeks: {
-        delta: this.safeNum(t.delta),
-        gamma: this.safeNum(t.gamma),
-        theta: this.safeNum(t.theta),
-        vega: this.safeNum(t.vega),
-        rho: null,
-        markIv: this.safeNum(t.markPriceIv),
-        bidIv: this.safeNum(t.bidIv),
-        askIv: this.safeNum(t.askIv),
-      },
-      timestamp: envelopeTs,
-    };
+    this.emitQuoteUpdate(exchangeSymbol, buildBybitWsQuote(msg.data, msg.ts, (value) => this.safeNum(value)));
   }
 
   // ── helpers ───────────────────────────────────────────────────
@@ -471,17 +416,14 @@ export class BybitWsAdapter extends SdkBaseAdapter {
   }
 
   private sendJson(payload: Record<string, unknown>): void {
-    if (this.ws?.readyState !== WebSocket.OPEN) return;
-    this.ws.send(JSON.stringify(payload));
+    this.wsClient?.send(payload);
   }
 
   override async dispose(): Promise<void> {
-    this.shouldReconnect = false;
-    this.stopPing();
-    if (this.reconnectTimer) { clearTimeout(this.reconnectTimer); this.reconnectTimer = null; }
     if (this.refreshTimer) { clearInterval(this.refreshTimer); this.refreshTimer = null; }
+    if (this.healthTimer) { clearInterval(this.healthTimer); this.healthTimer = null; }
     await this.unsubscribeAll();
-    this.ws?.close();
-    this.ws = null;
+    await this.wsClient?.disconnect();
+    this.wsClient = null;
   }
 }

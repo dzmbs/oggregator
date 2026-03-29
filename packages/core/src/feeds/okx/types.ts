@@ -129,6 +129,31 @@ export const OkxWsInstrumentsMsgSchema = z.object({
 });
 export type OkxWsInstrumentsMsg = z.infer<typeof OkxWsInstrumentsMsgSchema>;
 
+export const OkxWsNoticeSchema = z.object({
+  event: z.literal('notice'),
+  code: z.string().optional(),
+  msg: z.string().optional(),
+});
+export type OkxWsNotice = z.infer<typeof OkxWsNoticeSchema>;
+
+export const OkxWsStatusDataSchema = z.object({
+  title: z.string().optional(),
+  state: z.string(),
+  begin: z.string().optional(),
+  end: z.string().optional(),
+  serviceType: z.string().optional(),
+  maintType: z.string().optional(),
+  env: z.string().optional(),
+  ts: z.string().optional(),
+});
+export const OkxWsStatusMsgSchema = z.object({
+  arg: z.object({
+    channel: z.literal('status'),
+  }),
+  data: z.array(OkxWsStatusDataSchema),
+});
+export type OkxWsStatusMsg = z.infer<typeof OkxWsStatusMsgSchema>;
+
 // ── Symbol regex ───────────────────────────────────────────────
 // Matches: BTC-USD-260328-60000-C
 // Still needed for base extraction — optType/stk cover right and strike.

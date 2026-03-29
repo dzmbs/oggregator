@@ -81,3 +81,14 @@ export const BinanceRestTickerSchema = z.object({
   volume: z.string().optional(),
 });
 export type BinanceRestTicker = z.infer<typeof BinanceRestTickerSchema>;
+
+export const BinanceHealthTimeSchema = z.object({
+  serverTime: z.number(),
+});
+export type BinanceHealthTime = z.infer<typeof BinanceHealthTimeSchema>;
+
+export const BinanceHealthExchangeInfoSchema = z.object({
+  optionSymbols: z.array(z.unknown()).optional(),
+  symbols: z.array(z.unknown()).optional(),
+}).passthrough();
+export type BinanceHealthExchangeInfo = z.infer<typeof BinanceHealthExchangeInfoSchema>;

@@ -92,3 +92,23 @@ export const DeribitInstrumentStateSchema = z.object({
   timestamp: z.number().optional(),
 });
 export type DeribitInstrumentState = z.infer<typeof DeribitInstrumentStateSchema>;
+
+// platform_state — maintenance and locked index notifications
+export const DeribitPlatformStateSchema = z.object({
+  price_index: z.string().optional(),
+  locked: z.boolean().optional(),
+  maintenance: z.boolean().optional(),
+});
+export type DeribitPlatformState = z.infer<typeof DeribitPlatformStateSchema>;
+
+export const DeribitPublicStatusSchema = z.object({
+  locked: z.union([
+    z.boolean(),
+    z.literal('true'),
+    z.literal('partial'),
+    z.literal('false'),
+  ]),
+  locked_indices: z.array(z.string()).optional(),
+  locked_currencies: z.array(z.string()).optional(),
+});
+export type DeribitPublicStatus = z.infer<typeof DeribitPublicStatusSchema>;

@@ -57,6 +57,7 @@ export const BybitRestTickerSchema = z.object({
   markIv: z.string(),
   underlyingPrice: z.string(),
   openInterest: z.string(),
+  openInterestValue: z.string().optional(),
   turnover24h: z.string(),
   volume24h: z.string(),
   totalVolume: z.string(),
@@ -99,6 +100,7 @@ export const BybitWsTickerSchema = z.object({
   markPriceIv: z.string(),
   underlyingPrice: z.string(),
   openInterest: z.string(),
+  openInterestValue: z.string().optional(),
   turnover24h: z.string(),
   volume24h: z.string(),
   totalVolume: z.string(),
@@ -119,6 +121,22 @@ export const BybitWsMessageSchema = z.object({
   data: BybitWsTickerSchema,
 });
 export type BybitWsMessage = z.infer<typeof BybitWsMessageSchema>;
+
+export const BybitSystemStatusItemSchema = z.object({
+  state: z.string(),
+  serviceTypes: z.array(z.number()).optional(),
+  product: z.array(z.number()).optional(),
+  maintainType: z.number().optional(),
+  title: z.string().optional(),
+});
+export const BybitSystemStatusResponseSchema = z.object({
+  retCode: z.number(),
+  retMsg: z.string(),
+  result: z.object({
+    list: z.array(BybitSystemStatusItemSchema),
+  }),
+});
+export type BybitSystemStatusResponse = z.infer<typeof BybitSystemStatusResponseSchema>;
 
 // ── Symbol regex ───────────────────────────────────────────────
 // Matches: BTC-25DEC26-67000-C-USDT (new) and BTC-28MAR26-60000-C (legacy)

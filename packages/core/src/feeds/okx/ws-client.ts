@@ -1,28 +1,58 @@
 import WebSocket from 'ws';
-import { OKX_REST_BASE_URL, OKX_WS_URL } from '../shared/endpoints.js';
-import { SdkBaseAdapter, type CachedInstrument, type LiveQuote } from '../shared/sdk-base.js';
-import type { VenueId } from '../../types/common.js';
-import { EMPTY_GREEKS, type OptionGreeks } from '../../core/types.js';
-import { feedLogger } from '../../utils/logger.js';
-import { backoffDelay } from '../../utils/reconnect.js';
 import {
-  OkxRestResponseSchema,
-  OkxInstrumentSchema,
-  OkxTickerSchema,
-  OkxOptSummarySchema,
-  OkxMarkPriceSchema,
-  OkxWsOptSummaryMsgSchema,
-  OkxWsTickerMsgSchema,
-  OkxWsMarkPriceMsgSchema,
-  OkxWsInstrumentsMsgSchema,
-  OKX_OPTION_SYMBOL_RE,
-  type OkxTicker,
-  type OkxOptSummary,
-  type OkxMarkPrice,
-  type OkxInstrument,
-} from './types.js';
+  OKX_INSTRUMENTS,
+  OKX_MARK_PRICE,
+  OKX_OPEN_INTEREST,
+  OKX_OPT_SUMMARY,
+  OKX_REST_BASE_URL,
+  OKX_TICKERS,
+  OKX_WS_URL,
+} from '../shared/endpoints.js';
+import { SdkBaseAdapter, type CachedInstrument, type LiveQuote } from '../shared/sdk-base.js';
+import { TopicWsClient } from '../shared/topic-ws-client.js';
+import type { VenueId } from '../../types/common.js';
+import { feedLogger } from '../../utils/logger.js';
+import {
+  parseOkxInstrument,
+  parseOkxMarkPrice,
+  parseOkxOptSummary,
+  parseOkxRestResponse,
+  parseOkxTicker,
+  parseOkxWsInstrumentsMsg,
+  parseOkxWsMarkPriceMsg,
+  parseOkxWsNotice,
+  parseOkxWsOptSummaryMsg,
+  parseOkxWsStatusMsg,
+  parseOkxWsTickerMsg,
+} from './codec.js';
+import { deriveOkxNoticeHealth, deriveOkxStatusHealth } from './health.js';
+import {
+  buildOkxChainSubscriptionArgs,
+  buildOkxInstrumentSubscriptionArgs,
+  buildOkxReplayArgs,
+  buildOkxUnsubscribeArgs,
+  createOkxSubscriptionState,
+  removeOkxSubscribedInstruments,
+  resetOkxSubscriptionState,
+} from './planner.js';
+import {
+  buildOkxTickerQuote,
+  mergeOkxMarkPrice,
+  mergeOkxOptSummary,
+  mergeOkxRestMarkPrice,
+  mergeOkxRestOpenInterest,
+  mergeOkxWsTicker,
+} from './state.js';
+import { OKX_OPTION_SYMBOL_RE, type OkxInstrument, type OkxMarkPrice, type OkxOptSummary, type OkxTicker } from './types.js';
 
 const log = feedLogger('okx');
+
+// OKX options don't expose per-instrument fees via public API
+const OKX_DEFAULT_MAKER_FEE = 0.0002;
+const OKX_DEFAULT_TAKER_FEE = 0.0005;
+
+// OKX closes idle connections after 30s — ping well within that window
+const OKX_PING_INTERVAL_MS = 25_000;
 
 // OI and mark price are not available from WS bulk channels — refresh from REST.
 const REFRESH_INTERVAL_MS = 5 * 60 * 1000;
@@ -56,14 +86,9 @@ export class OkxWsAdapter extends SdkBaseAdapter {
   // opt-summary is already bulk for greeks; limit eager subscription to 1 nearest expiry.
   protected override eagerExpiryCount = 1;
 
-  private ws: WebSocket | null = null;
-  private subscribedFamilies = new Set<string>();
-  private subscribedTickers = new Set<string>();
-  private subscribedMarkPrice = new Set<string>();
-  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private wsClient: TopicWsClient | null = null;
   private refreshTimers: ReturnType<typeof setInterval>[] = [];
-  private shouldReconnect = false;
-  private pingTimer: ReturnType<typeof setInterval> | null = null;
+  private readonly subscriptions = createOkxSubscriptionState();
 
   protected initClients(): void {}
 
@@ -74,11 +99,11 @@ export class OkxWsAdapter extends SdkBaseAdapter {
 
     for (const instFamily of INST_FAMILIES) {
       try {
-        const data = await this.fetchOkxApi('/api/v5/public/instruments', { instType: 'OPTION', instFamily });
+        const data = await this.fetchOkxApi(OKX_INSTRUMENTS, { instType: 'OPTION', instFamily });
         for (const raw of data) {
-          const parsed = OkxInstrumentSchema.safeParse(raw);
-          if (!parsed.success) continue;
-          const inst = this.parseInstrument(parsed.data);
+          const parsed = parseOkxInstrument(raw);
+          if (parsed == null) continue;
+          const inst = this.parseInstrument(parsed);
           if (inst) instruments.push(inst);
         }
       } catch (err: unknown) {
@@ -126,10 +151,11 @@ export class OkxWsAdapter extends SdkBaseAdapter {
       right,
       inverse: settle === base,
       contractSize: this.safeNum(item.ctMult) ?? this.safeNum(item.ctVal) ?? 1,
+      contractValueCurrency: item.ctValCcy ?? settle,
       tickSize: this.safeNum(item.tickSz),
       minQty: this.safeNum(item.minSz),
-      makerFee: 0.0002,
-      takerFee: 0.0005,
+      makerFee: OKX_DEFAULT_MAKER_FEE,
+      takerFee: OKX_DEFAULT_TAKER_FEE,
     };
   }
 
@@ -146,11 +172,11 @@ export class OkxWsAdapter extends SdkBaseAdapter {
 
   private async fetchTickerSnapshot(instFamily: string): Promise<void> {
     try {
-      const data = await this.fetchOkxApi('/api/v5/market/tickers', { instType: 'OPTION', instFamily });
+      const data = await this.fetchOkxApi(OKX_TICKERS, { instType: 'OPTION', instFamily });
       for (const raw of data) {
-        const parsed = OkxTickerSchema.safeParse(raw);
-        if (!parsed.success) continue;
-        this.quoteStore.set(parsed.data.instId, this.tickerToQuote(parsed.data));
+        const parsed = parseOkxTicker(raw);
+        if (parsed == null) continue;
+        this.quoteStore.set(parsed.instId, this.tickerToQuote(parsed));
       }
       log.info({ count: data.length, instFamily }, 'fetched tickers');
     } catch (err: unknown) {
@@ -160,11 +186,11 @@ export class OkxWsAdapter extends SdkBaseAdapter {
 
   private async fetchOptSummarySnapshot(instFamily: string): Promise<void> {
     try {
-      const data = await this.fetchOkxApi('/api/v5/public/opt-summary', { instFamily });
+      const data = await this.fetchOkxApi(OKX_OPT_SUMMARY, { instFamily });
       for (const raw of data) {
-        const parsed = OkxOptSummarySchema.safeParse(raw);
-        if (!parsed.success) continue;
-        this.mergeOptSummary(parsed.data);
+        const parsed = parseOkxOptSummary(raw);
+        if (parsed == null) continue;
+        this.mergeOptSummary(parsed);
       }
       log.info({ count: data.length, instFamily }, 'fetched greeks');
     } catch (err: unknown) {
@@ -174,15 +200,15 @@ export class OkxWsAdapter extends SdkBaseAdapter {
 
   private async fetchOiSnapshot(instFamily: string): Promise<void> {
     try {
-      const data = await this.fetchOkxApi('/api/v5/public/open-interest', { instType: 'OPTION', instFamily });
+      const data = await this.fetchOkxApi(OKX_OPEN_INTEREST, { instType: 'OPTION', instFamily });
       let merged = 0;
       for (const raw of data) {
-        const item = raw as { instId?: string; oiCcy?: string; oiUsd?: string };
+        const item = raw as { instId?: string; oi?: string; oiCcy?: string; oiUsd?: string };
         if (typeof item.instId !== 'string') continue;
         const prev = this.quoteStore.get(item.instId);
         if (!prev) continue;
-        prev.openInterest    = this.safeNum(item.oiCcy);
-        prev.openInterestUsd = this.safeNum(item.oiUsd);
+
+        this.emitQuoteUpdate(item.instId, mergeOkxRestOpenInterest(prev, item, (value) => this.safeNum(value)));
         merged++;
       }
       log.info({ count: merged, instFamily }, 'fetched open interest');
@@ -193,14 +219,15 @@ export class OkxWsAdapter extends SdkBaseAdapter {
 
   private async fetchMarkPriceSnapshot(instFamily: string): Promise<void> {
     try {
-      const data = await this.fetchOkxApi('/api/v5/public/mark-price', { instType: 'OPTION', instFamily });
+      const data = await this.fetchOkxApi(OKX_MARK_PRICE, { instType: 'OPTION', instFamily });
       let merged = 0;
       for (const raw of data) {
-        const parsed = OkxMarkPriceSchema.safeParse(raw);
-        if (!parsed.success) continue;
-        const prev = this.quoteStore.get(parsed.data.instId);
+        const parsed = parseOkxMarkPrice(raw);
+        if (parsed == null) continue;
+        const prev = this.quoteStore.get(parsed.instId);
         if (!prev) continue;
-        prev.markPrice = this.safeNum(parsed.data.markPx);
+
+        this.emitQuoteUpdate(parsed.instId, mergeOkxRestMarkPrice(prev, parsed, (value) => this.safeNum(value)));
         merged++;
       }
       log.info({ count: merged, instFamily }, 'fetched mark prices');
@@ -211,10 +238,12 @@ export class OkxWsAdapter extends SdkBaseAdapter {
 
   // Periodic REST refresh — called every 5 minutes via setInterval.
   private async refreshOi(): Promise<void> {
+    this.sweepExpiredState();
     for (const instFamily of INST_FAMILIES) await this.fetchOiSnapshot(instFamily);
   }
 
   private async refreshMarkPrice(): Promise<void> {
+    this.sweepExpiredState();
     for (const instFamily of INST_FAMILIES) await this.fetchMarkPriceSnapshot(instFamily);
   }
 
@@ -227,27 +256,7 @@ export class OkxWsAdapter extends SdkBaseAdapter {
   ): Promise<void> {
     await this.ensureConnected();
 
-    const args: object[] = [];
-
-    // One opt-summary subscription covers all options for the family.
-    const family = `${underlying}-USD`;
-    if (!this.subscribedFamilies.has(family)) {
-      args.push({ channel: 'opt-summary', instFamily: family });
-      this.subscribedFamilies.add(family);
-    }
-
-    // tickers and mark-price require per-instId subscriptions for OPTION.
-    // Batched into one subscribe message to stay within the 480 req/hr limit.
-    for (const inst of instruments) {
-      if (!this.subscribedTickers.has(inst.exchangeSymbol)) {
-        args.push({ channel: 'tickers', instId: inst.exchangeSymbol });
-        this.subscribedTickers.add(inst.exchangeSymbol);
-      }
-      if (!this.subscribedMarkPrice.has(inst.exchangeSymbol)) {
-        args.push({ channel: 'mark-price', instId: inst.exchangeSymbol });
-        this.subscribedMarkPrice.add(inst.exchangeSymbol);
-      }
-    }
+    const args = buildOkxChainSubscriptionArgs(this.subscriptions, underlying, instruments);
 
     if (args.length > 0) {
       this.sendSubscribeBatched(args);
@@ -255,97 +264,81 @@ export class OkxWsAdapter extends SdkBaseAdapter {
     }
   }
 
-  protected async unsubscribeAll(): Promise<void> {
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+  protected override async unsubscribeChain(
+    underlying: string,
+    _expiry: string,
+    instruments: CachedInstrument[],
+  ): Promise<void> {
+    if (!this.wsClient?.isConnected) return;
 
-    const args: object[] = [
-      ...[...this.subscribedFamilies].map(f => ({ channel: 'opt-summary', instFamily: f })),
-      ...[...this.subscribedTickers].map(id => ({ channel: 'tickers', instId: id })),
-      ...[...this.subscribedMarkPrice].map(id => ({ channel: 'mark-price', instId: id })),
-    ];
+    const args: object[] = [];
+    for (const instrument of instruments) {
+      if (this.subscriptions.subscribedTickers.has(instrument.exchangeSymbol)) {
+        args.push({ channel: 'tickers', instId: instrument.exchangeSymbol });
+      }
+      if (this.subscriptions.subscribedMarkPrice.has(instrument.exchangeSymbol)) {
+        args.push({ channel: 'mark-price', instId: instrument.exchangeSymbol });
+      }
+    }
+
+    if (this.activeRequestsForUnderlying(underlying) === 0) {
+      const family = `${underlying}-USD`;
+      if (this.subscriptions.subscribedFamilies.has(family)) {
+        args.push({ channel: 'opt-summary', instFamily: family });
+        this.subscriptions.subscribedFamilies.delete(family);
+      }
+    }
+
+    if (args.length === 0) return;
+
+    this.sendSubscribeBatched(args, 'unsubscribe');
+    removeOkxSubscribedInstruments(this.subscriptions, instruments.map((instrument) => instrument.exchangeSymbol));
+  }
+
+  protected async unsubscribeAll(): Promise<void> {
+    if (!this.wsClient?.isConnected) return;
+
+    const args = buildOkxUnsubscribeArgs(this.subscriptions);
 
     if (args.length > 0) this.sendSubscribeBatched(args, 'unsubscribe');
 
-    this.subscribedFamilies.clear();
-    this.subscribedTickers.clear();
-    this.subscribedMarkPrice.clear();
+    resetOkxSubscriptionState(this.subscriptions);
   }
 
   private async ensureConnected(): Promise<void> {
-    if (this.ws?.readyState === WebSocket.OPEN) return;
+    if (this.wsClient?.isConnected) return;
     await this.connectWs();
   }
 
   private connectWs(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      this.shouldReconnect = true;
-      this.ws = new WebSocket(OKX_WS_URL);
+    if (this.wsClient == null) {
+      this.wsClient = new TopicWsClient(OKX_WS_URL, 'okx-ws', {
+        pingIntervalMs: OKX_PING_INTERVAL_MS,
+        pingMessage: 'ping',
+        onStatusChange: (state) => {
+          this.emitStatus(state === 'connected' ? 'connected' : state === 'down' ? 'down' : 'reconnecting');
+        },
+        getReplayMessages: () => {
+          const args = buildOkxReplayArgs(this.subscriptions);
+          return args.length > 0 ? [{ op: 'subscribe', args }] : [];
+        },
+        onMessage: (raw) => {
+          this.handleRawMessage(raw);
+        },
+        onOpen: () => {
+          this.sendJson({
+            op: 'subscribe',
+            args: [
+              { channel: 'instruments', instType: 'OPTION' },
+              { channel: 'status' },
+            ],
+          });
 
-      this.ws.on('open', () => {
-        log.info('ws connected');
-        this.reconnectAttempt = 0;
-        this.emitStatus('connected');
-        this.startPing();
-        // Subscribe to instrument lifecycle on every connect so new listings
-        // and state changes are never missed regardless of reconnect timing.
-        this.ws!.send(JSON.stringify({
-          op: 'subscribe',
-          args: [{ channel: 'instruments', instType: 'OPTION' }],
-        }));
-        resolve();
+        },
       });
+    }
 
-      this.ws.on('message', (raw: WebSocket.RawData) => {
-        this.handleRawMessage(raw);
-      });
-
-      this.ws.on('close', () => {
-        log.warn('ws closed');
-        this.emitStatus('reconnecting', 'transport closed');
-        this.stopPing();
-        if (this.shouldReconnect) this.scheduleReconnect();
-      });
-
-      this.ws.on('error', (err) => {
-        log.error({ err: err.message }, 'ws error');
-        if (this.ws?.readyState !== WebSocket.OPEN) reject(err);
-      });
-    });
-  }
-
-  // OKX drops idle connections after 30s — send text "ping" every 25s.
-  private startPing(): void {
-    this.stopPing();
-    this.pingTimer = setInterval(() => {
-      if (this.ws?.readyState === WebSocket.OPEN) this.ws.send('ping');
-    }, 25_000);
-  }
-
-  private stopPing(): void {
-    if (this.pingTimer) { clearInterval(this.pingTimer); this.pingTimer = null; }
-  }
-
-  private reconnectAttempt = 0;
-
-  private scheduleReconnect(): void {
-    if (this.reconnectTimer) return;
-    const delay = backoffDelay(this.reconnectAttempt++);
-    this.reconnectTimer = setTimeout(async () => {
-      this.reconnectTimer = null;
-      try {
-        await this.connectWs();
-
-        const args: object[] = [
-          ...[...this.subscribedFamilies].map(f => ({ channel: 'opt-summary', instFamily: f })),
-          ...[...this.subscribedTickers].map(id => ({ channel: 'tickers', instId: id })),
-          ...[...this.subscribedMarkPrice].map(id => ({ channel: 'mark-price', instId: id })),
-        ];
-        if (args.length > 0) this.sendSubscribeBatched(args);
-      } catch (e: unknown) {
-        log.warn({ err: String(e) }, 'reconnect failed');
-        this.scheduleReconnect();
-      }
-    }, delay);
+    return this.wsClient.connect();
   }
 
   // ── WS message routing ────────────────────────────────────────
@@ -361,102 +354,105 @@ export class OkxWsAdapter extends SdkBaseAdapter {
     const obj = json as Record<string, unknown>;
     if (obj['event'] === 'subscribe' || obj['event'] === 'unsubscribe' || obj['event'] === 'error') return;
 
+    if (obj['event'] === 'notice') {
+      const notice = parseOkxWsNotice(json);
+      if (notice != null) {
+        const health = deriveOkxNoticeHealth(notice);
+        this.emitStatus(health.status, health.message);
+      }
+      return;
+    }
+
     const channel = (obj['arg'] as Record<string, unknown> | undefined)?.['channel'];
 
     if (channel === 'opt-summary') {
-      const msg = OkxWsOptSummaryMsgSchema.safeParse(json);
-      if (msg.success) for (const item of msg.data.data) this.handleWsOptSummary(item);
+      const msg = parseOkxWsOptSummaryMsg(json);
+      if (msg != null) this.handleWsOptSummaryBatch(msg.data);
       return;
     }
 
     if (channel === 'tickers') {
-      const msg = OkxWsTickerMsgSchema.safeParse(json);
-      if (msg.success) for (const item of msg.data.data) this.handleWsTicker(item);
+      const msg = parseOkxWsTickerMsg(json);
+      if (msg != null) this.handleWsTickerBatch(msg.data);
       return;
     }
 
     if (channel === 'mark-price') {
-      const msg = OkxWsMarkPriceMsgSchema.safeParse(json);
-      if (msg.success) for (const item of msg.data.data) this.handleWsMarkPrice(item);
+      const msg = parseOkxWsMarkPriceMsg(json);
+      if (msg != null) this.handleWsMarkPriceBatch(msg.data);
       return;
     }
 
     if (channel === 'instruments') {
-      const msg = OkxWsInstrumentsMsgSchema.safeParse(json);
-      if (msg.success) this.handleWsInstruments(msg.data.data);
+      const msg = parseOkxWsInstrumentsMsg(json);
+      if (msg != null) this.handleWsInstruments(msg.data);
+      return;
+    }
+
+    if (channel === 'status') {
+      const msg = parseOkxWsStatusMsg(json);
+      if (msg != null) {
+        const health = deriveOkxStatusHealth(msg);
+        this.emitStatus(health.status, health.message);
+      }
       return;
     }
   }
 
   // ── WS message handlers ───────────────────────────────────────
 
-  private handleWsOptSummary(item: OkxOptSummary): void {
-    const id = item.instId;
-    if (!this.instrumentMap.has(id)) return;
+  private handleWsOptSummaryBatch(items: OkxOptSummary[]): void {
+    const updates: Array<{ exchangeSymbol: string; quote: LiveQuote }> = [];
 
-    const prev = this.quoteStore.get(id);
-    const quote: LiveQuote = {
-      bidPrice:        prev?.bidPrice        ?? null,
-      askPrice:        prev?.askPrice        ?? null,
-      bidSize:         prev?.bidSize         ?? null,
-      askSize:         prev?.askSize         ?? null,
-      markPrice:       prev?.markPrice       ?? null,
-      lastPrice:       prev?.lastPrice       ?? null,
-      underlyingPrice: this.safeNum(item.fwdPx) ?? prev?.underlyingPrice ?? null,
-      indexPrice:      null,
-      volume24h:       prev?.volume24h       ?? null,
-      openInterest:    prev?.openInterest    ?? null,
-      openInterestUsd: prev?.openInterestUsd ?? null,
-      volume24hUsd:    prev?.volume24hUsd    ?? null,
-      greeks: this.parseGreeks(item),
-      timestamp: Number(item.ts) || Date.now(),
-    };
+    for (const item of items) {
+      const id = item.instId;
+      if (!this.instrumentMap.has(id)) continue;
 
-    this.emitQuoteUpdate(id, quote);
+      const prev = this.quoteStore.get(id);
+      updates.push({
+        exchangeSymbol: id,
+        quote: mergeOkxOptSummary(prev, item, (value) => this.safeNum(value)),
+      });
+    }
+
+    this.emitQuoteUpdates(updates);
   }
 
-  private handleWsTicker(item: OkxTicker): void {
-    const id = item.instId;
-    const inst = this.instrumentMap.get(id);
-    if (!inst) return;
+  private handleWsTickerBatch(items: OkxTicker[]): void {
+    const updates: Array<{ exchangeSymbol: string; quote: LiveQuote }> = [];
 
-    const prev = this.quoteStore.get(id);
-    const ctSize = inst.contractSize ?? 0.01;
-    const volContracts = this.safeNum(item.vol24h);
-    const volBase = volContracts != null ? volContracts * ctSize : prev?.volume24h ?? null;
-    const underlying = prev?.underlyingPrice ?? null;
-    const volUsd = volBase != null && underlying != null ? volBase * underlying : prev?.volume24hUsd ?? null;
+    for (const item of items) {
+      const id = item.instId;
+      const inst = this.instrumentMap.get(id);
+      if (!inst) continue;
 
-    const quote: LiveQuote = {
-      bidPrice:        this.safeNum(item.bidPx),
-      askPrice:        this.safeNum(item.askPx),
-      bidSize:         this.safeNum(item.bidSz),
-      askSize:         this.safeNum(item.askSz),
-      markPrice:       prev?.markPrice       ?? null,
-      lastPrice:       this.safeNum(item.last),
-      underlyingPrice: prev?.underlyingPrice ?? null,
-      indexPrice:      null,
-      volume24h:       volBase,
-      openInterest:    prev?.openInterest    ?? null,
-      openInterestUsd: prev?.openInterestUsd ?? null,
-      volume24hUsd:    volUsd,
-      greeks:          prev?.greeks          ?? { ...EMPTY_GREEKS },
-      timestamp:       Number(item.ts) || Date.now(),
-    };
+      const prev = this.quoteStore.get(id);
+      updates.push({
+        exchangeSymbol: id,
+        quote: mergeOkxWsTicker(prev, item, inst, (value) => this.safeNum(value)),
+      });
+    }
 
-    this.emitQuoteUpdate(id, quote);
+    this.emitQuoteUpdates(updates);
   }
 
-  private handleWsMarkPrice(item: OkxMarkPrice): void {
-    const id = item.instId;
-    if (!this.instrumentMap.has(id)) return;
+  private handleWsMarkPriceBatch(items: OkxMarkPrice[]): void {
+    const updates: Array<{ exchangeSymbol: string; quote: LiveQuote }> = [];
 
-    const prev = this.quoteStore.get(id);
-    if (!prev) return;
+    for (const item of items) {
+      const id = item.instId;
+      if (!this.instrumentMap.has(id)) continue;
 
-    prev.markPrice = this.safeNum(item.markPx);
-    // Emit so subscribers see the updated mark price immediately.
-    this.emitQuoteUpdate(id, prev);
+      const prev = this.quoteStore.get(id);
+      if (!prev) continue;
+
+      updates.push({
+        exchangeSymbol: id,
+        quote: mergeOkxMarkPrice(prev, item, (value) => this.safeNum(value)),
+      });
+    }
+
+    this.emitQuoteUpdates(updates);
   }
 
   /**
@@ -482,20 +478,9 @@ export class OkxWsAdapter extends SdkBaseAdapter {
 
     if (newInstruments.length === 0) return;
 
-    // Subscribe tickers + mark-price for new instruments in one batched message.
-    const args: object[] = [];
-    for (const inst of newInstruments) {
-      if (!this.subscribedTickers.has(inst.exchangeSymbol)) {
-        args.push({ channel: 'tickers', instId: inst.exchangeSymbol });
-        this.subscribedTickers.add(inst.exchangeSymbol);
-      }
-      if (!this.subscribedMarkPrice.has(inst.exchangeSymbol)) {
-        args.push({ channel: 'mark-price', instId: inst.exchangeSymbol });
-        this.subscribedMarkPrice.add(inst.exchangeSymbol);
-      }
-    }
+    const args = buildOkxInstrumentSubscriptionArgs(this.subscriptions, newInstruments);
 
-    if (args.length > 0 && this.ws?.readyState === WebSocket.OPEN) {
+    if (args.length > 0 && this.wsClient?.isConnected) {
       this.sendSubscribeBatched(args);
     }
 
@@ -504,67 +489,21 @@ export class OkxWsAdapter extends SdkBaseAdapter {
 
   // ── normalizers ───────────────────────────────────────────────
 
-  private tickerToQuote(t: OkxTicker): LiveQuote {
+  private tickerToQuote(t: OkxTicker) {
     const inst = this.instrumentMap.get(t.instId);
-    const ctSize = inst?.contractSize ?? 0.01;
-    const volContracts = this.safeNum(t.vol24h);
-    // Convert contracts → base currency so volume24h × underlyingPrice = correct notional.
-    const volBase = volContracts != null ? volContracts * ctSize : null;
-
-    return {
-      bidPrice: this.safeNum(t.bidPx),
-      askPrice: this.safeNum(t.askPx),
-      bidSize:  this.safeNum(t.bidSz),
-      askSize:  this.safeNum(t.askSz),
-      markPrice: null,
-      lastPrice: this.safeNum(t.last),
-      underlyingPrice: null,
-      indexPrice: null,
-      volume24h: volBase,
-      openInterest: null,
-      openInterestUsd: null,
-      volume24hUsd: null,
-      greeks: { ...EMPTY_GREEKS },
-      timestamp: Number(t.ts) || Date.now(),
-    };
+    return buildOkxTickerQuote(t, inst?.contractSize ?? null, (value) => this.safeNum(value));
   }
 
   private mergeOptSummary(item: OkxOptSummary): void {
     const id = item.instId;
     const prev = this.quoteStore.get(id);
 
-    if (prev) {
-      prev.underlyingPrice = this.safeNum(item.fwdPx) ?? prev.underlyingPrice;
-      prev.greeks = this.parseGreeks(item);
-      prev.timestamp = Number(item.ts) || prev.timestamp;
-    } else {
-      this.quoteStore.set(id, {
-        bidPrice: null, askPrice: null, bidSize: null, askSize: null,
-        markPrice: null, lastPrice: null,
-        underlyingPrice: this.safeNum(item.fwdPx),
-        indexPrice: null,
-        volume24h: null, openInterest: null, openInterestUsd: null, volume24hUsd: null,
-        greeks: this.parseGreeks(item),
-        timestamp: Number(item.ts) || Date.now(),
-      });
+    if (prev != null) {
+      this.emitQuoteUpdate(id, mergeOkxOptSummary(prev, item, (value) => this.safeNum(value)));
+      return;
     }
-  }
 
-  /**
-   * Prefer Black-Scholes greeks (deltaBS/gammaBS/etc) — USD-denominated.
-   * Fall back to coin-denominated values when BS variants are absent.
-   */
-  private parseGreeks(item: OkxOptSummary): OptionGreeks {
-    return {
-      delta:  this.safeNum(item.deltaBS)  ?? this.safeNum(item.delta),
-      gamma:  this.safeNum(item.gammaBS)  ?? this.safeNum(item.gamma),
-      theta:  this.safeNum(item.thetaBS)  ?? this.safeNum(item.theta),
-      vega:   this.safeNum(item.vegaBS)   ?? this.safeNum(item.vega),
-      rho:    null,
-      markIv: this.safeNum(item.markVol),
-      bidIv:  this.safeNum(item.bidVol),
-      askIv:  this.safeNum(item.askVol),
-    };
+    this.quoteStore.set(id, mergeOkxOptSummary(undefined, item, (value) => this.safeNum(value)));
   }
 
   // ── helpers ───────────────────────────────────────────────────
@@ -600,27 +539,34 @@ export class OkxWsAdapter extends SdkBaseAdapter {
     if (!res.ok) throw new Error(`OKX ${path} returned ${res.status}`);
 
     const json: unknown = await res.json();
-    const parsed = OkxRestResponseSchema.safeParse(json);
+    const parsed = parseOkxRestResponse(json);
 
-    if (!parsed.success) throw new Error(`OKX ${path} response invalid: ${parsed.error.message}`);
-    if (parsed.data.code !== '0') throw new Error(`OKX ${path} error ${parsed.data.code}: ${parsed.data.msg}`);
+    if (parsed == null) throw new Error(`OKX ${path} response invalid`);
+    if (parsed.code !== '0') throw new Error(`OKX ${path} error ${parsed.code}: ${parsed.msg}`);
 
-    return parsed.data.data;
+    return parsed.data;
   }
 
   private sendJson(payload: Record<string, unknown>): void {
-    if (this.ws?.readyState !== WebSocket.OPEN) return;
-    this.ws.send(JSON.stringify(payload));
+    this.wsClient?.send(payload);
+  }
+
+  private sweepExpiredState(): void {
+    const removed = this.sweepExpiredInstruments();
+    if (removed.length === 0) return;
+
+    removeOkxSubscribedInstruments(
+      this.subscriptions,
+      removed.map((instrument) => instrument.exchangeSymbol),
+    );
+    log.info({ count: removed.length }, 'removed expired instruments');
   }
 
   override async dispose(): Promise<void> {
-    this.shouldReconnect = false;
-    this.stopPing();
-    if (this.reconnectTimer) { clearTimeout(this.reconnectTimer); this.reconnectTimer = null; }
-    for (const t of this.refreshTimers) clearInterval(t);
+    for (const timer of this.refreshTimers) clearInterval(timer);
     this.refreshTimers = [];
     await this.unsubscribeAll();
-    this.ws?.close();
-    this.ws = null;
+    await this.wsClient?.disconnect();
+    this.wsClient = null;
   }
 }

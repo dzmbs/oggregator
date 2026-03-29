@@ -82,3 +82,22 @@ export const DeriveInstrumentSchema = z.object({
   taker_fee_rate: z.string().optional(),
 }).passthrough();
 export type DeriveInstrument = z.infer<typeof DeriveInstrumentSchema>;
+
+// public/get_instruments: result is a direct array, or { instruments: [...] } on some API versions
+export const DeriveInstrumentsResponseSchema = z.union([
+  z.array(DeriveInstrumentSchema),
+  z.object({ instruments: z.array(DeriveInstrumentSchema) }).transform((r) => r.instruments),
+]);
+
+// public/get_tickers: { tickers: { [instrument_name]: ticker } }
+export const DeriveTickersResponseSchema = z.object({
+  tickers: z.record(z.string(), DeriveTickerSchema),
+});
+export type DeriveTickersResponse = z.infer<typeof DeriveTickersResponseSchema>;
+
+export const DeriveHealthTimeSchema = z.number();
+
+export const DeriveHealthIncidentsSchema = z.object({
+  incidents: z.array(z.unknown()),
+}).passthrough();
+export type DeriveHealthIncidents = z.infer<typeof DeriveHealthIncidentsSchema>;
