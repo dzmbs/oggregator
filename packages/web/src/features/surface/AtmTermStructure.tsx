@@ -1,5 +1,4 @@
-import { useRef, useEffect, useState, useCallback, useMemo } from "react";
-import { createChart, LineSeries, type IChartApi, type ISeriesApi, ColorType } from "lightweight-charts";
+import { useState, useCallback, useMemo } from "react";
 
 import { useAppStore } from "@stores/app-store";
 import { useUnderlyings } from "@features/chain/queries";
@@ -9,6 +8,7 @@ import { formatExpiry } from "@lib/format";
 import { getTokenLogo } from "@lib/token-meta";
 import type { VenueAtmPoint } from "@shared/enriched";
 import { useSurface } from "./queries";
+import { Plot, PLOTLY_LAYOUT_BASE, PLOTLY_CONFIG } from "./plotly";
 import styles from "./AtmTermStructure.module.css";
 
 const AVG_COLOR = "#50D2C1";
@@ -21,10 +21,14 @@ function getVenueColor(venueId: string, defaultColor: string): string {
   return VENUE_COLOR_OVERRIDES[venueId] ?? defaultColor;
 }
 
-export default function AtmTermStructure() {
+interface Props {
+  defaultUnderlying?: string;
+}
+
+export default function AtmTermStructure({ defaultUnderlying }: Props) {
   const globalUnderlying = useAppStore((s) => s.underlying);
 
-  const [localUnderlying, setLocalUnderlying] = useState(globalUnderlying);
+  const [localUnderlying, setLocalUnderlying] = useState(defaultUnderlying ?? globalUnderlying);
   const underlying = localUnderlying || globalUnderlying;
 
   const { data: underlyingsData } = useUnderlyings();
@@ -33,20 +37,10 @@ export default function AtmTermStructure() {
   const [enabledVenues, setEnabledVenues] = useState<Set<string>>(() => new Set());
   const [showAverage, setShowAverage] = useState(true);
 
-  // Fetch surface with all venues so we always have per-venue data
   const allVenueIds = VENUE_LIST.map((v) => v.id);
   const { data, isLoading } = useSurface(underlying, allVenueIds);
   const venueAtm = data?.venueAtm ?? {};
   const surface = data?.surface ?? [];
-
-  // Build DTE → expiry lookup for crosshair labels
-  const dteToExpiry = useMemo(() => {
-    const map = new Map<number, string>();
-    for (const row of surface) {
-      if (row.dte > 0) map.set(row.dte, row.expiry);
-    }
-    return map;
-  }, [surface]);
 
   const handleUnderlyingChange = useCallback((value: string) => {
     setLocalUnderlying(value);
@@ -55,125 +49,88 @@ export default function AtmTermStructure() {
   const toggleVenue = useCallback((venueId: string) => {
     setEnabledVenues((prev) => {
       const next = new Set(prev);
-      if (next.has(venueId)) {
-        next.delete(venueId);
-      } else {
-        next.add(venueId);
-      }
+      if (next.has(venueId)) next.delete(venueId);
+      else next.add(venueId);
       return next;
     });
   }, []);
 
-  const chartRef  = useRef<HTMLDivElement>(null);
-  const chartApi  = useRef<IChartApi | null>(null);
-  const seriesMap = useRef<Map<string, ISeriesApi<"Line">>>(new Map());
-  const dteToExpiryRef = useRef(dteToExpiry);
-  dteToExpiryRef.current = dteToExpiry;
+  // Build Plotly traces
+  const plotData = useMemo(() => {
+    const traces: Partial<Plotly.PlotData>[] = [];
 
-  useEffect(() => {
-    const container = chartRef.current;
-    if (!container) return;
-
-    const chart = createChart(container, {
-      autoSize: true,
-      layout: {
-        background: { type: ColorType.Solid, color: "#0A0A0A" },
-        textColor: "#555B5E",
-        fontFamily: "'IBM Plex Mono', monospace",
-        fontSize: 11,
-      },
-      grid: {
-        vertLines: { color: "#1A1A1A" },
-        horzLines: { color: "#1A1A1A" },
-      },
-      rightPriceScale: {
-        borderColor: "#1F2937",
-        scaleMargins: { top: 0.08, bottom: 0.08 },
-      },
-      timeScale: {
-        borderColor: "#1F2937",
-        tickMarkFormatter: (v: number) => `${v}d`,
-      },
-      crosshair: {
-        horzLine: { color: "#50D2C1", labelBackgroundColor: "#0E3333" },
-        vertLine: { color: "#50D2C1", labelBackgroundColor: "#0E3333" },
-      },
-      localization: {
-        timeFormatter: (v: number) => {
-          const expiry = dteToExpiryRef.current.get(v);
-          if (expiry) return `${formatExpiry(expiry)} (${v}d)`;
-          return `${v}d`;
-        },
-      },
-      handleScale: { mouseWheel: true, pinch: true },
-      handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: false },
-    });
-
-    const priceFmt = { type: "custom" as const, formatter: (p: number) => `${p.toFixed(1)}%` };
-
-    // Create a series per venue
-    for (const venue of VENUE_LIST) {
-      const series = chart.addSeries(LineSeries, {
-        color: getVenueColor(venue.id, venue.color),
-        lineWidth: 2,
-        title: venue.shortLabel,
-        priceFormat: priceFmt,
-        visible: false,
-      });
-      seriesMap.current.set(venue.id, series);
-    }
-
-    // Average series
-    const avgSeries = chart.addSeries(LineSeries, {
-      color: AVG_COLOR,
-      lineWidth: 2,
-      title: "AVG",
-      priceFormat: priceFmt,
-      visible: false,
-    });
-    seriesMap.current.set("__avg__", avgSeries);
-
-    chartApi.current = chart;
-
-    return () => {
-      chart.remove();
-      chartApi.current = null;
-      seriesMap.current = new Map();
+    const toXY = (points: VenueAtmPoint[]) => {
+      const seen = new Set<number>();
+      const x: number[] = [];
+      const y: number[] = [];
+      for (const p of points) {
+        if (p.atm == null || p.dte <= 0 || !Number.isFinite(p.atm)) continue;
+        if (seen.has(p.dte)) continue;
+        seen.add(p.dte);
+        x.push(p.dte);
+        y.push(p.atm * 100);
+      }
+      // Sort by DTE
+      const indices = x.map((_, i) => i).sort((a, b) => x[a]! - x[b]!);
+      return { x: indices.map((i) => x[i]!), y: indices.map((i) => y[i]!) };
     };
-  }, []);
 
-  useEffect(() => {
-    if (!chartApi.current) return;
+    if (showAverage) {
+      const { x, y } = toXY(
+        surface.map((r) => ({ expiry: r.expiry, dte: r.dte, atm: r.atm })),
+      );
+      if (x.length > 0) {
+        // Build custom text for hover with expiry labels
+        const dteToExpiry = new Map<number, string>();
+        for (const r of surface) { if (r.dte > 0) dteToExpiry.set(r.dte, r.expiry); }
 
-    const toPoints = (points: VenueAtmPoint[]) =>
-      points
-        .filter((p) => p.atm != null && p.dte > 0)
-        .sort((a, b) => a.dte - b.dte)
-        .map((p) => ({ time: p.dte as unknown as number, value: p.atm! * 100 })) as never;
+        traces.push({
+          type: "scatter",
+          mode: "lines",
+          x,
+          y,
+          name: "Average",
+          line: { color: AVG_COLOR, width: 2 },
+          text: x.map((dte) => {
+            const exp = dteToExpiry.get(dte);
+            return exp ? `${formatExpiry(exp)} (${dte}d)` : `${dte}d`;
+          }),
+          hovertemplate: "%{text}<br>IV: %{y:.1f}%<extra>AVG</extra>",
+        });
+      }
+    }
 
-    // Update each venue series
     for (const venue of VENUE_LIST) {
-      const series = seriesMap.current.get(venue.id);
-      if (!series) continue;
-      const visible = enabledVenues.has(venue.id);
-      const points = venueAtm[venue.id] ?? [];
-      series.setData(visible ? toPoints(points) : []);
-      series.applyOptions({ visible });
+      if (!enabledVenues.has(venue.id)) continue;
+      const { x, y } = toXY(venueAtm[venue.id] ?? []);
+      if (x.length === 0) continue;
+
+      traces.push({
+        type: "scatter",
+        mode: "lines",
+        x,
+        y,
+        name: venue.label,
+        line: { color: getVenueColor(venue.id, venue.color), width: 2 },
+        hovertemplate: `%{x}d<br>IV: %{y:.1f}%<extra>${venue.shortLabel}</extra>`,
+      });
     }
 
-    // Update average series
-    const avgSeries = seriesMap.current.get("__avg__");
-    if (avgSeries) {
-      const avgPoints = surface
-        .filter((r) => r.atm != null && r.dte > 0)
-        .sort((a, b) => a.dte - b.dte)
-        .map((r) => ({ time: r.dte as unknown as number, value: r.atm! * 100 })) as never;
-      avgSeries.setData(showAverage ? avgPoints : []);
-      avgSeries.applyOptions({ visible: showAverage });
-    }
+    return traces;
+  }, [surface, venueAtm, enabledVenues, showAverage]);
 
-    chartApi.current.timeScale().fitContent();
-  }, [venueAtm, surface, enabledVenues, showAverage]);
+  const plotLayout = useMemo((): Partial<Plotly.Layout> => ({
+    ...PLOTLY_LAYOUT_BASE,
+    xaxis: {
+      ...PLOTLY_LAYOUT_BASE.xaxis,
+      title: { text: "DTE", font: { size: 11 } },
+      ticksuffix: "d",
+    },
+    yaxis: {
+      ...PLOTLY_LAYOUT_BASE.yaxis,
+      title: { text: "IV", font: { size: 11 } },
+    },
+  }), []);
 
   if (isLoading && surface.length === 0) {
     return (
@@ -224,7 +181,12 @@ export default function AtmTermStructure() {
       </div>
 
       <div className={styles.chartArea}>
-        <div className={styles.chartWrap} ref={chartRef} />
+        <Plot
+          data={plotData}
+          layout={plotLayout}
+          config={PLOTLY_CONFIG}
+          style={{ width: "100%", height: "350px" }}
+        />
       </div>
     </div>
   );

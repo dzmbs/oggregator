@@ -15,8 +15,10 @@
     "@oggregator/protocol": "workspace:^",
     "@tanstack/react-query": "^5.91.2",
     "lightweight-charts": "^5.1.0",
+    "plotly.js-gl3d-dist-min": "^3.4.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-plotly.js": "^2.6.0",
     "zod": "^4.3.6",
     "zustand": "^5.0.12"
   },
@@ -26,6 +28,7 @@
     "@testing-library/react-hooks": "^8.0.1",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "@types/react-plotly.js": "^2.6.4",
     "@vitejs/plugin-react-swc": "^4.3.0",
     "jsdom": "^29.0.1",
     "typescript": "^5.5.0",

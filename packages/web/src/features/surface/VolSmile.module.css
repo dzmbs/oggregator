@@ -168,14 +168,8 @@
 .chartArea {
   flex: 1;
   min-height: 0;
-  position: relative;
-}
-
-.chartWrap {
-  position: absolute;
-  inset: 0;
-  border-radius: var(--radius-md);
   overflow: hidden;
+  position: relative;
 }
 
 /* ── Mobile ──────────────────────────────────────────── */

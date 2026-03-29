@@ -48,6 +48,7 @@ export default defineConfig({
         manualChunks: {
           vendor:   ["react", "react-dom"],
           tanstack: ["@tanstack/react-query"],
+          plotly:   ["plotly.js-gl3d-dist-min"],
         },
       },
     },
