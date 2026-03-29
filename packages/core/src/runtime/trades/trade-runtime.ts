@@ -477,7 +477,7 @@ const VENUE_STREAMS: VenueStream[] = [
     connect(ws, underlying) {
       ws.send(JSON.stringify({
         op: 'subscribe',
-        args: [{ channel: 'option-trades', instFamily: `${underlying}-USD` }],
+        args: [{ channel: 'option-trades', instType: 'OPTION', instFamily: `${underlying}-USD` }],
       }));
     },
     parse(msg, underlying) {
