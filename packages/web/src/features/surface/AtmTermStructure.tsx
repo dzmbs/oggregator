@@ -123,8 +123,10 @@ export default function AtmTermStructure({ defaultUnderlying }: Props) {
     ...PLOTLY_LAYOUT_BASE,
     xaxis: {
       ...PLOTLY_LAYOUT_BASE.xaxis,
-      title: { text: "DTE", font: { size: 11 } },
+      type: "log",
       ticksuffix: "d",
+      tickvals: [1, 2, 3, 5, 7, 14, 30, 60, 90, 180, 365],
+      dtick: undefined,
     },
     yaxis: {
       ...PLOTLY_LAYOUT_BASE.yaxis,
