@@ -27,6 +27,11 @@ export { ClientWsMessageSchema, ServerWsMessageSchema } from '@oggregator/protoc
 
 export { buildComparisonChain } from './core/aggregator.js';
 export { registerAdapter, getAdapter, getAllAdapters, getRegisteredVenues } from './core/registry.js';
+export {
+  VenueSubscriptionCoordinator,
+  type VenueSubscriptionHandle,
+  type VenueSubscriptionListener,
+} from './core/subscription-coordinator.js';
 export { parseOptionSymbol, formatOptionSymbol, strikeKey } from './core/symbol.js';
 export type { CanonicalOption } from './core/symbol.js';
 
@@ -37,6 +42,7 @@ export {
   computeDte,
   enrichComparisonRow,
   computeChainStats,
+  computeGex,
 } from './core/enrichment.js';
 
 export type {
@@ -54,17 +60,48 @@ export type {
 export type { OptionVenueAdapter, VenueCapabilities, StreamHandlers } from './feeds/shared/types.js';
 export { BaseAdapter } from './feeds/shared/base.js';
 
+// runtime
+export {
+  ChainRuntime,
+  ChainRuntimeRegistry,
+  ChainProjection,
+  VenueHealthManager,
+  type ChainRuntimeDeltaEvent,
+  type ChainRuntimeEvent,
+  type ChainRuntimeListener,
+  type ChainRuntimeOptions,
+  type ChainRuntimeSnapshotEvent,
+  type ChainRuntimeStatusEvent,
+  type ChainProjectionDelta,
+} from './runtime/chain/index.js';
+
+// runtime
+export {
+  SpotRuntime,
+  type SpotRuntimeEvent,
+  type SpotRuntimeHealth,
+  type SpotRuntimeListener,
+  type SpotRuntimeOptions,
+  type SpotRuntimeSnapshotEvent,
+  type SpotSnapshot,
+} from './runtime/spot/index.js';
+
 // services
 export { DvolService, type DvolSnapshot, type DvolCandle, type HvPoint } from './services/dvol.js';
-export { SpotService, type SpotSnapshot } from './services/spot.js';
 export {
-  FlowService,
+  TradeRuntime,
   getDeribitTradeCurrency,
   getDeribitUnderlyingFromInstrument,
   normalizeTradeUnderlying,
   type TradeEvent,
-} from './services/flow.js';
-export { BlockFlowService, type BlockTradeEvent, type BlockTradeLeg } from './services/block-flow.js';
+  type TradeRuntimeHealth,
+} from './runtime/trades/index.js';
+export {
+  BlockTradeRuntime,
+  type BlockTradeEvent,
+  type BlockTradeLeg,
+  type BlockTradeRuntimeHealth,
+} from './runtime/block-trades/index.js';
 export {
   buildBlockTradeUid,
   buildLiveTradeUid,
@@ -75,7 +112,7 @@ export {
   parseTradeInstrument,
   type ParsedTradeInstrument,
   type TradeAmounts,
-} from './services/trade-persistence.js';
+} from './trade-persistence.js';
 
 // feeds — venue adapters
 export { DeribitWsAdapter } from './feeds/deribit/index.js';

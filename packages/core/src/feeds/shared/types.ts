@@ -16,12 +16,7 @@ export interface StreamHandlers {
   onStatus: (status: VenueStatus) => void;
 }
 
-/**
- * Contract for all venue adapters. Current CCXT-based adapters implement this
- * via REST polling. Next step: replace with direct WebSocket adapters.
- *
- * See HANDOFF.md for per-venue WebSocket endpoints and subscription formats.
- */
+/** Contract for all option venue adapters used by the server and coordinator. */
 export interface OptionVenueAdapter {
   readonly venue: VenueId;
   readonly capabilities: VenueCapabilities;
