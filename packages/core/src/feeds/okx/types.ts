@@ -12,10 +12,10 @@ export const OkxInstrumentSchema = z.object({
   ctMult: z.string().optional(),
   ctValCcy: z.string().optional(),
   // Available directly — no need to parse from instId string
-  optType: z.string().optional(),   // "C" | "P"
-  stk: z.string().optional(),       // strike price
+  optType: z.string().optional(), // "C" | "P"
+  stk: z.string().optional(), // strike price
   listTime: z.string().optional(),
-  expTime: z.string().optional(),   // ms timestamp
+  expTime: z.string().optional(), // ms timestamp
   tickSz: z.string().optional(),
   lotSz: z.string().optional(),
   minSz: z.string().optional(),

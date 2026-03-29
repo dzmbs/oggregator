@@ -1,9 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import {
-  getAllAdapters,
-  VENUE_IDS,
-  type VenueId,
-} from '@oggregator/core';
+import { getAllAdapters, VENUE_IDS, type VenueId } from '@oggregator/core';
 import { chainEngines } from '../chain-engines.js';
 
 function parseVenues(venuesParam: string | undefined): VenueId[] {

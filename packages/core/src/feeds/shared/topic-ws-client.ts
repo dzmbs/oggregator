@@ -123,12 +123,18 @@ export class TopicWsClient {
     const exceededMaxAttempts = this.reconnectAttempts >= maxAttempts;
     const delay = exceededMaxAttempts
       ? RETRY_AFTER_MAX_ATTEMPTS_MS
-      : backoffDelay(this.reconnectAttempts, this.options.reconnectDelayMs ?? DEFAULT_RECONNECT_DELAY_MS);
+      : backoffDelay(
+          this.reconnectAttempts,
+          this.options.reconnectDelayMs ?? DEFAULT_RECONNECT_DELAY_MS,
+        );
 
     this.reconnectAttempts += 1;
 
     if (exceededMaxAttempts) {
-      this.log.error({ maxAttempts, delayMs: delay }, 'max reconnect attempts reached, switching to periodic retry');
+      this.log.error(
+        { maxAttempts, delayMs: delay },
+        'max reconnect attempts reached, switching to periodic retry',
+      );
       this.options.onStatusChange?.('down');
     } else {
       this.log.info({ delayMs: delay, attempt: this.reconnectAttempts }, 'reconnecting');

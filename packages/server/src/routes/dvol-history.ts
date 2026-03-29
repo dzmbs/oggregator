@@ -11,7 +11,7 @@ export async function dvolHistoryRoute(app: FastifyInstance) {
 
     const currency = (req.query.currency ?? 'BTC').toUpperCase();
     const candles = dvolService.getHistory(currency);
-    const hv      = dvolService.getHv(currency);
+    const hv = dvolService.getHv(currency);
 
     if (candles.length === 0) {
       return reply.status(404).send({ error: `No DVOL history for ${currency}` });

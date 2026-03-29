@@ -302,7 +302,9 @@
 
 .v1LogoItemBest {
   border-color: var(--accent-primary);
-  box-shadow: 0 0 0 1px var(--accent-primary), 0 0 5px rgba(80, 210, 193, 0.28);
+  box-shadow:
+    0 0 0 1px var(--accent-primary),
+    0 0 5px rgba(80, 210, 193, 0.28);
   background: rgba(80, 210, 193, 0.06);
 }
 
@@ -357,7 +359,9 @@
 
 .v2LogoItemBest {
   border-color: var(--accent-primary);
-  box-shadow: 0 0 0 1px var(--accent-primary), 0 0 5px rgba(80, 210, 193, 0.28);
+  box-shadow:
+    0 0 0 1px var(--accent-primary),
+    0 0 5px rgba(80, 210, 193, 0.28);
   background: rgba(80, 210, 193, 0.06);
 }
 

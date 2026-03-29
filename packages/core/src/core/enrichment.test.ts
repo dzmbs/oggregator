@@ -47,15 +47,47 @@ describe('enrichment', () => {
   it('classifies term structure using fraction-space IV thresholds', () => {
     expect(
       computeTermStructure([
-        { expiry: '2026-04-03', dte: 7, atm: 0.49, delta10p: null, delta25p: null, delta25c: null, delta10c: null },
-        { expiry: '2026-06-26', dte: 91, atm: 0.53, delta10p: null, delta25p: null, delta25c: null, delta10c: null },
+        {
+          expiry: '2026-04-03',
+          dte: 7,
+          atm: 0.49,
+          delta10p: null,
+          delta25p: null,
+          delta25c: null,
+          delta10c: null,
+        },
+        {
+          expiry: '2026-06-26',
+          dte: 91,
+          atm: 0.53,
+          delta10p: null,
+          delta25p: null,
+          delta25c: null,
+          delta10c: null,
+        },
       ]),
     ).toBe('contango');
 
     expect(
       computeTermStructure([
-        { expiry: '2026-04-03', dte: 7, atm: 0.55, delta10p: null, delta25p: null, delta25c: null, delta10c: null },
-        { expiry: '2026-06-26', dte: 91, atm: 0.51, delta10p: null, delta25p: null, delta25c: null, delta10c: null },
+        {
+          expiry: '2026-04-03',
+          dte: 7,
+          atm: 0.55,
+          delta10p: null,
+          delta25p: null,
+          delta25c: null,
+          delta10c: null,
+        },
+        {
+          expiry: '2026-06-26',
+          dte: 91,
+          atm: 0.51,
+          delta10p: null,
+          delta25p: null,
+          delta25c: null,
+          delta10c: null,
+        },
       ]),
     ).toBe('backwardation');
   });
@@ -122,87 +154,117 @@ describe('enrichment', () => {
   });
 
   it('computes GEX using each venue quote and contract size', () => {
-    const rows: ComparisonRow[] = [{
-      strike: 70_000,
-      call: {
-        deribit: {
-          venue: 'deribit',
-          symbol: 'BTC/USD:BTC-260328-70000-C',
-          exchangeSymbol: 'BTC-260328-70000-C',
-          base: 'BTC',
-          settle: 'BTC',
-          expiry: '2026-03-28',
-          strike: 70_000,
-          right: 'call',
-          inverse: true,
-          contractSize: 2,
-          tickSize: null,
-          minQty: null,
-          makerFee: null,
-          takerFee: null,
-          greeks: { delta: null, gamma: 0.01, theta: null, vega: null, rho: null, markIv: 0.5, bidIv: null, askIv: null },
-          quote: {
-            bid: { raw: null, rawCurrency: 'BTC', usd: null },
-            ask: { raw: null, rawCurrency: 'BTC', usd: null },
-            mark: { raw: null, rawCurrency: 'BTC', usd: null },
-            last: null,
-            bidSize: null,
-            askSize: null,
-            underlyingPriceUsd: 69_000,
-            indexPriceUsd: 70_000,
-            volume24h: null,
-            openInterest: 10,
-            openInterestUsd: null,
-            volume24hUsd: null,
-            estimatedFees: null,
-            timestamp: 1,
-            source: 'ws',
+    const rows: ComparisonRow[] = [
+      {
+        strike: 70_000,
+        call: {
+          deribit: {
+            venue: 'deribit',
+            symbol: 'BTC/USD:BTC-260328-70000-C',
+            exchangeSymbol: 'BTC-260328-70000-C',
+            base: 'BTC',
+            settle: 'BTC',
+            expiry: '2026-03-28',
+            strike: 70_000,
+            right: 'call',
+            inverse: true,
+            contractSize: 2,
+            tickSize: null,
+            minQty: null,
+            makerFee: null,
+            takerFee: null,
+            greeks: {
+              delta: null,
+              gamma: 0.01,
+              theta: null,
+              vega: null,
+              rho: null,
+              markIv: 0.5,
+              bidIv: null,
+              askIv: null,
+            },
+            quote: {
+              bid: { raw: null, rawCurrency: 'BTC', usd: null },
+              ask: { raw: null, rawCurrency: 'BTC', usd: null },
+              mark: { raw: null, rawCurrency: 'BTC', usd: null },
+              last: null,
+              bidSize: null,
+              askSize: null,
+              underlyingPriceUsd: 69_000,
+              indexPriceUsd: 70_000,
+              volume24h: null,
+              openInterest: 10,
+              openInterestUsd: null,
+              volume24hUsd: null,
+              estimatedFees: null,
+              timestamp: 1,
+              source: 'ws',
+            },
+          },
+        },
+        put: {
+          deribit: {
+            venue: 'deribit',
+            symbol: 'BTC/USD:BTC-260328-70000-P',
+            exchangeSymbol: 'BTC-260328-70000-P',
+            base: 'BTC',
+            settle: 'BTC',
+            expiry: '2026-03-28',
+            strike: 70_000,
+            right: 'put',
+            inverse: true,
+            contractSize: 2,
+            tickSize: null,
+            minQty: null,
+            makerFee: null,
+            takerFee: null,
+            greeks: {
+              delta: null,
+              gamma: 0.005,
+              theta: null,
+              vega: null,
+              rho: null,
+              markIv: 0.52,
+              bidIv: null,
+              askIv: null,
+            },
+            quote: {
+              bid: { raw: null, rawCurrency: 'BTC', usd: null },
+              ask: { raw: null, rawCurrency: 'BTC', usd: null },
+              mark: { raw: null, rawCurrency: 'BTC', usd: null },
+              last: null,
+              bidSize: null,
+              askSize: null,
+              underlyingPriceUsd: 69_000,
+              indexPriceUsd: 70_000,
+              volume24h: null,
+              openInterest: 5,
+              openInterestUsd: null,
+              volume24hUsd: null,
+              estimatedFees: null,
+              timestamp: 1,
+              source: 'ws',
+            },
           },
         },
       },
-      put: {
-        deribit: {
-          venue: 'deribit',
-          symbol: 'BTC/USD:BTC-260328-70000-P',
-          exchangeSymbol: 'BTC-260328-70000-P',
-          base: 'BTC',
-          settle: 'BTC',
-          expiry: '2026-03-28',
-          strike: 70_000,
-          right: 'put',
-          inverse: true,
-          contractSize: 2,
-          tickSize: null,
-          minQty: null,
-          makerFee: null,
-          takerFee: null,
-          greeks: { delta: null, gamma: 0.005, theta: null, vega: null, rho: null, markIv: 0.52, bidIv: null, askIv: null },
-          quote: {
-            bid: { raw: null, rawCurrency: 'BTC', usd: null },
-            ask: { raw: null, rawCurrency: 'BTC', usd: null },
-            mark: { raw: null, rawCurrency: 'BTC', usd: null },
-            last: null,
-            bidSize: null,
-            askSize: null,
-            underlyingPriceUsd: 69_000,
-            indexPriceUsd: 70_000,
-            volume24h: null,
-            openInterest: 5,
-            openInterestUsd: null,
-            volume24hUsd: null,
-            estimatedFees: null,
-            timestamp: 1,
-            source: 'ws',
-          },
-        },
-      },
-    }];
+    ];
 
-    const strikes: EnrichedStrike[] = [{
-      strike: 70_000,
-      call: { bestIv: 0.5, bestVenue: 'deribit', venues: { deribit: createVenueQuote({ openInterest: 10, gamma: 0.01 }) } },
-      put: { bestIv: 0.52, bestVenue: 'deribit', venues: { deribit: createVenueQuote({ openInterest: 5, gamma: 0.005 }) } },
-    }];
+    const strikes: EnrichedStrike[] = [
+      {
+        strike: 70_000,
+        call: {
+          bestIv: 0.5,
+          bestVenue: 'deribit',
+          venues: { deribit: createVenueQuote({ openInterest: 10, gamma: 0.01 }) },
+        },
+        put: {
+          bestIv: 0.52,
+          bestVenue: 'deribit',
+          venues: { deribit: createVenueQuote({ openInterest: 5, gamma: 0.005 }) },
+        },
+      },
+    ];
 
     const gex = computeGex(rows, strikes, 65_000);
     expect(gex).toHaveLength(1);
@@ -210,52 +272,69 @@ describe('enrichment', () => {
   });
 
   it('computes OKX inverse GEX from contract-count OI without double-applying ctMult', () => {
-    const rows: ComparisonRow[] = [{
-      strike: 58_000,
-      call: {
-        okx: {
-          venue: 'okx',
-          symbol: 'BTC/USD:BTC-260330-58000-C',
-          exchangeSymbol: 'BTC-USD-260330-58000-C',
-          base: 'BTC',
-          settle: 'BTC',
-          expiry: '2026-03-30',
-          strike: 58_000,
-          right: 'call',
-          inverse: true,
-          contractSize: 0.01,
-          tickSize: null,
-          minQty: null,
-          makerFee: null,
-          takerFee: null,
-          greeks: { delta: null, gamma: 0.01, theta: null, vega: null, rho: null, markIv: 0.5, bidIv: null, askIv: null },
-          quote: {
-            bid: { raw: null, rawCurrency: 'BTC', usd: null },
-            ask: { raw: null, rawCurrency: 'BTC', usd: null },
-            mark: { raw: null, rawCurrency: 'BTC', usd: null },
-            last: null,
-            bidSize: null,
-            askSize: null,
-            underlyingPriceUsd: 67_000,
-            indexPriceUsd: 67_000,
-            volume24h: null,
-            openInterest: 275,
-            openInterestUsd: null,
-            volume24hUsd: null,
-            estimatedFees: null,
-            timestamp: 1,
-            source: 'ws',
+    const rows: ComparisonRow[] = [
+      {
+        strike: 58_000,
+        call: {
+          okx: {
+            venue: 'okx',
+            symbol: 'BTC/USD:BTC-260330-58000-C',
+            exchangeSymbol: 'BTC-USD-260330-58000-C',
+            base: 'BTC',
+            settle: 'BTC',
+            expiry: '2026-03-30',
+            strike: 58_000,
+            right: 'call',
+            inverse: true,
+            contractSize: 0.01,
+            tickSize: null,
+            minQty: null,
+            makerFee: null,
+            takerFee: null,
+            greeks: {
+              delta: null,
+              gamma: 0.01,
+              theta: null,
+              vega: null,
+              rho: null,
+              markIv: 0.5,
+              bidIv: null,
+              askIv: null,
+            },
+            quote: {
+              bid: { raw: null, rawCurrency: 'BTC', usd: null },
+              ask: { raw: null, rawCurrency: 'BTC', usd: null },
+              mark: { raw: null, rawCurrency: 'BTC', usd: null },
+              last: null,
+              bidSize: null,
+              askSize: null,
+              underlyingPriceUsd: 67_000,
+              indexPriceUsd: 67_000,
+              volume24h: null,
+              openInterest: 275,
+              openInterestUsd: null,
+              volume24hUsd: null,
+              estimatedFees: null,
+              timestamp: 1,
+              source: 'ws',
+            },
           },
         },
+        put: {},
       },
-      put: {},
-    }];
+    ];
 
-    const strikes: EnrichedStrike[] = [{
-      strike: 58_000,
-      call: { bestIv: 0.5, bestVenue: 'okx', venues: { okx: createVenueQuote({ openInterest: 275, gamma: 0.01 }) } },
-      put: { bestIv: null, bestVenue: null, venues: {} },
-    }];
+    const strikes: EnrichedStrike[] = [
+      {
+        strike: 58_000,
+        call: {
+          bestIv: 0.5,
+          bestVenue: 'okx',
+          venues: { okx: createVenueQuote({ openInterest: 275, gamma: 0.01 }) },
+        },
+        put: { bestIv: null, bestVenue: null, venues: {} },
+      },
+    ];
 
     const gex = computeGex(rows, strikes, 67_000);
     expect(gex[0]!.gexUsdMillions).toBeCloseTo(123.4475, 6);
@@ -263,9 +342,45 @@ describe('enrichment', () => {
 
   it('builds IV surface points from price-based ATM and nearest strikes to target deltas', () => {
     const strikes: EnrichedStrike[] = [
-      { strike: 60_000, call: { bestIv: 0.7, bestVenue: 'deribit', venues: { deribit: createVenueQuote({ delta: 0.1, markIv: 0.7 }) } }, put: { bestIv: 0.8, bestVenue: 'deribit', venues: { deribit: createVenueQuote({ delta: -0.1, markIv: 0.8 }) } } },
-      { strike: 65_000, call: { bestIv: 0.6, bestVenue: 'deribit', venues: { deribit: createVenueQuote({ delta: 0.25, markIv: 0.6 }) } }, put: { bestIv: 0.65, bestVenue: 'deribit', venues: { deribit: createVenueQuote({ delta: -0.25, markIv: 0.65 }) } } },
-      { strike: 70_000, call: { bestIv: 0.5, bestVenue: 'deribit', venues: { deribit: createVenueQuote({ delta: 0.5, markIv: 0.5 }) } }, put: { bestIv: 0.55, bestVenue: 'deribit', venues: { deribit: createVenueQuote({ delta: -0.5, markIv: 0.55 }) } } },
+      {
+        strike: 60_000,
+        call: {
+          bestIv: 0.7,
+          bestVenue: 'deribit',
+          venues: { deribit: createVenueQuote({ delta: 0.1, markIv: 0.7 }) },
+        },
+        put: {
+          bestIv: 0.8,
+          bestVenue: 'deribit',
+          venues: { deribit: createVenueQuote({ delta: -0.1, markIv: 0.8 }) },
+        },
+      },
+      {
+        strike: 65_000,
+        call: {
+          bestIv: 0.6,
+          bestVenue: 'deribit',
+          venues: { deribit: createVenueQuote({ delta: 0.25, markIv: 0.6 }) },
+        },
+        put: {
+          bestIv: 0.65,
+          bestVenue: 'deribit',
+          venues: { deribit: createVenueQuote({ delta: -0.25, markIv: 0.65 }) },
+        },
+      },
+      {
+        strike: 70_000,
+        call: {
+          bestIv: 0.5,
+          bestVenue: 'deribit',
+          venues: { deribit: createVenueQuote({ delta: 0.5, markIv: 0.5 }) },
+        },
+        put: {
+          bestIv: 0.55,
+          bestVenue: 'deribit',
+          venues: { deribit: createVenueQuote({ delta: -0.5, markIv: 0.55 }) },
+        },
+      },
     ];
 
     const surface = computeIvSurface('2026-03-28', 7, strikes, 69_800);
@@ -278,7 +393,19 @@ describe('enrichment', () => {
 
   it('returns null surface points when no strike is close to the target delta', () => {
     const strikes: EnrichedStrike[] = [
-      { strike: 60_000, call: { bestIv: 0.7, bestVenue: 'deribit', venues: { deribit: createVenueQuote({ delta: 0.9, markIv: 0.7 }) } }, put: { bestIv: 0.8, bestVenue: 'deribit', venues: { deribit: createVenueQuote({ delta: -0.9, markIv: 0.8 }) } } },
+      {
+        strike: 60_000,
+        call: {
+          bestIv: 0.7,
+          bestVenue: 'deribit',
+          venues: { deribit: createVenueQuote({ delta: 0.9, markIv: 0.7 }) },
+        },
+        put: {
+          bestIv: 0.8,
+          bestVenue: 'deribit',
+          venues: { deribit: createVenueQuote({ delta: -0.9, markIv: 0.8 }) },
+        },
+      },
     ];
 
     const surface = computeIvSurface('2026-03-28', 7, strikes);
@@ -305,61 +432,93 @@ describe('enrichment', () => {
     const strikes: EnrichedStrike[] = [
       {
         strike: 67_000,
-        call: { bestIv: 0.55, bestVenue: 'deribit', venues: { deribit: createVenueQuote({ markIv: 0.55, delta: 0.8 }) } },
-        put: { bestIv: 0.6, bestVenue: 'deribit', venues: { deribit: createVenueQuote({ markIv: 0.6, delta: -0.2 }) } },
+        call: {
+          bestIv: 0.55,
+          bestVenue: 'deribit',
+          venues: { deribit: createVenueQuote({ markIv: 0.55, delta: 0.8 }) },
+        },
+        put: {
+          bestIv: 0.6,
+          bestVenue: 'deribit',
+          venues: { deribit: createVenueQuote({ markIv: 0.6, delta: -0.2 }) },
+        },
       },
       {
         strike: 70_000,
-        call: { bestIv: 0.5, bestVenue: 'deribit', venues: { deribit: createVenueQuote({ markIv: 0.5, delta: 0.5 }) } },
-        put: { bestIv: 0.65, bestVenue: 'deribit', venues: { deribit: createVenueQuote({ markIv: 0.65, delta: -0.5 }) } },
+        call: {
+          bestIv: 0.5,
+          bestVenue: 'deribit',
+          venues: { deribit: createVenueQuote({ markIv: 0.5, delta: 0.5 }) },
+        },
+        put: {
+          bestIv: 0.65,
+          bestVenue: 'deribit',
+          venues: { deribit: createVenueQuote({ markIv: 0.65, delta: -0.5 }) },
+        },
       },
     ];
 
-    const venueChains: VenueOptionChain[] = [{
-      venue: 'deribit',
-      underlying: 'BTC',
-      expiry: '2026-03-28',
-      asOf: 1,
-      contracts: {
-        'BTC/USD:BTC-260328-67000-C': {
-          venue: 'deribit',
-          symbol: 'BTC/USD:BTC-260328-67000-C',
-          exchangeSymbol: 'BTC-260328-67000-C',
-          base: 'BTC',
-          settle: 'BTC',
-          expiry: '2026-03-28',
-          strike: 67_000,
-          right: 'call',
-          inverse: true,
-          contractSize: 1,
-          tickSize: null,
-          minQty: null,
-          makerFee: null,
-          takerFee: null,
-          greeks: { delta: 0.8, gamma: null, theta: null, vega: null, rho: null, markIv: 0.55, bidIv: null, askIv: null },
-          quote: {
-            bid: { raw: 0.01, rawCurrency: 'BTC', usd: 670 },
-            ask: { raw: 0.011, rawCurrency: 'BTC', usd: 737 },
-            mark: { raw: 0.0105, rawCurrency: 'BTC', usd: 703.5 },
-            last: null,
-            bidSize: 1,
-            askSize: 1,
-            underlyingPriceUsd: 67_000,
-            indexPriceUsd: 67_200,
-            volume24h: 10,
-            openInterest: 10,
-            openInterestUsd: 670_000,
-            volume24hUsd: null,
-            estimatedFees: null,
-            timestamp: 1,
-            source: 'ws',
+    const venueChains: VenueOptionChain[] = [
+      {
+        venue: 'deribit',
+        underlying: 'BTC',
+        expiry: '2026-03-28',
+        asOf: 1,
+        contracts: {
+          'BTC/USD:BTC-260328-67000-C': {
+            venue: 'deribit',
+            symbol: 'BTC/USD:BTC-260328-67000-C',
+            exchangeSymbol: 'BTC-260328-67000-C',
+            base: 'BTC',
+            settle: 'BTC',
+            expiry: '2026-03-28',
+            strike: 67_000,
+            right: 'call',
+            inverse: true,
+            contractSize: 1,
+            tickSize: null,
+            minQty: null,
+            makerFee: null,
+            takerFee: null,
+            greeks: {
+              delta: 0.8,
+              gamma: null,
+              theta: null,
+              vega: null,
+              rho: null,
+              markIv: 0.55,
+              bidIv: null,
+              askIv: null,
+            },
+            quote: {
+              bid: { raw: 0.01, rawCurrency: 'BTC', usd: 670 },
+              ask: { raw: 0.011, rawCurrency: 'BTC', usd: 737 },
+              mark: { raw: 0.0105, rawCurrency: 'BTC', usd: 703.5 },
+              last: null,
+              bidSize: 1,
+              askSize: 1,
+              underlyingPriceUsd: 67_000,
+              indexPriceUsd: 67_200,
+              volume24h: 10,
+              openInterest: 10,
+              openInterestUsd: 670_000,
+              volume24hUsd: null,
+              estimatedFees: null,
+              timestamp: 1,
+              source: 'ws',
+            },
           },
         },
       },
-    }];
+    ];
 
     const stats = computeChainStats(strikes, venueChains);
-    const surface = computeIvSurface('2026-03-28', 7, strikes, stats.indexPriceUsd ?? stats.spotIndexUsd);
+    const surface = computeIvSurface(
+      '2026-03-28',
+      7,
+      strikes,
+      stats.indexPriceUsd ?? stats.spotIndexUsd,
+    );
 
     expect(stats.atmStrike).toBe(67_000);
     expect(surface.atm).toBe(0.55);
@@ -369,63 +528,140 @@ describe('enrichment', () => {
     const strikes: EnrichedStrike[] = [
       {
         strike: 69_000,
-        call: { bestIv: 0.62, bestVenue: 'deribit', venues: { deribit: createVenueQuote({ markIv: 0.62, openInterest: 2, openInterestUsd: 140_000, delta: 0.62 }) } },
-        put: { bestIv: 0.7, bestVenue: 'deribit', venues: { deribit: createVenueQuote({ markIv: 0.7, openInterest: 3, openInterestUsd: 210_000, delta: -0.38 }) } },
-      },
-      {
-        strike: 70_000,
-        call: { bestIv: 0.5, bestVenue: 'deribit', venues: { deribit: createVenueQuote({ markIv: 0.5, openInterest: 4, openInterestUsd: 280_000, delta: 0.5 }) } },
-        put: { bestIv: 0.58, bestVenue: 'deribit', venues: { deribit: createVenueQuote({ markIv: 0.58, openInterest: 6, openInterestUsd: 420_000, delta: -0.5 }) } },
-      },
-      {
-        strike: 71_000,
-        call: { bestIv: 0.45, bestVenue: 'deribit', venues: { deribit: createVenueQuote({ markIv: 0.45, openInterest: 4, openInterestUsd: 280_000, delta: 0.25 }) } },
-        put: { bestIv: 0.6, bestVenue: 'deribit', venues: { deribit: createVenueQuote({ markIv: 0.6, openInterest: 5, openInterestUsd: 350_000, delta: -0.25 }) } },
-      },
-    ];
-
-    const venueChains: VenueOptionChain[] = [{
-      venue: 'deribit',
-      underlying: 'BTC',
-      expiry: '2026-03-28',
-      asOf: 1,
-      contracts: {
-        'BTC/USD:BTC-260328-70000-C': {
-          venue: 'deribit',
-          symbol: 'BTC/USD:BTC-260328-70000-C',
-          exchangeSymbol: 'BTC-260328-70000-C',
-          base: 'BTC',
-          settle: 'BTC',
-          expiry: '2026-03-28',
-          strike: 70_000,
-          right: 'call',
-          inverse: true,
-          contractSize: 1,
-          tickSize: null,
-          minQty: null,
-          makerFee: null,
-          takerFee: null,
-          greeks: { delta: 0.5, gamma: null, theta: null, vega: null, rho: null, markIv: 0.5, bidIv: null, askIv: null },
-          quote: {
-            bid: { raw: 0.01, rawCurrency: 'BTC', usd: 700 },
-            ask: { raw: 0.011, rawCurrency: 'BTC', usd: 770 },
-            mark: { raw: 0.0105, rawCurrency: 'BTC', usd: 735 },
-            last: null,
-            bidSize: 1,
-            askSize: 1,
-            underlyingPriceUsd: 70_000,
-            indexPriceUsd: 69_800,
-            volume24h: 10,
-            openInterest: 10,
-            openInterestUsd: 1_000_000,
-            volume24hUsd: null,
-            estimatedFees: null,
-            timestamp: 1,
-            source: 'ws',
+        call: {
+          bestIv: 0.62,
+          bestVenue: 'deribit',
+          venues: {
+            deribit: createVenueQuote({
+              markIv: 0.62,
+              openInterest: 2,
+              openInterestUsd: 140_000,
+              delta: 0.62,
+            }),
+          },
+        },
+        put: {
+          bestIv: 0.7,
+          bestVenue: 'deribit',
+          venues: {
+            deribit: createVenueQuote({
+              markIv: 0.7,
+              openInterest: 3,
+              openInterestUsd: 210_000,
+              delta: -0.38,
+            }),
           },
         },
       },
-    }];
+      {
+        strike: 70_000,
+        call: {
+          bestIv: 0.5,
+          bestVenue: 'deribit',
+          venues: {
+            deribit: createVenueQuote({
+              markIv: 0.5,
+              openInterest: 4,
+              openInterestUsd: 280_000,
+              delta: 0.5,
+            }),
+          },
+        },
+        put: {
+          bestIv: 0.58,
+          bestVenue: 'deribit',
+          venues: {
+            deribit: createVenueQuote({
+              markIv: 0.58,
+              openInterest: 6,
+              openInterestUsd: 420_000,
+              delta: -0.5,
+            }),
+          },
+        },
+      },
+      {
+        strike: 71_000,
+        call: {
+          bestIv: 0.45,
+          bestVenue: 'deribit',
+          venues: {
+            deribit: createVenueQuote({
+              markIv: 0.45,
+              openInterest: 4,
+              openInterestUsd: 280_000,
+              delta: 0.25,
+            }),
+          },
+        },
+        put: {
+          bestIv: 0.6,
+          bestVenue: 'deribit',
+          venues: {
+            deribit: createVenueQuote({
+              markIv: 0.6,
+              openInterest: 5,
+              openInterestUsd: 350_000,
+              delta: -0.25,
+            }),
+          },
+        },
+      },
+    ];
+
+    const venueChains: VenueOptionChain[] = [
+      {
+        venue: 'deribit',
+        underlying: 'BTC',
+        expiry: '2026-03-28',
+        asOf: 1,
+        contracts: {
+          'BTC/USD:BTC-260328-70000-C': {
+            venue: 'deribit',
+            symbol: 'BTC/USD:BTC-260328-70000-C',
+            exchangeSymbol: 'BTC-260328-70000-C',
+            base: 'BTC',
+            settle: 'BTC',
+            expiry: '2026-03-28',
+            strike: 70_000,
+            right: 'call',
+            inverse: true,
+            contractSize: 1,
+            tickSize: null,
+            minQty: null,
+            makerFee: null,
+            takerFee: null,
+            greeks: {
+              delta: 0.5,
+              gamma: null,
+              theta: null,
+              vega: null,
+              rho: null,
+              markIv: 0.5,
+              bidIv: null,
+              askIv: null,
+            },
+            quote: {
+              bid: { raw: 0.01, rawCurrency: 'BTC', usd: 700 },
+              ask: { raw: 0.011, rawCurrency: 'BTC', usd: 770 },
+              mark: { raw: 0.0105, rawCurrency: 'BTC', usd: 735 },
+              last: null,
+              bidSize: 1,
+              askSize: 1,
+              underlyingPriceUsd: 70_000,
+              indexPriceUsd: 69_800,
+              volume24h: 10,
+              openInterest: 10,
+              openInterestUsd: 1_000_000,
+              volume24hUsd: null,
+              estimatedFees: null,
+              timestamp: 1,
+              source: 'ws',
+            },
+          },
+        },
+      },
+    ];
 
     const stats = computeChainStats(strikes, venueChains);
 

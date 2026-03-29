@@ -89,7 +89,9 @@
   width: fit-content;
 }
 
-.expiryPicker::-webkit-scrollbar { display: none; }
+.expiryPicker::-webkit-scrollbar {
+  display: none;
+}
 
 .expiryBtn {
   display: flex;
@@ -110,7 +112,9 @@
   transition: all var(--transition-fast);
 }
 
-.expiryBtn:hover { color: var(--text-secondary); }
+.expiryBtn:hover {
+  color: var(--text-secondary);
+}
 
 .expiryBtn[data-active="true"] {
   background: var(--bg-elevated);
@@ -203,7 +207,9 @@
   flex-shrink: 0;
 }
 
-.explainToggle:active { background: var(--bg-hover); }
+.explainToggle:active {
+  background: var(--bg-hover);
+}
 
 .explainToggleLabel {
   display: flex;
@@ -377,13 +383,22 @@
     gap: var(--space-2);
   }
 
-  .title { font-size: var(--text-base); }
-  .subtitle { font-size: 11px; }
+  .title {
+    font-size: var(--text-base);
+  }
+  .subtitle {
+    font-size: 11px;
+  }
 
   /* Hide asset picker in header — shared toolbar handles it */
-  .titleRow > :nth-child(2) { display: none; }
+  .titleRow > :nth-child(2) {
+    display: none;
+  }
 
-  .spotBadge { font-size: var(--text-xs); padding: 4px 8px; }
+  .spotBadge {
+    font-size: var(--text-xs);
+    padding: 4px 8px;
+  }
 
   .expiryPicker {
     overflow-x: auto;
@@ -395,14 +410,20 @@
     font-size: var(--text-xs);
   }
 
-  .explainItem { font-size: 11px; }
+  .explainItem {
+    font-size: 11px;
+  }
 
   .barRow {
     grid-template-columns: 70px 1fr 50px;
     gap: var(--space-2);
   }
 
-  .strikeLabel { font-size: var(--text-xs); }
+  .strikeLabel {
+    font-size: var(--text-xs);
+  }
 
-  .spotMarker { font-size: 9px; }
+  .spotMarker {
+    font-size: 9px;
+  }
 }

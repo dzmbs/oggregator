@@ -65,7 +65,9 @@
   cursor: pointer;
   padding: 2px 4px;
   border-radius: var(--radius-sm);
-  transition: color var(--transition-fast), background var(--transition-fast);
+  transition:
+    color var(--transition-fast),
+    background var(--transition-fast);
 }
 
 .clear:hover {
@@ -84,11 +86,15 @@
 }
 
 @media (max-width: 768px) {
-  .hint { display: none; }
+  .hint {
+    display: none;
+  }
 
   .wrap {
     gap: var(--space-1);
   }
 
-  .input { width: 48px; }
+  .input {
+    width: 48px;
+  }
 }

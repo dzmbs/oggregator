@@ -1,9 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  ClientWsMessageSchema,
-  ServerWsMessageSchema,
-  WsSubscriptionRequestSchema,
-} from './ws.js';
+import { ClientWsMessageSchema, ServerWsMessageSchema, WsSubscriptionRequestSchema } from './ws.js';
 
 describe('WsSubscriptionRequestSchema', () => {
   it('accepts valid request', () => {

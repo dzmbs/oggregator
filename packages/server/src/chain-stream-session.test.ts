@@ -45,10 +45,12 @@ describe('ChainStreamSession', () => {
 
   it('closes and releases the runtime when the socket is too far behind', async () => {
     let listener: { onEvent(event: ChainRuntimeEvent): void } | null = null;
-    subscribeMock.mockImplementation((nextListener: { onEvent(event: ChainRuntimeEvent): void }) => {
-      listener = nextListener;
-      return vi.fn();
-    });
+    subscribeMock.mockImplementation(
+      (nextListener: { onEvent(event: ChainRuntimeEvent): void }) => {
+        listener = nextListener;
+        return vi.fn();
+      },
+    );
 
     const socket = {
       readyState: 1,

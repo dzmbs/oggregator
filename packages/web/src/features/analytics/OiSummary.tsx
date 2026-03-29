@@ -1,6 +1,6 @@
-import type { EnrichedChainResponse } from "@shared/enriched";
-import { fmtUsdCompact } from "@lib/format";
-import styles from "./AnalyticsView.module.css";
+import type { EnrichedChainResponse } from '@shared/enriched';
+import { fmtUsdCompact } from '@lib/format';
+import styles from './AnalyticsView.module.css';
 
 interface OiStats {
   callCount: number;
@@ -14,10 +14,14 @@ interface OiStats {
 }
 
 function computeOiStats(chains: EnrichedChainResponse[]): OiStats {
-  let callCount = 0, putCount = 0;
-  let callNotional = 0, putNotional = 0;
-  let callVolume = 0, putVolume = 0;
-  let callVolNotional = 0, putVolNotional = 0;
+  let callCount = 0,
+    putCount = 0;
+  let callNotional = 0,
+    putNotional = 0;
+  let callVolume = 0,
+    putVolume = 0;
+  let callVolNotional = 0,
+    putVolNotional = 0;
 
   for (const chain of chains) {
     for (const s of chain.strikes) {
@@ -38,7 +42,16 @@ function computeOiStats(chains: EnrichedChainResponse[]): OiStats {
     }
   }
 
-  return { callCount, putCount, callNotional, putNotional, callVolume, putVolume, callVolNotional, putVolNotional };
+  return {
+    callCount,
+    putCount,
+    callNotional,
+    putNotional,
+    callVolume,
+    putVolume,
+    callVolNotional,
+    putVolNotional,
+  };
 }
 
 interface OiSummaryProps {
@@ -60,12 +73,16 @@ export default function OiSummary({ chains }: OiSummaryProps) {
         <div className={styles.summarySection}>
           <div className={styles.summarySectionTitle}>Open Interest</div>
           <div className={styles.summaryRow}>
-            <span className={styles.summaryLabel} data-type="call">Calls</span>
+            <span className={styles.summaryLabel} data-type="call">
+              Calls
+            </span>
             <span className={styles.summaryValue}>{fmtUsdCompact(stats.callCount)}</span>
             <span className={styles.summaryMeta}>{fmtUsdCompact(stats.callNotional)}</span>
           </div>
           <div className={styles.summaryRow}>
-            <span className={styles.summaryLabel} data-type="put">Puts</span>
+            <span className={styles.summaryLabel} data-type="put">
+              Puts
+            </span>
             <span className={styles.summaryValue}>{fmtUsdCompact(stats.putCount)}</span>
             <span className={styles.summaryMeta}>{fmtUsdCompact(stats.putNotional)}</span>
           </div>
@@ -83,18 +100,24 @@ export default function OiSummary({ chains }: OiSummaryProps) {
         <div className={styles.summarySection}>
           <div className={styles.summarySectionTitle}>24h Volume</div>
           <div className={styles.summaryRow}>
-            <span className={styles.summaryLabel} data-type="call">Calls</span>
+            <span className={styles.summaryLabel} data-type="call">
+              Calls
+            </span>
             <span className={styles.summaryValue}>{fmtUsdCompact(stats.callVolume)}</span>
             <span className={styles.summaryMeta}>{fmtUsdCompact(stats.callVolNotional)}</span>
           </div>
           <div className={styles.summaryRow}>
-            <span className={styles.summaryLabel} data-type="put">Puts</span>
+            <span className={styles.summaryLabel} data-type="put">
+              Puts
+            </span>
             <span className={styles.summaryValue}>{fmtUsdCompact(stats.putVolume)}</span>
             <span className={styles.summaryMeta}>{fmtUsdCompact(stats.putVolNotional)}</span>
           </div>
           <div className={styles.summaryRow} data-total>
             <span className={styles.summaryLabel}>Total</span>
-            <span className={styles.summaryValue}>{fmtUsdCompact(stats.callVolume + stats.putVolume)}</span>
+            <span className={styles.summaryValue}>
+              {fmtUsdCompact(stats.callVolume + stats.putVolume)}
+            </span>
             <span className={styles.summaryMeta}>{fmtUsdCompact(totalVol)}</span>
           </div>
           <div className={styles.summaryRow}>

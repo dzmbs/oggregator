@@ -1,15 +1,15 @@
-import { getTokenLogo } from "@lib/token-meta";
-import { dteDays, formatExpiry, fmtUsdCompact } from "@lib/format";
+import { getTokenLogo } from '@lib/token-meta';
+import { dteDays, formatExpiry, fmtUsdCompact } from '@lib/format';
 
-import styles from "./ExpiryBar.module.css";
+import styles from './ExpiryBar.module.css';
 
 interface ExpiryBarProps {
-  underlying:    string;
-  spotPrice?:    number | null;
-  spotChange?:   number | null;
-  expiries:      string[];
-  selected:      string;
-  onSelect:      (expiry: string) => void;
+  underlying: string;
+  spotPrice?: number | null;
+  spotChange?: number | null;
+  expiries: string[];
+  selected: string;
+  onSelect: (expiry: string) => void;
   onChangeAsset: () => void;
 }
 
@@ -35,7 +35,8 @@ export default function ExpiryBar({
               {fmtUsdCompact(spotPrice)}
               {spotChange != null && (
                 <span className={styles.spotChange} data-positive={spotChange >= 0}>
-                  {spotChange >= 0 ? "▲" : "▼"}{Math.abs(spotChange * 100).toFixed(1)}%
+                  {spotChange >= 0 ? '▲' : '▼'}
+                  {Math.abs(spotChange * 100).toFixed(1)}%
                 </span>
               )}
             </span>

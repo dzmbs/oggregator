@@ -114,8 +114,12 @@
   letter-spacing: 0.04em;
 }
 
-.side[data-type="call"] .sideLabel { color: var(--color-profit); }
-.side[data-type="put"]  .sideLabel { color: var(--color-loss); }
+.side[data-type="call"] .sideLabel {
+  color: var(--color-profit);
+}
+.side[data-type="put"] .sideLabel {
+  color: var(--color-loss);
+}
 
 .sideVenues {
   display: flex;
@@ -191,8 +195,14 @@
 }
 
 @keyframes fadeSlide {
-  from { opacity: 0; transform: translateY(-4px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .venueDetail {

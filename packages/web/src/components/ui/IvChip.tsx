@@ -1,14 +1,14 @@
-import { ivLevel, ivColor } from "@lib/colors";
-import { fmtIv } from "@lib/format";
+import { ivLevel, ivColor } from '@lib/colors';
+import { fmtIv } from '@lib/format';
 
-import styles from "./IvChip.module.css";
+import styles from './IvChip.module.css';
 
 interface IvChipProps {
-  iv:   number | null;
-  size?: "sm" | "md";
+  iv: number | null;
+  size?: 'sm' | 'md';
 }
 
-export default function IvChip({ iv, size = "md" }: IvChipProps) {
+export default function IvChip({ iv, size = 'md' }: IvChipProps) {
   const level = ivLevel(iv);
   const color = ivColor(level);
 
@@ -17,7 +17,7 @@ export default function IvChip({ iv, size = "md" }: IvChipProps) {
       className={styles.chip}
       data-size={size}
       style={{ color, borderColor: `${color}33`, background: `${color}14` }}
-      title={iv != null ? `IV: ${(iv * 100).toFixed(2)}%` : "No IV data"}
+      title={iv != null ? `IV: ${(iv * 100).toFixed(2)}%` : 'No IV data'}
     >
       {fmtIv(iv)}
     </span>

@@ -1,14 +1,14 @@
-import styles from "./Tabs.module.css";
+import styles from './Tabs.module.css';
 
 interface Tab {
-  id:     string;
-  label:  string;
+  id: string;
+  label: string;
   badge?: string;
 }
 
 interface TabsProps {
-  tabs:     readonly Tab[];
-  active:   string;
+  tabs: readonly Tab[];
+  active: string;
   onChange: (id: string) => void;
 }
 
@@ -25,9 +25,7 @@ export default function Tabs({ tabs, active, onChange }: TabsProps) {
           onClick={() => onChange(tab.id)}
         >
           {tab.label}
-          {tab.badge && (
-            <span className={styles.badge}>{tab.badge}</span>
-          )}
+          {tab.badge && <span className={styles.badge}>{tab.badge}</span>}
         </button>
       ))}
     </div>

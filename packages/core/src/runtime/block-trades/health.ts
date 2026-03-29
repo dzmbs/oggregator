@@ -1,6 +1,9 @@
 import type { BlockVenueState } from './types.js';
 
-export function createBlockVenueState(transport: 'ws' | 'poll', pollLimit: number | null): BlockVenueState {
+export function createBlockVenueState(
+  transport: 'ws' | 'poll',
+  pollLimit: number | null,
+): BlockVenueState {
   return {
     transport,
     connected: transport === 'poll',

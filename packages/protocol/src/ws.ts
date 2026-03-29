@@ -10,7 +10,13 @@ export const VenueIdSchema = z.enum(VENUE_IDS);
 export type VenueConnectionState = 'connected' | 'polling' | 'reconnecting' | 'degraded' | 'down';
 
 /** Browser-side socket lifecycle — distinct from venue health */
-export type WsConnectionState = 'connecting' | 'live' | 'reconnecting' | 'stale' | 'error' | 'closed';
+export type WsConnectionState =
+  | 'connecting'
+  | 'live'
+  | 'reconnecting'
+  | 'stale'
+  | 'error'
+  | 'closed';
 
 // ── Subscription request ──────────────────────────────────────────
 
@@ -58,7 +64,13 @@ export type ClientWsMessage = z.infer<typeof ClientWsMessageSchema>;
 
 // ── Server → Client ──────────────────────────────────────────────
 
-export const VenueConnectionStateSchema = z.enum(['connected', 'polling', 'reconnecting', 'degraded', 'down']);
+export const VenueConnectionStateSchema = z.enum([
+  'connected',
+  'polling',
+  'reconnecting',
+  'degraded',
+  'down',
+]);
 const VenueStateSchema = VenueConnectionStateSchema;
 
 const NullableNumberSchema = z.number().nullable();
@@ -234,33 +246,39 @@ export const VenueDeltaSchema = z.object({
   venue: VenueIdSchema,
   symbol: z.string(),
   ts: z.number(),
-  quote: z.object({
-    bid: PremiumValueSchema.optional(),
-    ask: PremiumValueSchema.optional(),
-    mark: PremiumValueSchema.optional(),
-    last: PremiumValueSchema.nullable().optional(),
-    bidSize: NullableNumberSchema.optional(),
-    askSize: NullableNumberSchema.optional(),
-    underlyingPriceUsd: NullableNumberSchema.optional(),
-    indexPriceUsd: NullableNumberSchema.optional(),
-    volume24h: NullableNumberSchema.optional(),
-    openInterest: NullableNumberSchema.optional(),
-    openInterestUsd: NullableNumberSchema.optional(),
-    volume24hUsd: NullableNumberSchema.optional(),
-    estimatedFees: EstimatedFeesSchema.nullable().optional(),
-    timestamp: NullableNumberSchema.optional(),
-    source: z.string().optional(),
-  }).partial().optional(),
-  greeks: z.object({
-    delta: NullableNumberSchema.optional(),
-    gamma: NullableNumberSchema.optional(),
-    theta: NullableNumberSchema.optional(),
-    vega: NullableNumberSchema.optional(),
-    rho: NullableNumberSchema.optional(),
-    markIv: NullableNumberSchema.optional(),
-    bidIv: NullableNumberSchema.optional(),
-    askIv: NullableNumberSchema.optional(),
-  }).partial().optional(),
+  quote: z
+    .object({
+      bid: PremiumValueSchema.optional(),
+      ask: PremiumValueSchema.optional(),
+      mark: PremiumValueSchema.optional(),
+      last: PremiumValueSchema.nullable().optional(),
+      bidSize: NullableNumberSchema.optional(),
+      askSize: NullableNumberSchema.optional(),
+      underlyingPriceUsd: NullableNumberSchema.optional(),
+      indexPriceUsd: NullableNumberSchema.optional(),
+      volume24h: NullableNumberSchema.optional(),
+      openInterest: NullableNumberSchema.optional(),
+      openInterestUsd: NullableNumberSchema.optional(),
+      volume24hUsd: NullableNumberSchema.optional(),
+      estimatedFees: EstimatedFeesSchema.nullable().optional(),
+      timestamp: NullableNumberSchema.optional(),
+      source: z.string().optional(),
+    })
+    .partial()
+    .optional(),
+  greeks: z
+    .object({
+      delta: NullableNumberSchema.optional(),
+      gamma: NullableNumberSchema.optional(),
+      theta: NullableNumberSchema.optional(),
+      vega: NullableNumberSchema.optional(),
+      rho: NullableNumberSchema.optional(),
+      markIv: NullableNumberSchema.optional(),
+      bidIv: NullableNumberSchema.optional(),
+      askIv: NullableNumberSchema.optional(),
+    })
+    .partial()
+    .optional(),
 });
 
 export const DeltaPatchSchema = z.object({

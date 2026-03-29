@@ -89,9 +89,10 @@ export function mergeOkxWsTicker(
 ): LiveQuote {
   const ctSize = instrument.contractSize ?? DEFAULT_CONTRACT_SIZE;
   const volContracts = safeNum(ticker.vol24h);
-  const volBase = volContracts != null ? volContracts * ctSize : previous?.volume24h ?? null;
+  const volBase = volContracts != null ? volContracts * ctSize : (previous?.volume24h ?? null);
   const underlying = previous?.underlyingPrice ?? null;
-  const volUsd = volBase != null && underlying != null ? volBase * underlying : previous?.volume24hUsd ?? null;
+  const volUsd =
+    volBase != null && underlying != null ? volBase * underlying : (previous?.volume24hUsd ?? null);
 
   return {
     bidPrice: safeNum(ticker.bidPx),

@@ -86,7 +86,9 @@ export class JsonRpcWsClient {
         try {
           const msg = JSON.parse(raw.toString()) as JsonRpcMessage;
           this.handleMessage(msg);
-        } catch (e: unknown) { this.log.debug({ err: String(e) }, 'malformed WS frame'); }
+        } catch (e: unknown) {
+          this.log.debug({ err: String(e) }, 'malformed WS frame');
+        }
       });
 
       this.ws.on('close', () => {
@@ -132,12 +134,14 @@ export class JsonRpcWsClient {
 
       this.pending.set(id, { resolve, reject, timer });
 
-      this.ws!.send(JSON.stringify({
-        jsonrpc: '2.0',
-        id,
-        method,
-        params,
-      }));
+      this.ws!.send(
+        JSON.stringify({
+          jsonrpc: '2.0',
+          id,
+          method,
+          params,
+        }),
+      );
     });
   }
 
@@ -174,7 +178,9 @@ export class JsonRpcWsClient {
     const method = this.options.unsubscribeMethod ?? 'public/unsubscribe';
     try {
       await this.call(method, { channels });
-    } catch (e: unknown) { this.log.debug({ err: String(e) }, 'unsubscribe failed'); }
+    } catch (e: unknown) {
+      this.log.debug({ err: String(e) }, 'unsubscribe failed');
+    }
     for (const channel of channels) {
       this.subscribedChannels.delete(channel);
     }
@@ -185,7 +191,9 @@ export class JsonRpcWsClient {
     const method = this.options.unsubscribeAllMethod ?? 'public/unsubscribe_all';
     try {
       await this.call(method, {});
-    } catch (e: unknown) { this.log.debug({ err: String(e) }, 'unsubscribe_all failed'); }
+    } catch (e: unknown) {
+      this.log.debug({ err: String(e) }, 'unsubscribe_all failed');
+    }
     this.subscribedChannels.clear();
   }
 
@@ -198,7 +206,9 @@ export class JsonRpcWsClient {
       clearTimeout(entry.timer);
 
       if (msg.error) {
-        entry.reject(new Error(`[${this.label}] RPC error ${msg.error.code}: ${msg.error.message}`));
+        entry.reject(
+          new Error(`[${this.label}] RPC error ${msg.error.code}: ${msg.error.message}`),
+        );
       } else {
         entry.resolve(msg.result);
       }
@@ -207,12 +217,14 @@ export class JsonRpcWsClient {
 
     // Heartbeat test_request — must respond with public/test
     if (msg.method === 'heartbeat' && msg.params?.type === 'test_request') {
-      this.ws?.send(JSON.stringify({
-        jsonrpc: '2.0',
-        id: this.nextId++,
-        method: 'public/test',
-        params: {},
-      }));
+      this.ws?.send(
+        JSON.stringify({
+          jsonrpc: '2.0',
+          id: this.nextId++,
+          method: 'public/test',
+          params: {},
+        }),
+      );
       return;
     }
 
@@ -249,12 +261,18 @@ export class JsonRpcWsClient {
     const exceededMaxAttempts = this.reconnectAttempts >= maxAttempts;
     const delay = exceededMaxAttempts
       ? RETRY_AFTER_MAX_ATTEMPTS_MS
-      : backoffDelay(this.reconnectAttempts, this.options.reconnectDelayMs ?? DEFAULT_RECONNECT_DELAY_MS);
+      : backoffDelay(
+          this.reconnectAttempts,
+          this.options.reconnectDelayMs ?? DEFAULT_RECONNECT_DELAY_MS,
+        );
 
     this.reconnectAttempts += 1;
 
     if (exceededMaxAttempts) {
-      this.log.error({ maxAttempts, delayMs: delay }, 'max reconnect attempts reached, switching to periodic retry');
+      this.log.error(
+        { maxAttempts, delayMs: delay },
+        'max reconnect attempts reached, switching to periodic retry',
+      );
       this.options.onStatusChange?.('down');
     } else {
       this.log.info({ delayMs: delay, attempt: this.reconnectAttempts }, 'reconnecting');
@@ -285,15 +303,21 @@ export class JsonRpcWsClient {
       const batch = channels.slice(i, i + batchSize);
       await this.call(method, { channels: batch });
       if (i + batchSize < channels.length) {
-        await new Promise(r => setTimeout(r, delayMs));
+        await new Promise((r) => setTimeout(r, delayMs));
       }
     }
   }
 
   private cleanup(): void {
     this.heartbeatToken += 1;
-    if (this.heartbeatTimer) { clearInterval(this.heartbeatTimer); this.heartbeatTimer = null; }
-    if (this.reconnectTimer) { clearTimeout(this.reconnectTimer); this.reconnectTimer = null; }
+    if (this.heartbeatTimer) {
+      clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer = null;
+    }
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
     for (const [, { reject, timer }] of this.pending) {
       clearTimeout(timer);
       reject(new Error(`[${this.label}] connection closed`));

@@ -1,11 +1,11 @@
-import { useAppStore } from "@stores/app-store";
-import styles from "./MyIvInput.module.css";
+import { useAppStore } from '@stores/app-store';
+import styles from './MyIvInput.module.css';
 
 export default function MyIvInput() {
-  const myIv    = useAppStore((s) => s.myIv);
+  const myIv = useAppStore((s) => s.myIv);
   const setMyIv = useAppStore((s) => s.setMyIv);
 
-  const hasValue = myIv !== "";
+  const hasValue = myIv !== '';
 
   return (
     <div className={styles.wrap} data-active={hasValue}>
@@ -25,12 +25,12 @@ export default function MyIvInput() {
         <span className={styles.pct}>%</span>
       </div>
       {hasValue && (
-        <button className={styles.clear} onClick={() => setMyIv("")} aria-label="Clear My IV">
+        <button className={styles.clear} onClick={() => setMyIv('')} aria-label="Clear My IV">
           ✕
         </button>
       )}
       <span className={styles.hint}>
-        {hasValue ? "Edge column active" : "Enter your IV to see edge"}
+        {hasValue ? 'Edge column active' : 'Enter your IV to see edge'}
       </span>
     </div>
   );

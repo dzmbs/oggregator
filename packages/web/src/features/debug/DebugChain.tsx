@@ -1,28 +1,28 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect } from 'react';
 
-import { useAppStore } from "@stores/app-store";
-import { useOpenPalette } from "@components/layout";
-import { VENUES } from "@lib/venue-meta";
+import { useAppStore } from '@stores/app-store';
+import { useOpenPalette } from '@components/layout';
+import { VENUES } from '@lib/venue-meta';
 
-import { useChainQuery, useExpiries } from "../chain/queries";
-import styles from "./DebugChain.module.css";
+import { useChainQuery, useExpiries } from '../chain/queries';
+import styles from './DebugChain.module.css';
 
 function fmt(v: number | null | undefined, decimals = 4): string {
-  if (v == null) return "—";
+  if (v == null) return '—';
   return v.toFixed(decimals);
 }
 
 function pct(v: number | null | undefined): string {
-  if (v == null) return "—";
-  return (v * 100).toFixed(2) + "%";
+  if (v == null) return '—';
+  return (v * 100).toFixed(2) + '%';
 }
 
 export default function DebugChain() {
-  const underlying   = useAppStore((s) => s.underlying);
-  const expiry       = useAppStore((s) => s.expiry);
-  const setExpiry    = useAppStore((s) => s.setExpiry);
+  const underlying = useAppStore((s) => s.underlying);
+  const expiry = useAppStore((s) => s.expiry);
+  const setExpiry = useAppStore((s) => s.setExpiry);
   const activeVenues = useAppStore((s) => s.activeVenues);
-  const openPalette  = useOpenPalette();
+  const openPalette = useOpenPalette();
 
   const { data: expiriesData } = useExpiries(underlying);
   const expiries = expiriesData?.expiries ?? [];
@@ -34,10 +34,10 @@ export default function DebugChain() {
     }
   }, [expiries, expiry, setExpiry]);
 
-  const [filter, setFilter] = useState("");
+  const [filter, setFilter] = useState('');
 
-  const strikes = (data?.strikes ?? []).filter((s) =>
-    filter === "" || String(s.strike).includes(filter),
+  const strikes = (data?.strikes ?? []).filter(
+    (s) => filter === '' || String(s.strike).includes(filter),
   );
 
   return (
@@ -52,7 +52,11 @@ export default function DebugChain() {
           value={expiry}
           onChange={(e) => setExpiry(e.target.value)}
         >
-          {expiries.map((e) => <option key={e} value={e}>{e}</option>)}
+          {expiries.map((e) => (
+            <option key={e} value={e}>
+              {e}
+            </option>
+          ))}
         </select>
 
         <input
@@ -78,7 +82,11 @@ export default function DebugChain() {
       )}
 
       {isLoading && <div className={styles.status}>Loading…</div>}
-      {error && <div className={styles.status} data-error="true">Error: {String(error)}</div>}
+      {error && (
+        <div className={styles.status} data-error="true">
+          Error: {String(error)}
+        </div>
+      )}
 
       {data && (
         <div className={styles.tableWrap}>
@@ -86,7 +94,7 @@ export default function DebugChain() {
             <thead>
               <tr>
                 <th>Strike</th>
-                {["deribit", "okx", "binance", "bybit", "derive"].flatMap((v) => {
+                {['deribit', 'okx', 'binance', 'bybit', 'derive'].flatMap((v) => {
                   const meta = VENUES[v];
                   return [
                     <th key={`${v}-c-iv`}>{meta?.shortLabel} C-IV</th>,
@@ -103,13 +111,17 @@ export default function DebugChain() {
               {strikes.map((s) => (
                 <tr key={s.strike}>
                   <td className={styles.strike}>{s.strike.toLocaleString()}</td>
-                  {["deribit", "okx", "binance", "bybit", "derive"].flatMap((v) => {
+                  {['deribit', 'okx', 'binance', 'bybit', 'derive'].flatMap((v) => {
                     const cq = s.call.venues[v as keyof typeof s.call.venues];
                     const pq = s.put.venues[v as keyof typeof s.put.venues];
                     return [
-                      <td key={`${v}-c-iv`} className={styles.iv}>{pct(cq?.markIv)}</td>,
+                      <td key={`${v}-c-iv`} className={styles.iv}>
+                        {pct(cq?.markIv)}
+                      </td>,
                       <td key={`${v}-c-mid`}>{fmt(cq?.mid, 2)}</td>,
-                      <td key={`${v}-p-iv`} className={styles.iv}>{pct(pq?.markIv)}</td>,
+                      <td key={`${v}-p-iv`} className={styles.iv}>
+                        {pct(pq?.markIv)}
+                      </td>,
                       <td key={`${v}-p-mid`}>{fmt(pq?.mid, 2)}</td>,
                     ];
                   })}

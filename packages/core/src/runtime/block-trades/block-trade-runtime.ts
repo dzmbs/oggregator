@@ -17,10 +17,7 @@ import { backoffDelay } from '../../utils/reconnect.js';
 import type { VenueId } from '../../types/common.js';
 import { computeBlockTradeAmounts } from '../../trade-persistence.js';
 import { createBlockVenueState, mergeBlockVenueState } from './health.js';
-import {
-  BLOCK_TRADE_RUNTIME_BUFFER_SIZE,
-  insertBlockTrades,
-} from './retention.js';
+import { BLOCK_TRADE_RUNTIME_BUFFER_SIZE, insertBlockTrades } from './retention.js';
 import type {
   BlockTradeEvent,
   BlockTradeLeg,
@@ -140,7 +137,10 @@ export class BlockTradeRuntime {
         errors: (this.venueState.get(poller.venue)?.errors ?? 0) + 1,
         lastStatusAt: Date.now(),
       });
-      log.warn({ venue: poller.venue, err: String(err) }, initial ? 'initial block trade poll failed' : 'block trade poll failed');
+      log.warn(
+        { venue: poller.venue, err: String(err) },
+        initial ? 'initial block trade poll failed' : 'block trade poll failed',
+      );
     }
   }
 
@@ -160,7 +160,10 @@ export class BlockTradeRuntime {
       lastStatusAt: now,
       lastPollCount: tradeCount,
       pollLimit: limit,
-      hitLimitCount: limit != null && tradeCount >= limit ? (state?.hitLimitCount ?? 0) + 1 : state?.hitLimitCount ?? 0,
+      hitLimitCount:
+        limit != null && tradeCount >= limit
+          ? (state?.hitLimitCount ?? 0) + 1
+          : (state?.hitLimitCount ?? 0),
     });
 
     if (limit != null && tradeCount >= limit) {
@@ -185,7 +188,10 @@ export class BlockTradeRuntime {
         try {
           listener(trade);
         } catch (error) {
-          log.warn({ err: String(error), venue: trade.venue, tradeId: trade.tradeId }, 'block trade listener failed');
+          log.warn(
+            { err: String(error), venue: trade.venue, tradeId: trade.tradeId },
+            'block trade listener failed',
+          );
         }
       }
     }
@@ -211,18 +217,24 @@ function isOptionInstrument(instrument: string): boolean {
   // Find C/P from the end so both old and new formats work.
   let typeIdx = -1;
   for (let i = parts.length - 1; i >= 0; i--) {
-    if (parts[i] === 'C' || parts[i] === 'P') { typeIdx = i; break; }
+    if (parts[i] === 'C' || parts[i] === 'P') {
+      typeIdx = i;
+      break;
+    }
   }
   if (typeIdx < 0) return false;
   const strike = parts[typeIdx - 1];
   const expiry = parts[typeIdx - 2];
   const hasStrike = strike != null && /^[0-9]+(?:\.[0-9]+)?$/.test(strike);
-  const hasExpiry = expiry != null && (/^\d{1,2}[A-Z]{3}\d{2}$/.test(expiry) || /^\d{6,8}$/.test(expiry));
+  const hasExpiry =
+    expiry != null && (/^\d{1,2}[A-Z]{3}\d{2}$/.test(expiry) || /^\d{6,8}$/.test(expiry));
   return hasStrike && hasExpiry;
 }
 
 function areOptionLegs(instruments: string[]): boolean {
-  return instruments.length > 0 && instruments.every((instrument) => isOptionInstrument(instrument));
+  return (
+    instruments.length > 0 && instruments.every((instrument) => isOptionInstrument(instrument))
+  );
 }
 
 async function fetchJson(url: string): Promise<unknown> {
@@ -241,22 +253,28 @@ const DeribitBlockRfqSchema = z.object({
   mark_price: z.number().optional(),
   combo_id: z.string().nullable().optional(),
   index_prices: z.record(z.string(), z.number()).optional(),
-  legs: z.array(z.object({
-    price: z.number(),
-    direction: z.enum(['buy', 'sell']),
-    instrument_name: z.string(),
-    ratio: z.number(),
-  })),
+  legs: z.array(
+    z.object({
+      price: z.number(),
+      direction: z.enum(['buy', 'sell']),
+      instrument_name: z.string(),
+      ratio: z.number(),
+    }),
+  ),
 });
 
 const DeribitBlockRfqResponseSchema = z.object({
-  result: z.object({
-    block_rfqs: z.array(DeribitBlockRfqSchema),
-    continuation: z.string().nullable().optional(),
-  }).optional(),
+  result: z
+    .object({
+      block_rfqs: z.array(DeribitBlockRfqSchema),
+      continuation: z.string().nullable().optional(),
+    })
+    .optional(),
 });
 
-function mapDeribitBlockTrade(trade: z.infer<typeof DeribitBlockRfqSchema>): BlockTradeEvent | null {
+function mapDeribitBlockTrade(
+  trade: z.infer<typeof DeribitBlockRfqSchema>,
+): BlockTradeEvent | null {
   const instruments = trade.legs.map((leg) => leg.instrument_name);
   if (!areOptionLegs(instruments)) return null;
 
@@ -296,7 +314,9 @@ async function fetchDeribitSeedTrades(): Promise<BlockTradeEvent[]> {
     const params = new URLSearchParams({ currency: 'any', count: String(DERIBIT_SEED_PAGE_SIZE) });
     if (continuation) params.set('continuation', continuation);
 
-    const json = await fetchJson(`${DERIBIT_REST_BASE_URL}${DERIBIT_GET_BLOCK_RFQ_TRADES}?${params}`);
+    const json = await fetchJson(
+      `${DERIBIT_REST_BASE_URL}${DERIBIT_GET_BLOCK_RFQ_TRADES}?${params}`,
+    );
     const parsed = DeribitBlockRfqResponseSchema.safeParse(json);
     if (!parsed.success) break;
 
@@ -335,11 +355,14 @@ function deribitBlockStream(): BlockVenueStream {
       didOpen = true;
       handlers?.onConnected();
       log.info({ venue: 'deribit' }, 'block trade WS connected');
-      ws!.send(JSON.stringify({
-        jsonrpc: '2.0', id: 1,
-        method: 'public/subscribe',
-        params: { channels: ['block_rfq.trades.any'] },
-      }));
+      ws!.send(
+        JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'public/subscribe',
+          params: { channels: ['block_rfq.trades.any'] },
+        }),
+      );
     });
 
     ws.on('message', (raw: WebSocket.RawData) => {
@@ -385,9 +408,17 @@ function deribitBlockStream(): BlockVenueStream {
       try {
         return await fetchDeribitSeedTrades();
       } catch (err) {
-        log.warn({ venue: 'deribit', err: String(err), attempt: attempt + 1, retries: DERIBIT_SEED_RETRIES }, 'block trade seed failed');
+        log.warn(
+          {
+            venue: 'deribit',
+            err: String(err),
+            attempt: attempt + 1,
+            retries: DERIBIT_SEED_RETRIES,
+          },
+          'block trade seed failed',
+        );
         if (attempt < DERIBIT_SEED_RETRIES - 1) {
-          await new Promise(r => setTimeout(r, backoffDelay(attempt)));
+          await new Promise((r) => setTimeout(r, backoffDelay(attempt)));
         }
       }
     }
@@ -419,14 +450,22 @@ function deriveStrategy(comboId: string | null | undefined, legCount: number): s
   const parts = comboId.split('-');
   const code = parts[1]?.toUpperCase();
   const STRATEGY_MAP: Record<string, string> = {
-    STRD: 'STRADDLE', STRG: 'STRANGLE',
-    CS: 'CALL_SPREAD', PS: 'PUT_SPREAD',
-    CF: 'CALL_BUTTERFLY', PF: 'PUT_BUTTERFLY',
-    IC: 'IRON_CONDOR', IB: 'IRON_BUTTERFLY',
-    CR: 'CALL_RATIO', PR: 'PUT_RATIO',
-    CCS: 'CALL_CALENDAR_SPREAD', PCS: 'PUT_CALENDAR_SPREAD',
-    CD: 'CALL_DIAGONAL', PD: 'PUT_DIAGONAL',
-    FSR: 'FUTURE_SPREAD', COMBO: 'COMBO',
+    STRD: 'STRADDLE',
+    STRG: 'STRANGLE',
+    CS: 'CALL_SPREAD',
+    PS: 'PUT_SPREAD',
+    CF: 'CALL_BUTTERFLY',
+    PF: 'PUT_BUTTERFLY',
+    IC: 'IRON_CONDOR',
+    IB: 'IRON_BUTTERFLY',
+    CR: 'CALL_RATIO',
+    PR: 'PUT_RATIO',
+    CCS: 'CALL_CALENDAR_SPREAD',
+    PCS: 'PUT_CALENDAR_SPREAD',
+    CD: 'CALL_DIAGONAL',
+    PD: 'PUT_DIAGONAL',
+    FSR: 'FUTURE_SPREAD',
+    COMBO: 'COMBO',
   };
   return STRATEGY_MAP[code ?? ''] ?? (legCount > 1 ? 'CUSTOM' : null);
 }
@@ -438,18 +477,24 @@ const BybitBlockTradeSchema = z.object({
   strategyType: z.string().optional(),
   createdAt: z.string(),
   updatedAt: z.string().optional(),
-  legs: z.array(z.object({
-    category: z.string().optional(),
-    symbol: z.string(),
-    side: z.string(),
-    price: z.string(),
-    qty: z.string(),
-    markPrice: z.string().optional(),
-  })).min(1),
+  legs: z
+    .array(
+      z.object({
+        category: z.string().optional(),
+        symbol: z.string(),
+        side: z.string(),
+        price: z.string(),
+        qty: z.string(),
+        markPrice: z.string().optional(),
+      }),
+    )
+    .min(1),
 });
 
 function mapBybitBlockTrade(trade: z.infer<typeof BybitBlockTradeSchema>): BlockTradeEvent | null {
-  const optionLegs = trade.legs.filter((leg) => leg.category?.toLowerCase() === 'option' && isOptionInstrument(leg.symbol));
+  const optionLegs = trade.legs.filter(
+    (leg) => leg.category?.toLowerCase() === 'option' && isOptionInstrument(leg.symbol),
+  );
   const firstLeg = optionLegs[0];
   if (!firstLeg || optionLegs.length !== trade.legs.length) return null;
 
@@ -462,7 +507,11 @@ function mapBybitBlockTrade(trade: z.infer<typeof BybitBlockTradeSchema>): Block
     timestamp: Number(trade.updatedAt ?? trade.createdAt),
     underlying,
     direction: firstLeg.side.toLowerCase() as 'buy' | 'sell',
-    strategy: trade.strategyType?.trim() ? trade.strategyType.toUpperCase() : (optionLegs.length > 1 ? 'CUSTOM' : null),
+    strategy: trade.strategyType?.trim()
+      ? trade.strategyType.toUpperCase()
+      : optionLegs.length > 1
+        ? 'CUSTOM'
+        : null,
     legs: optionLegs.map((leg) => ({
       instrument: leg.symbol,
       direction: leg.side.toLowerCase() as 'buy' | 'sell',
@@ -473,7 +522,10 @@ function mapBybitBlockTrade(trade: z.infer<typeof BybitBlockTradeSchema>): Block
     totalSize,
     // markPrice per leg is the option's mark price at execution time (USDT ≈ USD).
     // Fall back to execution price if markPrice is absent.
-    notionalUsd: optionLegs.reduce((sum, leg) => sum + Number(leg.markPrice ?? leg.price) * Number(leg.qty), 0),
+    notionalUsd: optionLegs.reduce(
+      (sum, leg) => sum + Number(leg.markPrice ?? leg.price) * Number(leg.qty),
+      0,
+    ),
     indexPrice: null,
   };
 }
@@ -560,12 +612,14 @@ const OkxBlockTradeSchema = z.object({
   blockTdId: z.string(),
   cTime: z.string(),
   strategy: z.string().optional(),
-  legs: z.array(z.object({
-    instId: z.string(),
-    side: z.string(),
-    sz: z.string(),
-    px: z.string(),
-  })),
+  legs: z.array(
+    z.object({
+      instId: z.string(),
+      side: z.string(),
+      sz: z.string(),
+      px: z.string(),
+    }),
+  ),
 });
 
 function okxBlockPoller(): BlockVenuePoller {
@@ -578,7 +632,7 @@ function okxBlockPoller(): BlockVenuePoller {
         const res = await fetch(`${OKX_REST_BASE_URL}${OKX_RFQ_PUBLIC_TRADES}?limit=100`, {
           signal: AbortSignal.timeout(10_000),
         });
-        const json = await res.json() as Record<string, unknown>;
+        const json = (await res.json()) as Record<string, unknown>;
         const items = json['data'];
         if (!Array.isArray(items)) return [];
 
@@ -600,8 +654,9 @@ function okxBlockPoller(): BlockVenuePoller {
             tradeId: d.blockTdId,
             timestamp: Number(d.cTime),
             underlying,
-            direction: d.legs[0]?.side.toLowerCase() as 'buy' | 'sell' ?? 'buy',
-            strategy: d.strategy && d.strategy !== '' ? d.strategy : (d.legs.length > 1 ? 'CUSTOM' : null),
+            direction: (d.legs[0]?.side.toLowerCase() as 'buy' | 'sell') ?? 'buy',
+            strategy:
+              d.strategy && d.strategy !== '' ? d.strategy : d.legs.length > 1 ? 'CUSTOM' : null,
             legs: d.legs.map((l) => ({
               instrument: l.instId,
               direction: l.side.toLowerCase() as 'buy' | 'sell',
@@ -614,7 +669,8 @@ function okxBlockPoller(): BlockVenuePoller {
             indexPrice: null,
           });
         }
-        if (trades.length > 0) log.info({ venue: 'okx', count: trades.length }, 'polled block trades');
+        if (trades.length > 0)
+          log.info({ venue: 'okx', count: trades.length }, 'polled block trades');
         return trades;
       } catch (err) {
         log.warn({ venue: 'okx', err: String(err) }, 'block trade poll failed');
@@ -645,7 +701,7 @@ function binanceBlockPoller(): BlockVenuePoller {
         const res = await fetch(`${BINANCE_REST_BASE_URL}${BINANCE_BLOCK_TRADES}?limit=100`, {
           signal: AbortSignal.timeout(10_000),
         });
-        const items = await res.json() as unknown[];
+        const items = (await res.json()) as unknown[];
         if (!Array.isArray(items)) return [];
 
         const trades: BlockTradeEvent[] = [];
@@ -664,19 +720,22 @@ function binanceBlockPoller(): BlockVenuePoller {
             underlying,
             direction: d.side === 1 ? 'buy' : 'sell',
             strategy: null,
-            legs: [{
-              instrument: d.symbol,
-              direction: d.side === 1 ? 'buy' : 'sell',
-              price,
-              size,
-              ratio: 1,
-            }],
+            legs: [
+              {
+                instrument: d.symbol,
+                direction: d.side === 1 ? 'buy' : 'sell',
+                price,
+                size,
+                ratio: 1,
+              },
+            ],
             totalSize: size,
             notionalUsd: price * size,
             indexPrice: null,
           });
         }
-        if (trades.length > 0) log.info({ venue: 'binance', count: trades.length }, 'polled block trades');
+        if (trades.length > 0)
+          log.info({ venue: 'binance', count: trades.length }, 'polled block trades');
         return trades;
       } catch (err) {
         log.warn({ venue: 'binance', err: String(err) }, 'block trade poll failed');
@@ -700,13 +759,17 @@ const DeriveTradeSchema = z.object({
 });
 
 const DeriveTradeHistoryResponseSchema = z.object({
-  result: z.object({
-    trades: z.array(DeriveTradeSchema),
-    pagination: z.object({
-      count: z.number(),
-      num_pages: z.number(),
-    }).optional(),
-  }).optional(),
+  result: z
+    .object({
+      trades: z.array(DeriveTradeSchema),
+      pagination: z
+        .object({
+          count: z.number(),
+          num_pages: z.number(),
+        })
+        .optional(),
+    })
+    .optional(),
 });
 
 function mapDeriveBlockTrade(trade: z.infer<typeof DeriveTradeSchema>): BlockTradeEvent {
@@ -721,20 +784,25 @@ function mapDeriveBlockTrade(trade: z.infer<typeof DeriveTradeSchema>): BlockTra
     underlying: extractUnderlying(trade.instrument_name),
     direction: trade.direction,
     strategy: null,
-    legs: [{
-      instrument: trade.instrument_name,
-      direction: trade.direction,
-      price,
-      size,
-      ratio: 1,
-    }],
+    legs: [
+      {
+        instrument: trade.instrument_name,
+        direction: trade.direction,
+        price,
+        size,
+        ratio: 1,
+      },
+    ],
     totalSize: size,
     notionalUsd: price * size,
     indexPrice,
   };
 }
 
-async function fetchDeriveTradeHistory(fromTimestamp: number, toTimestamp: number): Promise<BlockTradeEvent[]> {
+async function fetchDeriveTradeHistory(
+  fromTimestamp: number,
+  toTimestamp: number,
+): Promise<BlockTradeEvent[]> {
   const trades: BlockTradeEvent[] = [];
   const seen = new Set<string>();
   let page = 1;
@@ -780,7 +848,7 @@ function deriveBlockPoller(): BlockVenuePoller {
     async poll() {
       try {
         const now = Date.now();
-        const fromTimestamp = nextFromTimestamp ?? (now - DERIVE_INITIAL_LOOKBACK_MS);
+        const fromTimestamp = nextFromTimestamp ?? now - DERIVE_INITIAL_LOOKBACK_MS;
         const trades = await fetchDeriveTradeHistory(fromTimestamp, now);
         const newestTimestamp = trades.reduce<number | null>((latest, trade) => {
           if (latest == null || trade.timestamp > latest) return trade.timestamp;
@@ -794,7 +862,10 @@ function deriveBlockPoller(): BlockVenuePoller {
         }
 
         if (trades.length > 0) {
-          log.info({ venue: 'derive', count: trades.length, fromTimestamp, toTimestamp: now }, 'polled block trades');
+          log.info(
+            { venue: 'derive', count: trades.length, fromTimestamp, toTimestamp: now },
+            'polled block trades',
+          );
         }
         return trades;
       } catch (err) {

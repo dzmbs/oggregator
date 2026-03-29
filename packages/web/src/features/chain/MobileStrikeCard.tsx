@@ -1,27 +1,30 @@
-import type { EnrichedStrike, EnrichedSide } from "@shared/enriched";
+import type { EnrichedStrike, EnrichedSide } from '@shared/enriched';
 
-import { VENUES } from "@lib/venue-meta";
-import { IvChip, SpreadPill } from "@components/ui";
-import { fmtUsd, fmtDelta } from "@lib/format";
-import styles from "./MobileStrikeCard.module.css";
+import { VENUES } from '@lib/venue-meta';
+import { IvChip, SpreadPill } from '@components/ui';
+import { fmtUsd, fmtDelta } from '@lib/format';
+import styles from './MobileStrikeCard.module.css';
 
 interface MobileStrikeCardProps {
-  strike:       EnrichedStrike;
-  isAtm:        boolean;
+  strike: EnrichedStrike;
+  isAtm: boolean;
   indexPrice: number | null;
   activeVenues: string[];
-  isExpanded:   boolean;
-  onToggle:     () => void;
+  isExpanded: boolean;
+  onToggle: () => void;
 }
 
 interface SideSummaryProps {
-  side:    EnrichedSide;
-  type:    "call" | "put";
-  itm:     boolean;
-  venues:  string[];
+  side: EnrichedSide;
+  type: 'call' | 'put';
+  itm: boolean;
+  venues: string[];
 }
 
-function bestBidAsk(side: EnrichedSide, venues: string[]): { bid: number | null; ask: number | null } {
+function bestBidAsk(
+  side: EnrichedSide,
+  venues: string[],
+): { bid: number | null; ask: number | null } {
   let bestBid: number | null = null;
   let bestAsk: number | null = null;
   for (const [v, q] of Object.entries(side.venues)) {
@@ -33,15 +36,13 @@ function bestBidAsk(side: EnrichedSide, venues: string[]): { bid: number | null;
 }
 
 function SideSummary({ side, type, itm, venues }: SideSummaryProps) {
-  const bestQ = side.bestVenue != null
-    ? side.venues[side.bestVenue] ?? null
-    : null;
+  const bestQ = side.bestVenue != null ? (side.venues[side.bestVenue] ?? null) : null;
   const bba = bestBidAsk(side, venues);
 
   return (
     <div className={styles.side} data-type={type} data-itm={itm}>
       <div className={styles.sideHeader}>
-        <span className={styles.sideLabel}>{type === "call" ? "C" : "P"}</span>
+        <span className={styles.sideLabel}>{type === 'call' ? 'C' : 'P'}</span>
         <div className={styles.sideVenues}>
           {venues.map((venueId) => {
             const meta = VENUES[venueId];
@@ -78,12 +79,20 @@ function SideSummary({ side, type, itm, venues }: SideSummaryProps) {
   );
 }
 
-function ExpandedVenueDetail({ side, type, venues }: { side: EnrichedSide; type: string; venues: string[] }) {
+function ExpandedVenueDetail({
+  side,
+  type,
+  venues,
+}: {
+  side: EnrichedSide;
+  type: string;
+  venues: string[];
+}) {
   const entries = Object.entries(side.venues).filter(([v]) => venues.includes(v));
 
   return (
     <div className={styles.venueDetail}>
-      <div className={styles.venueDetailLabel}>{type === "call" ? "CALLS" : "PUTS"}</div>
+      <div className={styles.venueDetailLabel}>{type === 'call' ? 'CALLS' : 'PUTS'}</div>
       {entries.map(([venueId, q]) => {
         const meta = VENUES[venueId];
         return (
@@ -134,8 +143,8 @@ export default function MobileStrikeCard({
   onToggle,
 }: MobileStrikeCardProps) {
   const callItm = indexPrice != null && strike.strike < indexPrice;
-  const putItm  = indexPrice != null && strike.strike > indexPrice;
-  const venues  = Object.keys(strike.call.venues).filter((v) => activeVenues.includes(v));
+  const putItm = indexPrice != null && strike.strike > indexPrice;
+  const venues = Object.keys(strike.call.venues).filter((v) => activeVenues.includes(v));
 
   return (
     <div className={styles.card} data-atm={isAtm} data-expanded={isExpanded}>
@@ -144,18 +153,20 @@ export default function MobileStrikeCard({
           {isAtm && <span className={styles.atmBadge}>ATM</span>}
           <span className={styles.strikeNum}>{strike.strike.toLocaleString()}</span>
         </div>
-        <span className={styles.chevron} data-expanded={isExpanded}>›</span>
+        <span className={styles.chevron} data-expanded={isExpanded}>
+          ›
+        </span>
       </button>
 
       <div className={styles.sides}>
         <SideSummary side={strike.call} type="call" itm={callItm} venues={venues} />
-        <SideSummary side={strike.put}  type="put"  itm={putItm}  venues={venues} />
+        <SideSummary side={strike.put} type="put" itm={putItm} venues={venues} />
       </div>
 
       {isExpanded && (
         <div className={styles.expandedBody}>
           <ExpandedVenueDetail side={strike.call} type="call" venues={activeVenues} />
-          <ExpandedVenueDetail side={strike.put}  type="put"  venues={activeVenues} />
+          <ExpandedVenueDetail side={strike.put} type="put" venues={activeVenues} />
         </div>
       )}
     </div>

@@ -10,13 +10,15 @@ function makeBlockTrade(partial: Partial<BlockTradeEvent> = {}): BlockTradeEvent
     underlying: partial.underlying ?? 'BTC',
     direction: partial.direction ?? 'buy',
     strategy: partial.strategy ?? null,
-    legs: partial.legs ?? [{
-      instrument: 'BTC-28MAR26-70000-C',
-      direction: 'buy',
-      price: 1_000,
-      size: 1,
-      ratio: 1,
-    }],
+    legs: partial.legs ?? [
+      {
+        instrument: 'BTC-28MAR26-70000-C',
+        direction: 'buy',
+        price: 1_000,
+        size: 1,
+        ratio: 1,
+      },
+    ],
     totalSize: partial.totalSize ?? 1,
     notionalUsd: partial.notionalUsd ?? 1_000,
     indexPrice: partial.indexPrice ?? 70_000,
@@ -63,10 +65,12 @@ describe('BlockTradeRuntime', () => {
   it('keeps the newest 300 trades', () => {
     pushTrades(
       runtime,
-      Array.from({ length: 350 }, (_, index) => makeBlockTrade({
-        tradeId: `trade-${index}`,
-        timestamp: index,
-      })),
+      Array.from({ length: 350 }, (_, index) =>
+        makeBlockTrade({
+          tradeId: `trade-${index}`,
+          timestamp: index,
+        }),
+      ),
     );
 
     const trades = runtime.getTrades();
@@ -76,20 +80,25 @@ describe('BlockTradeRuntime', () => {
   });
 
   it('updates venue health lastTradeAt from inserted trades', () => {
-    (runtime as unknown as {
-      venueState: Map<string, {
-        transport: 'ws' | 'poll';
-        connected: boolean;
-        lastSuccessAt: number | null;
-        lastTradeAt: number | null;
-        lastStatusAt: number | null;
-        lastPollCount: number | null;
-        pollLimit: number | null;
-        hitLimitCount: number;
-        reconnects: number;
-        errors: number;
-      }>;
-    }).venueState.set('deribit', {
+    (
+      runtime as unknown as {
+        venueState: Map<
+          string,
+          {
+            transport: 'ws' | 'poll';
+            connected: boolean;
+            lastSuccessAt: number | null;
+            lastTradeAt: number | null;
+            lastStatusAt: number | null;
+            lastPollCount: number | null;
+            pollLimit: number | null;
+            hitLimitCount: number;
+            reconnects: number;
+            errors: number;
+          }
+        >;
+      }
+    ).venueState.set('deribit', {
       transport: 'ws',
       connected: true,
       lastSuccessAt: null,

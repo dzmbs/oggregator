@@ -1,37 +1,37 @@
-import { useEffect, useRef } from "react";
-import type { EnrichedChainResponse } from "@shared/enriched";
+import { useEffect, useRef } from 'react';
+import type { EnrichedChainResponse } from '@shared/enriched';
 
-import { useAppStore } from "@stores/app-store";
-import { AssetPickerButton, Spinner, VenuePickerButton } from "@components/ui";
-import { fmtUsdCompact, formatExpiry } from "@lib/format";
-import { VENUES } from "@lib/venue-meta";
-import { DvolChart } from "@features/dvol";
-import { useAllExpiriesChain } from "./queries";
-import VolCurves from "./VolCurves";
-import DeltaCurves from "./DeltaCurves";
-import OiSummary from "./OiSummary";
-import styles from "./AnalyticsView.module.css";
+import { useAppStore } from '@stores/app-store';
+import { AssetPickerButton, Spinner, VenuePickerButton } from '@components/ui';
+import { fmtUsdCompact, formatExpiry } from '@lib/format';
+import { VENUES } from '@lib/venue-meta';
+import { DvolChart } from '@features/dvol';
+import { useAllExpiriesChain } from './queries';
+import VolCurves from './VolCurves';
+import DeltaCurves from './DeltaCurves';
+import OiSummary from './OiSummary';
+import styles from './AnalyticsView.module.css';
 
 // ── Data aggregation helpers ────────────────────────────────────
 
 interface VenueVolume {
   venue: string;
   volume: number;
-  oi:     number;
+  oi: number;
 }
 
 interface StrikeOi {
   strike: number;
   callOi: number;
-  putOi:  number;
+  putOi: number;
 }
 
 interface ExpiryPcr {
-  expiry:  string;
-  dte:     number;
-  callOi:  number;
-  putOi:   number;
-  ratio:   number;
+  expiry: string;
+  dte: number;
+  callOi: number;
+  putOi: number;
+  ratio: number;
 }
 
 // Use the enrichment layer's pre-computed USD values. These are either
@@ -45,7 +45,7 @@ function aggregateVenueVolume(chains: EnrichedChainResponse[]): VenueVolume[] {
       for (const side of [strike.call, strike.put]) {
         for (const [venue, q] of Object.entries(side.venues)) {
           const prev = map.get(venue) ?? { volume: 0, oi: 0 };
-          prev.oi     += q?.openInterestUsd ?? 0;
+          prev.oi += q?.openInterestUsd ?? 0;
           prev.volume += q?.volume24hUsd ?? 0;
           map.set(venue, prev);
         }
@@ -85,21 +85,23 @@ function aggregateStrikeOi(chains: EnrichedChainResponse[], spotPrice: number | 
 }
 
 function aggregateExpiryPcr(chains: EnrichedChainResponse[]): ExpiryPcr[] {
-  return chains.map((chain) => {
-    let callOi = 0;
-    let putOi  = 0;
-    for (const strike of chain.strikes) {
-      for (const q of Object.values(strike.call.venues)) callOi += q?.openInterest ?? 0;
-      for (const q of Object.values(strike.put.venues))  putOi  += q?.openInterest ?? 0;
-    }
-    return {
-      expiry:  chain.expiry,
-      dte:     chain.dte,
-      callOi,
-      putOi,
-      ratio:   callOi > 0 ? putOi / callOi : 0,
-    };
-  }).filter((r) => r.callOi > 0 || r.putOi > 0);
+  return chains
+    .map((chain) => {
+      let callOi = 0;
+      let putOi = 0;
+      for (const strike of chain.strikes) {
+        for (const q of Object.values(strike.call.venues)) callOi += q?.openInterest ?? 0;
+        for (const q of Object.values(strike.put.venues)) putOi += q?.openInterest ?? 0;
+      }
+      return {
+        expiry: chain.expiry,
+        dte: chain.dte,
+        callOi,
+        putOi,
+        ratio: callOi > 0 ? putOi / callOi : 0,
+      };
+    })
+    .filter((r) => r.callOi > 0 || r.putOi > 0);
 }
 
 // ── Sub-components ──────────────────────────────────────────────
@@ -122,7 +124,7 @@ function VenueVolumeChart({ data }: { data: VenueVolume[] }) {
       <div className={styles.venueList}>
         {data.map((d) => {
           const meta = VENUES[d.venue];
-          const pct  = (d.oi / maxOi) * 100;
+          const pct = (d.oi / maxOi) * 100;
           return (
             <div key={d.venue} className={styles.venueRow}>
               <div className={styles.venueLabel}>
@@ -154,13 +156,19 @@ function PcrChart({ data }: { data: ExpiryPcr[] }) {
             <div key={d.expiry} className={styles.pcrRow}>
               <div className={styles.pcrLabel}>
                 <span>{formatExpiry(d.expiry)}</span>
-                <span className={styles.dteBadge} data-urgent={d.dte <= 1}>{d.dte}d</span>
+                <span className={styles.dteBadge} data-urgent={d.dte <= 1}>
+                  {d.dte}d
+                </span>
               </div>
               <div className={styles.pcrBar}>
                 <div className={styles.pcrCall} style={{ width: `${callPct}%` }} />
                 <div className={styles.pcrPut} style={{ width: `${100 - callPct}%` }} />
               </div>
-              <div className={styles.pcrRatio} data-bullish={d.ratio < 0.7} data-bearish={d.ratio > 1.3}>
+              <div
+                className={styles.pcrRatio}
+                data-bullish={d.ratio < 0.7}
+                data-bearish={d.ratio > 1.3}
+              >
                 {d.ratio.toFixed(2)}
               </div>
             </div>
@@ -182,18 +190,20 @@ function OiByStrikeChart({ data, spotPrice }: { data: StrikeOi[]; spotPrice: num
   const spotRef = useRef<HTMLDivElement | null>(null);
 
   // Single closest strike to spot — no duplicates
-  const spotStrike = spotPrice != null
-    ? data.reduce<number | null>((best, d) => {
-        if (best === null) return d.strike;
-        return Math.abs(d.strike - spotPrice) < Math.abs(best - spotPrice) ? d.strike : best;
-      }, null)
-    : null;
+  const spotStrike =
+    spotPrice != null
+      ? data.reduce<number | null>((best, d) => {
+          if (best === null) return d.strike;
+          return Math.abs(d.strike - spotPrice) < Math.abs(best - spotPrice) ? d.strike : best;
+        }, null)
+      : null;
 
   useEffect(() => {
     if (spotRef.current && listRef.current) {
       const list = listRef.current;
       const spot = spotRef.current;
-      const offset = spot.offsetTop - list.offsetTop - list.clientHeight / 2 + spot.clientHeight / 2;
+      const offset =
+        spot.offsetTop - list.offsetTop - list.clientHeight / 2 + spot.clientHeight / 2;
       list.scrollTop = Math.max(0, offset);
     }
   }, [data, spotStrike]);
@@ -205,9 +215,14 @@ function OiByStrikeChart({ data, spotPrice }: { data: StrikeOi[]; spotPrice: num
         {data.map((d) => {
           const isSpot = d.strike === spotStrike;
           const callPct = (d.callOi / maxOi) * 100;
-          const putPct  = (d.putOi / maxOi) * 100;
+          const putPct = (d.putOi / maxOi) * 100;
           return (
-            <div key={d.strike} className={styles.oiRow} data-spot={isSpot || undefined} ref={isSpot ? spotRef : undefined}>
+            <div
+              key={d.strike}
+              className={styles.oiRow}
+              data-spot={isSpot || undefined}
+              ref={isSpot ? spotRef : undefined}
+            >
               <div className={styles.oiStrike} data-spot={isSpot || undefined}>
                 {d.strike.toLocaleString()}
                 {isSpot && <span className={styles.spotTag}>SPOT</span>}
@@ -239,7 +254,7 @@ function OiByStrikeChart({ data, spotPrice }: { data: StrikeOi[]; spotPrice: num
 // ── Main view ───────────────────────────────────────────────────
 
 export default function AnalyticsView() {
-  const underlying   = useAppStore((s) => s.underlying);
+  const underlying = useAppStore((s) => s.underlying);
   const activeVenues = useAppStore((s) => s.activeVenues);
   const { data: chains, isLoading } = useAllExpiriesChain(underlying, activeVenues);
 
@@ -251,10 +266,10 @@ export default function AnalyticsView() {
     );
   }
 
-  const spotPrice    = chains.find((c) => c.stats.spotIndexUsd != null)?.stats.spotIndexUsd ?? null;
-  const venueVolume  = aggregateVenueVolume(chains);
-  const strikeOi     = aggregateStrikeOi(chains, spotPrice);
-  const expiryPcr    = aggregateExpiryPcr(chains);
+  const spotPrice = chains.find((c) => c.stats.spotIndexUsd != null)?.stats.spotIndexUsd ?? null;
+  const venueVolume = aggregateVenueVolume(chains);
+  const strikeOi = aggregateStrikeOi(chains, spotPrice);
+  const expiryPcr = aggregateExpiryPcr(chains);
 
   return (
     <div className={styles.view}>

@@ -1,4 +1,4 @@
-import type { VenueExecution, ExecutionCost, OrderSide } from "./types";
+import type { VenueExecution, ExecutionCost, OrderSide } from './types';
 
 export function computeExecutionCost(
   venue: VenueExecution,
@@ -7,9 +7,9 @@ export function computeExecutionCost(
 ): ExecutionCost | null {
   if (!venue.available) return null;
 
-  const price = orderSide === "buy" ? venue.askPrice : venue.bidPrice;
-  const oppositePrice = orderSide === "buy" ? venue.bidPrice : venue.askPrice;
-  const sizeAtPrice = orderSide === "buy" ? venue.askSize : venue.bidSize;
+  const price = orderSide === 'buy' ? venue.askPrice : venue.bidPrice;
+  const oppositePrice = orderSide === 'buy' ? venue.bidPrice : venue.askPrice;
+  const sizeAtPrice = orderSide === 'buy' ? venue.askSize : venue.bidSize;
 
   if (price == null) return null;
 

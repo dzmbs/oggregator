@@ -1,48 +1,66 @@
-import { VENUES } from "@lib/venue-meta";
-import { fmtUsd, fmtIv } from "@lib/format";
-import styles from "./VenueCard.module.css";
+import { VENUES } from '@lib/venue-meta';
+import { fmtUsd, fmtIv } from '@lib/format';
+import styles from './VenueCard.module.css';
 
 export interface VenueCardDetail {
-  label:    string;
-  strike:   number;
-  type:     "call" | "put";
-  direction: "buy" | "sell";
-  price:    number;
+  label: string;
+  strike: number;
+  type: 'call' | 'put';
+  direction: 'buy' | 'sell';
+  price: number;
   spreadPct: number | null;
-  iv:       number | null;
-  size:     number | null;
+  iv: number | null;
+  size: number | null;
   spreadCost: number | null;
 }
 
 interface VenueCardProps {
-  venueId:   string;
-  total:     number | null;
+  venueId: string;
+  total: number | null;
   totalLabel?: string;
-  isBest:    boolean;
+  isBest: boolean;
   available: boolean;
-  details:   VenueCardDetail[];
-  action?:   { label: string; onClick: () => void };
-  savings?:  string;
-  tags?:     string[];
+  details: VenueCardDetail[];
+  action?: { label: string; onClick: () => void };
+  savings?: string;
+  tags?: string[];
 }
 
-export default function VenueCard({ venueId, total, totalLabel, isBest, available, details, action, savings, tags }: VenueCardProps) {
+export default function VenueCard({
+  venueId,
+  total,
+  totalLabel,
+  isBest,
+  available,
+  details,
+  action,
+  savings,
+  tags,
+}: VenueCardProps) {
   const meta = VENUES[venueId];
-  const allTags = tags ?? (isBest ? ["BEST"] : []);
+  const allTags = tags ?? (isBest ? ['BEST'] : []);
 
   return (
-    <div className={styles.card} data-best={isBest || undefined} data-unavailable={!available || undefined}>
+    <div
+      className={styles.card}
+      data-best={isBest || undefined}
+      data-unavailable={!available || undefined}
+    >
       {/* Top: venue identity + price */}
       <div className={styles.header}>
         <div className={styles.venueId}>
           {meta?.logo && <img src={meta.logo} className={styles.logo} alt="" />}
           <span className={styles.name}>{meta?.label ?? venueId}</span>
           {allTags.map((tag) => (
-            <span key={tag} className={styles.bestTag} data-tag={tag}>{tag}</span>
+            <span key={tag} className={styles.bestTag} data-tag={tag}>
+              {tag}
+            </span>
           ))}
         </div>
         <span className={styles.total} data-positive={total != null && total > 0}>
-          {available && total != null && Number.isFinite(total) ? `${total > 0 ? "+" : ""}${fmtUsd(total)}` : "N/A"}
+          {available && total != null && Number.isFinite(total)
+            ? `${total > 0 ? '+' : ''}${fmtUsd(total)}`
+            : 'N/A'}
         </span>
       </div>
 
@@ -53,11 +71,11 @@ export default function VenueCard({ venueId, total, totalLabel, isBest, availabl
             <div key={i} className={styles.legRow}>
               <div className={styles.legLeft}>
                 <span className={styles.dir} data-direction={d.direction}>
-                  {d.direction === "buy" ? "BUY" : "SELL"}
+                  {d.direction === 'buy' ? 'BUY' : 'SELL'}
                 </span>
                 <span className={styles.strike}>{d.strike.toLocaleString()}</span>
                 <span className={styles.type} data-type={d.type}>
-                  {d.type === "call" ? "CALL" : "PUT"}
+                  {d.type === 'call' ? 'CALL' : 'PUT'}
                 </span>
               </div>
               <span className={styles.legPrice}>{fmtUsd(d.price)}</span>
@@ -70,7 +88,9 @@ export default function VenueCard({ venueId, total, totalLabel, isBest, availabl
               {details[0].iv != null && (
                 <div className={styles.stat}>
                   <span className={styles.statLabel}>IV</span>
-                  <span className={styles.statVal} data-kind="iv">{fmtIv(details[0].iv)}</span>
+                  <span className={styles.statVal} data-kind="iv">
+                    {fmtIv(details[0].iv)}
+                  </span>
                 </div>
               )}
               {details[0].spreadPct != null && (

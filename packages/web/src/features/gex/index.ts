@@ -1,1 +1,1 @@
-export { default as GexView } from "./GexView";
+export { default as GexView } from './GexView';

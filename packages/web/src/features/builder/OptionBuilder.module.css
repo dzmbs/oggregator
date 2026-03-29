@@ -272,9 +272,16 @@
   font-size: var(--text-xs);
 }
 
-.sizeOk { color: var(--color-profit); }
-.sizeWarn { color: var(--color-warning); }
-.slippageWarn { color: var(--color-warning); font-style: italic; }
+.sizeOk {
+  color: var(--color-profit);
+}
+.sizeWarn {
+  color: var(--color-warning);
+}
+.slippageWarn {
+  color: var(--color-warning);
+  font-style: italic;
+}
 
 /* ── Summary ───────────────────────────────────────────────────────── */
 

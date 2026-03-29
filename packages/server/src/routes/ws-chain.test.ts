@@ -21,32 +21,56 @@ class FakeAdapter implements OptionVenueAdapter {
   private handlers = new Set<StreamHandlers>();
   fetchCalls = 0;
 
-  constructor(venue: VenueId) { this.venue = venue; }
+  constructor(venue: VenueId) {
+    this.venue = venue;
+  }
 
   async loadMarkets() {}
-  async listUnderlyings() { return ['BTC']; }
-  async listExpiries() { return ['2026-03-27']; }
+  async listUnderlyings() {
+    return ['BTC'];
+  }
+  async listExpiries() {
+    return ['2026-03-27'];
+  }
 
   async fetchOptionChain(req: ChainRequest): Promise<VenueOptionChain> {
     this.fetchCalls += 1;
     return {
-      venue: this.venue, underlying: req.underlying, expiry: req.expiry,
+      venue: this.venue,
+      underlying: req.underlying,
+      expiry: req.expiry,
       asOf: Date.now(),
       contracts: {
         'BTC/USD:USDC-260327-70000-C': {
-          venue: this.venue, symbol: 'BTC/USD:USDC-260327-70000-C',
-          exchangeSymbol: 'BTC-260327-70000-C', base: 'BTC', settle: 'USDC',
-          expiry: '2026-03-27', strike: 70000, right: 'call', inverse: false,
-          contractSize: 1, tickSize: 0.01, minQty: 0.1, makerFee: 0.0003, takerFee: 0.0003,
+          venue: this.venue,
+          symbol: 'BTC/USD:USDC-260327-70000-C',
+          exchangeSymbol: 'BTC-260327-70000-C',
+          base: 'BTC',
+          settle: 'USDC',
+          expiry: '2026-03-27',
+          strike: 70000,
+          right: 'call',
+          inverse: false,
+          contractSize: 1,
+          tickSize: 0.01,
+          minQty: 0.1,
+          makerFee: 0.0003,
+          takerFee: 0.0003,
           greeks: { ...EMPTY_GREEKS, markIv: 0.5, delta: 0.5 },
           quote: {
             bid: { raw: 300, rawCurrency: 'USDC', usd: 300 },
             ask: { raw: 350, rawCurrency: 'USDC', usd: 350 },
             mark: { raw: 325, rawCurrency: 'USDC', usd: 325 },
-            last: null, bidSize: 10, askSize: 20,
-            underlyingPriceUsd: 70000, indexPriceUsd: 70000,
-            volume24h: 100, openInterest: 500,
-            estimatedFees: null, timestamp: Date.now(), source: 'ws',
+            last: null,
+            bidSize: 10,
+            askSize: 20,
+            underlyingPriceUsd: 70000,
+            indexPriceUsd: 70000,
+            volume24h: 100,
+            openInterest: 500,
+            estimatedFees: null,
+            timestamp: Date.now(),
+            source: 'ws',
           },
         },
       },
@@ -56,7 +80,9 @@ class FakeAdapter implements OptionVenueAdapter {
   async subscribe(_req: ChainRequest, handlers: StreamHandlers) {
     this.handlers.add(handlers);
     handlers.onStatus({ venue: this.venue, state: 'connected', ts: Date.now() });
-    return async () => { this.handlers.delete(handlers); };
+    return async () => {
+      this.handlers.delete(handlers);
+    };
   }
 
   removeDeltaHandler(handlers: StreamHandlers) {
@@ -65,7 +91,9 @@ class FakeAdapter implements OptionVenueAdapter {
 
   fireDelta() {
     const delta: VenueDelta = {
-      venue: this.venue, symbol: 'BTC/USD:USDC-260327-70000-C', ts: Date.now(),
+      venue: this.venue,
+      symbol: 'BTC/USD:USDC-260327-70000-C',
+      ts: Date.now(),
     };
     for (const h of this.handlers) h.onDelta([delta]);
   }
@@ -96,11 +124,13 @@ afterAll(async () => {
 // ── Helpers ────────────────────────────────────────────────────
 
 function subscribe(ws: { send: (data: string) => void }, id: string, venues = ['deribit']) {
-  ws.send(JSON.stringify({
-    type: 'subscribe',
-    subscriptionId: id,
-    request: { underlying: 'BTC', expiry: '2026-03-27', venues },
-  }));
+  ws.send(
+    JSON.stringify({
+      type: 'subscribe',
+      subscriptionId: id,
+      request: { underlying: 'BTC', expiry: '2026-03-27', venues },
+    }),
+  );
 }
 
 function collectMessages(
@@ -130,11 +160,11 @@ describe('WS /ws/chain route (injectWS)', () => {
     subscribe(ws, 'test-1');
     const msgs = await collectMessages(ws, 3, 1000);
 
-    const subscribed = msgs.find(m => m['type'] === 'subscribed');
+    const subscribed = msgs.find((m) => m['type'] === 'subscribed');
     expect(subscribed).toBeDefined();
     expect(subscribed!['subscriptionId']).toBe('test-1');
 
-    const snapshot = msgs.find(m => m['type'] === 'snapshot');
+    const snapshot = msgs.find((m) => m['type'] === 'snapshot');
     expect(snapshot).toBeDefined();
     expect(snapshot!['subscriptionId']).toBe('test-1');
     expect(snapshot!['seq']).toBe(1);
@@ -154,7 +184,7 @@ describe('WS /ws/chain route (injectWS)', () => {
 
     const msgs = await collectMessages(ws, 4, 1000);
 
-    const snapshots = msgs.filter(m => m['type'] === 'snapshot');
+    const snapshots = msgs.filter((m) => m['type'] === 'snapshot');
     expect(snapshots.length).toBeGreaterThan(0);
     for (const s of snapshots) {
       expect(s['subscriptionId']).toBe('sub-B');
@@ -169,7 +199,7 @@ describe('WS /ws/chain route (injectWS)', () => {
     ws.send(JSON.stringify({ type: 'subscribe', oops: true }));
     const msgs = await collectMessages(ws, 1, 1000);
 
-    const error = msgs.find(m => m['type'] === 'error');
+    const error = msgs.find((m) => m['type'] === 'error');
     expect(error).toBeDefined();
     expect(error!['code']).toBe('INVALID_MESSAGE');
 
@@ -182,12 +212,12 @@ describe('WS /ws/chain route (injectWS)', () => {
     subscribe(ws, 'test-fail', ['deribit', 'binance']);
     const msgs = await collectMessages(ws, 2, 1000);
 
-    const subscribed = msgs.find(m => m['type'] === 'subscribed');
+    const subscribed = msgs.find((m) => m['type'] === 'subscribed');
     expect(subscribed).toBeDefined();
 
     const failed = subscribed!['failedVenues'] as Array<Record<string, unknown>>;
     expect(failed).toBeDefined();
-    expect(failed.some(f => f['venue'] === 'binance')).toBe(true);
+    expect(failed.some((f) => f['venue'] === 'binance')).toBe(true);
 
     ws.terminate();
   });
@@ -198,15 +228,15 @@ describe('WS /ws/chain route (injectWS)', () => {
     subscribe(ws, 'delta-test');
     const initial = await collectMessages(ws, 2, 1000);
 
-    const firstSnapshot = initial.find(m => m['type'] === 'snapshot');
+    const firstSnapshot = initial.find((m) => m['type'] === 'snapshot');
     expect(firstSnapshot).toBeDefined();
 
     fakeAdapter.fireDelta();
     const followUp = await collectMessages(ws, 1, 500);
 
-    const delta = followUp.find(m => m['type'] === 'delta');
+    const delta = followUp.find((m) => m['type'] === 'delta');
     expect(delta).toBeDefined();
-    expect((delta!['seq'] as number)).toBeGreaterThan(1);
+    expect(delta!['seq'] as number).toBeGreaterThan(1);
 
     ws.terminate();
   });

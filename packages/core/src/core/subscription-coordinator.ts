@@ -82,9 +82,10 @@ export class VenueSubscriptionCoordinator {
       }
 
       const adapter = this.resolveAdapter(venue);
-      const upstreamRelease = adapter.subscribe != null
-        ? await adapter.subscribe(request, entry.handlers)
-        : async () => {};
+      const upstreamRelease =
+        adapter.subscribe != null
+          ? await adapter.subscribe(request, entry.handlers)
+          : async () => {};
 
       entry.requestEntries.set(key, {
         request,
@@ -115,7 +116,9 @@ export class VenueSubscriptionCoordinator {
         const requestEntries = [...entry.requestEntries.values()];
         entry.requestEntries.clear();
 
-        await Promise.allSettled(requestEntries.map(async (requestEntry) => requestEntry.upstreamRelease()));
+        await Promise.allSettled(
+          requestEntries.map(async (requestEntry) => requestEntry.upstreamRelease()),
+        );
       });
     }
   }

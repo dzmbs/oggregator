@@ -1,29 +1,29 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { Spinner, EmptyState, VenuePickerButton, AssetPickerButton } from "@components/ui";
-import { VENUES } from "@lib/venue-meta";
-import { useAppStore } from "@stores/app-store";
-import { fmtIv } from "@lib/format";
-import { useFlow, useFlowHistoryPage, useFlowHistorySummary } from "./queries";
-import type { HistoryRange, TradeEvent, TradeHistoryCursor } from "./queries";
-import BlockFlowView from "./BlockFlowView";
-import { getCustomRangeFromBounds } from "./DateRangePicker";
-import { HistoryControls, getPresetRange, type HistoryPreset } from "./HistoryControls";
-import styles from "./FlowView.module.css";
+import { Spinner, EmptyState, VenuePickerButton, AssetPickerButton } from '@components/ui';
+import { VENUES } from '@lib/venue-meta';
+import { useAppStore } from '@stores/app-store';
+import { fmtIv } from '@lib/format';
+import { useFlow, useFlowHistoryPage, useFlowHistorySummary } from './queries';
+import type { HistoryRange, TradeEvent, TradeHistoryCursor } from './queries';
+import BlockFlowView from './BlockFlowView';
+import { getCustomRangeFromBounds } from './DateRangePicker';
+import { HistoryControls, getPresetRange, type HistoryPreset } from './HistoryControls';
+import styles from './FlowView.module.css';
 
 const WHALE_THRESHOLD = 100_000;
 const SHARK_THRESHOLD = 10_000;
-const MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
+const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 
-type FlowMode = "all" | "block";
-type FlowScope = "tape" | "history";
+type FlowMode = 'all' | 'block';
+type FlowScope = 'tape' | 'history';
 
 function parseStrikeAndType(instrument: string): { strike: string; type: string } {
   const match = instrument.match(/-(\d+(?:\.\d+)?)-([CP])(?:-|$)/);
-  if (!match) return { strike: "–", type: "–" };
+  if (!match) return { strike: '–', type: '–' };
   return {
     strike: Number(match[1]).toLocaleString(),
-    type: match[2] === "C" ? "CALL" : "PUT",
+    type: match[2] === 'C' ? 'CALL' : 'PUT',
   };
 }
 
@@ -33,7 +33,7 @@ function numericDateToHuman(raw: string): string {
     const mm = parseInt(raw.slice(2, 4), 10);
     const dd = raw.slice(4, 6);
     if (mm >= 1 && mm <= 12) {
-      return dd === "00" || !dd ? `${MONTHS[mm - 1]}${yy}` : `${dd}${MONTHS[mm - 1]}${yy}`;
+      return dd === '00' || !dd ? `${MONTHS[mm - 1]}${yy}` : `${dd}${MONTHS[mm - 1]}${yy}`;
     }
   }
 
@@ -49,7 +49,7 @@ function numericDateToHuman(raw: string): string {
 
 function parseExpiry(instrument: string): string {
   const human = instrument.match(/\d{1,2}[A-Z]{3}\d{2}/);
-  if (human) return human[0] ?? "–";
+  if (human) return human[0] ?? '–';
 
   const numeric = instrument.match(/(?:^|[-_])(\d{6,8})(?:[-_]|$)/);
   if (numeric?.[1]) return numericDateToHuman(numeric[1]);
@@ -57,43 +57,47 @@ function parseExpiry(instrument: string): string {
   const fallback = instrument.match(/(\d{6,8})/);
   if (fallback?.[1]) return numericDateToHuman(fallback[1]);
 
-  return "–";
+  return '–';
 }
 
 function formatTime(ts: number): string {
-  return new Date(ts).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  return new Date(ts).toLocaleTimeString('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
 }
 
 function fmtUsdCompact(n: number | null): string {
-  if (n == null || !Number.isFinite(n) || n <= 0) return "—";
+  if (n == null || !Number.isFinite(n) || n <= 0) return '—';
   if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 100_000) return `$${(n / 1_000).toFixed(0)}K`;
   if (n >= 10_000) return `$${(n / 1_000).toFixed(1)}K`;
-  if (n >= 1) return `$${n.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
-  return "<$1";
+  if (n >= 1) return `$${n.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+  return '<$1';
 }
 
-function getTradeTier(notionalUsd: number): "shrimp" | "shark" | "whale" {
-  if (notionalUsd >= WHALE_THRESHOLD) return "whale";
-  if (notionalUsd >= SHARK_THRESHOLD) return "shark";
-  return "shrimp";
+function getTradeTier(notionalUsd: number): 'shrimp' | 'shark' | 'whale' {
+  if (notionalUsd >= WHALE_THRESHOLD) return 'whale';
+  if (notionalUsd >= SHARK_THRESHOLD) return 'shark';
+  return 'shrimp';
 }
 
-function getTradeBadge(tier: "shrimp" | "shark" | "whale"): string {
-  if (tier === "whale") return "🐋";
-  if (tier === "shark") return "🦈";
-  return "🦐";
+function getTradeBadge(tier: 'shrimp' | 'shark' | 'whale'): string {
+  if (tier === 'whale') return '🐋';
+  if (tier === 'shark') return '🦈';
+  return '🦐';
 }
 
 function getScopeLabel(scope: FlowScope): string {
-  return scope === "tape" ? "Live Tape" : "History";
+  return scope === 'tape' ? 'Live Tape' : 'History';
 }
 
 function getHistorySubtitle(range: HistoryRange): string {
   if (range.start && range.end) {
     return `${range.start.slice(0, 10)} → ${new Date(new Date(range.end).getTime() - 1).toISOString().slice(0, 10)}`;
   }
-  return "All stored history";
+  return 'All stored history';
 }
 
 interface TradeRowProps {
@@ -125,36 +129,44 @@ function TradeRow({ trade, isNew }: TradeRowProps) {
         <span className={styles.venueLabel}>{meta?.shortLabel ?? trade.venue}</span>
       </span>
 
-      <span className={styles.side} data-side={trade.side}>{trade.side.toUpperCase()}</span>
+      <span className={styles.side} data-side={trade.side}>
+        {trade.side.toUpperCase()}
+      </span>
 
       <span className={styles.instrument}>
         <span className={styles.expiry}>{expiry}</span>
         <span className={styles.strike}>{strike}</span>
-        <span className={styles.type} data-type={type}>{type}</span>
+        <span className={styles.type} data-type={type}>
+          {type}
+        </span>
       </span>
 
       <span className={styles.size}>{trade.size}</span>
 
       <span className={styles.moneyCell}>
-        <span className={styles.moneyPrimary} data-size={tier}>{fmtUsdCompact(notionalUsd ?? premiumUsd)}</span>
+        <span className={styles.moneyPrimary} data-size={tier}>
+          {fmtUsdCompact(notionalUsd ?? premiumUsd)}
+        </span>
         <span className={styles.moneySecondary}>Premium {fmtUsdCompact(premiumUsd)}</span>
       </span>
 
-      <span className={styles.iv}>{trade.iv != null ? fmtIv(trade.iv) : "–"}</span>
+      <span className={styles.iv}>{trade.iv != null ? fmtIv(trade.iv) : '–'}</span>
 
       <span className={styles.tagCell}>
         {trade.isBlock ? <span className={styles.blockBadge}>BLOCK</span> : null}
-        <span className={styles.tradeBadge} data-kind={tier}>{getTradeBadge(tier)}</span>
+        <span className={styles.tradeBadge} data-kind={tier}>
+          {getTradeBadge(tier)}
+        </span>
       </span>
     </div>
   );
 }
 
 export default function FlowView() {
-  const [mode, setMode] = useState<FlowMode>("all");
-  const [scope, setScope] = useState<FlowScope>("tape");
-  const [historyPreset, setHistoryPreset] = useState<HistoryPreset>("today");
-  const [historyRange, setHistoryRange] = useState<HistoryRange>(() => getPresetRange("today"));
+  const [mode, setMode] = useState<FlowMode>('all');
+  const [scope, setScope] = useState<FlowScope>('tape');
+  const [historyPreset, setHistoryPreset] = useState<HistoryPreset>('today');
+  const [historyRange, setHistoryRange] = useState<HistoryRange>(() => getPresetRange('today'));
   const [lastCustomRange, setLastCustomRange] = useState<HistoryRange>({ start: null, end: null });
   const [historyCursors, setHistoryCursors] = useState<Array<TradeHistoryCursor | null>>([null]);
   const underlying = useAppStore((s) => s.underlying);
@@ -165,17 +177,34 @@ export default function FlowView() {
     [activeVenues, data?.trades],
   );
   const pageCursor = historyCursors[historyCursors.length - 1] ?? null;
-  const isHistoryRangeReady = historyPreset !== "custom" || Boolean(historyRange.start && historyRange.end);
-  const historyPage = useFlowHistoryPage({
+  const isHistoryRangeReady =
+    historyPreset !== 'custom' || Boolean(historyRange.start && historyRange.end);
+  const historyPage = useFlowHistoryPage(
+    {
+      underlying,
+      venues: activeVenues,
+      range: historyRange,
+      cursor: pageCursor,
+      limit: 100,
+    },
+    scope === 'history' && isHistoryRangeReady,
+  );
+  const historySummary = useFlowHistorySummary(
     underlying,
-    venues: activeVenues,
-    range: historyRange,
-    cursor: pageCursor,
-    limit: 100,
-  }, scope === "history" && isHistoryRangeReady);
-  const historySummary = useFlowHistorySummary(underlying, activeVenues, historyRange, scope === "history" && isHistoryRangeReady);
-  const historyBounds = useFlowHistorySummary(underlying, activeVenues, { start: null, end: null }, scope === "history");
-  const liveTradeIds = useMemo(() => new Set(liveTrades.map((trade) => trade.tradeUid)), [liveTrades]);
+    activeVenues,
+    historyRange,
+    scope === 'history' && isHistoryRangeReady,
+  );
+  const historyBounds = useFlowHistorySummary(
+    underlying,
+    activeVenues,
+    { start: null, end: null },
+    scope === 'history',
+  );
+  const liveTradeIds = useMemo(
+    () => new Set(liveTrades.map((trade) => trade.tradeUid)),
+    [liveTrades],
+  );
   const [seenIds, setSeenIds] = useState<Set<string>>(new Set());
   const prevCountRef = useRef(0);
 
@@ -199,12 +228,13 @@ export default function FlowView() {
   }, [activeVenues, historyRange.end, historyRange.start, underlying]);
 
   useEffect(() => {
-    if (historyPreset !== "custom") return;
+    if (historyPreset !== 'custom') return;
     if (historyRange.start && historyRange.end) return;
 
-    const nextRange = lastCustomRange.start && lastCustomRange.end
-      ? lastCustomRange
-      : getCustomRangeFromBounds(historyBounds.data);
+    const nextRange =
+      lastCustomRange.start && lastCustomRange.end
+        ? lastCustomRange
+        : getCustomRangeFromBounds(historyBounds.data);
 
     if (!nextRange.start || !nextRange.end) return;
     setHistoryRange(nextRange);
@@ -222,24 +252,36 @@ export default function FlowView() {
   if (error) {
     return (
       <div className={styles.view}>
-        <EmptyState icon="⚠" title="Failed to load flow" detail="Trade flow service may still be starting." />
+        <EmptyState
+          icon="⚠"
+          title="Failed to load flow"
+          detail="Trade flow service may still be starting."
+        />
       </div>
     );
   }
 
   const historyTrades = historySummary.data?.count === 0 ? [] : (historyPage.data?.trades ?? []);
-  const hasNextPage = Boolean(historyPage.data?.nextCursor) && (historySummary.data?.count ?? 0) > 0;
-  const isCustomInitializing = historyPreset === "custom" && (!historyRange.start || !historyRange.end) && (historyBounds.isLoading || historyBounds.isFetching);
-  const isHistoryLoading = scope === "history" && (isCustomInitializing || historyPage.isLoading || historySummary.isLoading);
-  const isHistoryEmpty = scope === "history" && !isHistoryLoading && (historySummary.data?.count ?? 0) === 0;
+  const hasNextPage =
+    Boolean(historyPage.data?.nextCursor) && (historySummary.data?.count ?? 0) > 0;
+  const isCustomInitializing =
+    historyPreset === 'custom' &&
+    (!historyRange.start || !historyRange.end) &&
+    (historyBounds.isLoading || historyBounds.isFetching);
+  const isHistoryLoading =
+    scope === 'history' &&
+    (isCustomInitializing || historyPage.isLoading || historySummary.isLoading);
+  const isHistoryEmpty =
+    scope === 'history' && !isHistoryLoading && (historySummary.data?.count ?? 0) === 0;
 
   function handlePresetChange(preset: HistoryPreset) {
     setHistoryPreset(preset);
 
-    if (preset === "custom") {
-      const nextRange = lastCustomRange.start && lastCustomRange.end
-        ? lastCustomRange
-        : getCustomRangeFromBounds(historyBounds.data);
+    if (preset === 'custom') {
+      const nextRange =
+        lastCustomRange.start && lastCustomRange.end
+          ? lastCustomRange
+          : getCustomRangeFromBounds(historyBounds.data);
       setHistoryRange(nextRange);
       return;
     }
@@ -248,7 +290,7 @@ export default function FlowView() {
   }
 
   function handleRangeChange(range: HistoryRange) {
-    setHistoryPreset("custom");
+    setHistoryPreset('custom');
     setHistoryRange(range);
     if (range.start && range.end) {
       setLastCustomRange(range);
@@ -270,36 +312,70 @@ export default function FlowView() {
         <div className={styles.headerLeft}>
           <div className={styles.titleRow}>
             <div className={styles.modePicker}>
-              <button className={styles.modeBtn} data-active={mode === "all"} onClick={() => setMode("all")}>All Trades</button>
-              <button className={styles.modeBtn} data-active={mode === "block"} onClick={() => setMode("block")}>🏛 Institutions</button>
+              <button
+                className={styles.modeBtn}
+                data-active={mode === 'all'}
+                onClick={() => setMode('all')}
+              >
+                All Trades
+              </button>
+              <button
+                className={styles.modeBtn}
+                data-active={mode === 'block'}
+                onClick={() => setMode('block')}
+              >
+                🏛 Institutions
+              </button>
             </div>
             <div className={styles.modePicker}>
-              <button className={styles.modeBtn} data-active={scope === "tape"} onClick={() => setScope("tape")}>Live Tape</button>
-              <button className={styles.modeBtn} data-active={scope === "history"} onClick={() => setScope("history")}>History</button>
+              <button
+                className={styles.modeBtn}
+                data-active={scope === 'tape'}
+                onClick={() => setScope('tape')}
+              >
+                Live Tape
+              </button>
+              <button
+                className={styles.modeBtn}
+                data-active={scope === 'history'}
+                onClick={() => setScope('history')}
+              >
+                History
+              </button>
             </div>
             <AssetPickerButton />
             <VenuePickerButton />
           </div>
           <span className={styles.subtitle}>
-            {mode === "all"
-              ? scope === "tape"
+            {mode === 'all'
+              ? scope === 'tape'
                 ? `${liveTrades.length} live trades · ${activeVenues.length} venues · auto-refreshing`
-                : `${getScopeLabel(scope)} · ${isCustomInitializing ? "Loading available history…" : getHistorySubtitle(historyRange)} · ${activeVenues.length} venues`
-              : `${scope === "history" ? `${getHistorySubtitle(historyRange)} · ` : ""}Institutional RFQ & block trades · ${activeVenues.length} venues`}
+                : `${getScopeLabel(scope)} · ${isCustomInitializing ? 'Loading available history…' : getHistorySubtitle(historyRange)} · ${activeVenues.length} venues`
+              : `${scope === 'history' ? `${getHistorySubtitle(historyRange)} · ` : ''}Institutional RFQ & block trades · ${activeVenues.length} venues`}
           </span>
         </div>
-        {mode === "all" && scope === "tape" ? (
+        {mode === 'all' && scope === 'tape' ? (
           <div className={styles.legend}>
-            <span className={styles.legendItem}><span className={styles.legendDot} data-side="buy" /> Buys</span>
-            <span className={styles.legendItem}><span className={styles.legendDot} data-side="sell" /> Sells</span>
+            <span className={styles.legendItem}>
+              <span className={styles.legendDot} data-side="buy" /> Buys
+            </span>
+            <span className={styles.legendItem}>
+              <span className={styles.legendDot} data-side="sell" /> Sells
+            </span>
             <span className={styles.legendItem}>🐋 $100K+ notional</span>
           </div>
         ) : null}
       </div>
 
-      {mode === "block" ? (
-        <BlockFlowView scope={scope} historyPreset={historyPreset} historyRange={historyRange} onPresetChange={handlePresetChange} onRangeChange={handleRangeChange} />
-      ) : scope === "history" ? (
+      {mode === 'block' ? (
+        <BlockFlowView
+          scope={scope}
+          historyPreset={historyPreset}
+          historyRange={historyRange}
+          onPresetChange={handlePresetChange}
+          onRangeChange={handleRangeChange}
+        />
+      ) : scope === 'history' ? (
         <>
           <HistoryControls
             preset={historyPreset}
@@ -311,7 +387,9 @@ export default function FlowView() {
             hasPreviousPage={historyCursors.length > 1}
             hasNextPage={hasNextPage}
             isPageLoading={historyPage.isFetching}
-            isSummaryLoading={historySummary.isLoading || historySummary.isFetching || !historySummary.data}
+            isSummaryLoading={
+              historySummary.isLoading || historySummary.isFetching || !historySummary.data
+            }
             onPresetChange={handlePresetChange}
             onRangeChange={handleRangeChange}
             onPreviousPage={handlePreviousPage}
@@ -333,11 +411,18 @@ export default function FlowView() {
 
           <div className={styles.list}>
             {isHistoryLoading ? (
-              <div className={styles.centeredState}><Spinner size="lg" label="Loading history…" /></div>
+              <div className={styles.centeredState}>
+                <Spinner size="lg" label="Loading history…" />
+              </div>
             ) : isHistoryEmpty ? (
-              <EmptyState title="No stored trades in range" detail="Try a wider window, another venue selection, or let ingest collect more history." />
+              <EmptyState
+                title="No stored trades in range"
+                detail="Try a wider window, another venue selection, or let ingest collect more history."
+              />
             ) : (
-              historyTrades.map((trade) => <TradeRow key={trade.tradeUid} trade={trade} isNew={false} />)
+              historyTrades.map((trade) => (
+                <TradeRow key={trade.tradeUid} trade={trade} isNew={false} />
+              ))
             )}
           </div>
         </>
@@ -356,10 +441,17 @@ export default function FlowView() {
 
           <div className={styles.list}>
             {liveTrades.length === 0 ? (
-              <EmptyState title="No trades yet" detail={`${underlying} options have low trading activity. Trades will appear here in real-time when they occur.`} />
+              <EmptyState
+                title="No trades yet"
+                detail={`${underlying} options have low trading activity. Trades will appear here in real-time when they occur.`}
+              />
             ) : (
               liveTrades.map((trade) => (
-                <TradeRow key={trade.tradeUid} trade={trade} isNew={liveTradeIds.has(trade.tradeUid) && !seenIds.has(trade.tradeUid)} />
+                <TradeRow
+                  key={trade.tradeUid}
+                  trade={trade}
+                  isNew={liveTradeIds.has(trade.tradeUid) && !seenIds.has(trade.tradeUid)}
+                />
               ))
             )}
           </div>

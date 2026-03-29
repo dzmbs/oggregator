@@ -1,6 +1,15 @@
 import { BaseAdapter } from './base.js';
 import type { VenueCapabilities, StreamHandlers } from './types.js';
-import type { ChainRequest, VenueOptionChain, NormalizedOptionContract, VenueDelta, VenueStatus, VenueConnectionState, OptionGreeks, EstimatedFees } from '../../core/types.js';
+import type {
+  ChainRequest,
+  VenueOptionChain,
+  NormalizedOptionContract,
+  VenueDelta,
+  VenueStatus,
+  VenueConnectionState,
+  OptionGreeks,
+  EstimatedFees,
+} from '../../core/types.js';
 import { EMPTY_GREEKS } from '../../core/types.js';
 import type { VenueId, OptionRight } from '../../types/common.js';
 
@@ -8,11 +17,11 @@ import type { VenueId, OptionRight } from '../../types/common.js';
 // Without it, OTM options with tiny premiums would have absurdly high fees
 // relative to their price (e.g. 0.03% × $70K underlying = $21 on a $5 option).
 const FEE_CAP: Record<VenueId, number> = {
-  deribit: 0.125,   // 12.5% of option price
-  okx:     0.125,   // 12.5% of option price
-  bybit:   0.125,   // 12.5% of option price
-  binance: 0.10,    // 10% of option price
-  derive:  0.125,   // 12.5% of option premium
+  deribit: 0.125, // 12.5% of option price
+  okx: 0.125, // 12.5% of option price
+  bybit: 0.125, // 12.5% of option price
+  binance: 0.1, // 10% of option price
+  derive: 0.125, // 12.5% of option premium
 };
 
 export interface CachedInstrument {
@@ -152,10 +161,7 @@ export abstract class SdkBaseAdapter extends BaseAdapter {
     });
   }
 
-  async subscribe(
-    request: ChainRequest,
-    handlers: StreamHandlers,
-  ): Promise<() => Promise<void>> {
+  async subscribe(request: ChainRequest, handlers: StreamHandlers): Promise<() => Promise<void>> {
     const matching = this.instruments.filter(
       (i) => i.base === request.underlying && i.expiry === request.expiry,
     );
@@ -322,7 +328,12 @@ export abstract class SdkBaseAdapter extends BaseAdapter {
         indexPriceUsd: q.indexPrice,
         volume24h: q.volume24h,
         openInterest: q.openInterest,
-        openInterestUsd: this.normalizeOpenInterestUsd(inst, q.openInterest, q.openInterestUsd, q.underlyingPrice),
+        openInterestUsd: this.normalizeOpenInterestUsd(
+          inst,
+          q.openInterest,
+          q.openInterestUsd,
+          q.underlyingPrice,
+        ),
         volume24hUsd: q.volume24hUsd,
         estimatedFees: this.estimateFees(
           inst,
@@ -373,10 +384,16 @@ export abstract class SdkBaseAdapter extends BaseAdapter {
     const contractValueCurrency = (inst.contractValueCurrency ?? inst.base).toUpperCase();
 
     if (contractValueCurrency === inst.base.toUpperCase()) {
-      return underlyingPriceUsd != null ? openInterestContracts * contractSize * underlyingPriceUsd : null;
+      return underlyingPriceUsd != null
+        ? openInterestContracts * contractSize * underlyingPriceUsd
+        : null;
     }
 
-    if (contractValueCurrency === 'USD' || contractValueCurrency === 'USDT' || contractValueCurrency === 'USDC') {
+    if (
+      contractValueCurrency === 'USD' ||
+      contractValueCurrency === 'USDT' ||
+      contractValueCurrency === 'USDC'
+    ) {
       return openInterestContracts * contractSize;
     }
 
@@ -423,14 +440,18 @@ export abstract class SdkBaseAdapter extends BaseAdapter {
     };
   }
 
-  protected removeCachedInstruments(predicate: (instrument: CachedInstrument) => boolean): CachedInstrument[] {
+  protected removeCachedInstruments(
+    predicate: (instrument: CachedInstrument) => boolean,
+  ): CachedInstrument[] {
     const removed = this.instruments.filter(predicate);
     if (removed.length === 0) return removed;
 
     const removedExchangeSymbols = new Set(removed.map((instrument) => instrument.exchangeSymbol));
     const removedSymbols = new Set(removed.map((instrument) => instrument.symbol));
 
-    this.instruments = this.instruments.filter((instrument) => !removedExchangeSymbols.has(instrument.exchangeSymbol));
+    this.instruments = this.instruments.filter(
+      (instrument) => !removedExchangeSymbols.has(instrument.exchangeSymbol),
+    );
 
     for (const exchangeSymbol of removedExchangeSymbols) {
       this.instrumentMap.delete(exchangeSymbol);
@@ -461,8 +482,18 @@ export abstract class SdkBaseAdapter extends BaseAdapter {
     const m = raw.match(/^(\d{1,2})([A-Z]{3})(\d{2})$/);
     if (m) {
       const months: Record<string, string> = {
-        JAN: '01', FEB: '02', MAR: '03', APR: '04', MAY: '05', JUN: '06',
-        JUL: '07', AUG: '08', SEP: '09', OCT: '10', NOV: '11', DEC: '12',
+        JAN: '01',
+        FEB: '02',
+        MAR: '03',
+        APR: '04',
+        MAY: '05',
+        JUN: '06',
+        JUL: '07',
+        AUG: '08',
+        SEP: '09',
+        OCT: '10',
+        NOV: '11',
+        DEC: '12',
       };
       return `20${m[3]!}-${months[m[2]!] ?? '01'}-${m[1]!.padStart(2, '0')}`;
     }

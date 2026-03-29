@@ -6,9 +6,10 @@ export interface DeriveHealthProbe {
   error?: unknown;
 }
 
-export function deriveDeriveHealth(
-  probe: DeriveHealthProbe,
-): { status: 'connected' | 'degraded'; message: string } {
+export function deriveDeriveHealth(probe: DeriveHealthProbe): {
+  status: 'connected' | 'degraded';
+  message: string;
+} {
   if (probe.error != null) {
     return {
       status: 'degraded',

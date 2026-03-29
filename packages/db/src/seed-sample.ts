@@ -1,6 +1,19 @@
 import { PostgresTradeStore, type PersistedTradeLeg, type PersistedTradeRecord } from './index.js';
 
-const MONTH_CODES = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'] as const;
+const MONTH_CODES = [
+  'JAN',
+  'FEB',
+  'MAR',
+  'APR',
+  'MAY',
+  'JUN',
+  'JUL',
+  'AUG',
+  'SEP',
+  'OCT',
+  'NOV',
+  'DEC',
+] as const;
 
 const databaseUrl = process.env['DATABASE_URL'];
 
@@ -30,11 +43,16 @@ function buildSampleRecords(): PersistedTradeRecord[] {
   return records;
 }
 
-function buildLiveRecords(underlying: 'BTC' | 'ETH', now: number, count: number): PersistedTradeRecord[] {
+function buildLiveRecords(
+  underlying: 'BTC' | 'ETH',
+  now: number,
+  count: number,
+): PersistedTradeRecord[] {
   const venues = ['deribit', 'bybit', 'okx', 'binance', 'derive'] as const;
-  const expiries = underlying === 'BTC'
-    ? ['2026-03-27', '2026-04-03', '2026-04-24']
-    : ['2026-03-27', '2026-04-03'];
+  const expiries =
+    underlying === 'BTC'
+      ? ['2026-03-27', '2026-04-03', '2026-04-24']
+      : ['2026-03-27', '2026-04-03'];
   const baseSpot = underlying === 'BTC' ? 69_800 : 3_520;
 
   return Array.from({ length: count }, (_, index) => {
@@ -43,13 +61,15 @@ function buildLiveRecords(underlying: 'BTC' | 'ETH', now: number, count: number)
     const optionType = index % 2 === 0 ? 'call' : 'put';
     const strikeStep = underlying === 'BTC' ? 1_000 : 50;
     const strikeBase = underlying === 'BTC' ? 64_000 : 3_000;
-    const strike = strikeBase + ((index % 12) * strikeStep);
+    const strike = strikeBase + (index % 12) * strikeStep;
     const tradeId = `seed-live-${underlying.toLowerCase()}-${String(index + 1).padStart(4, '0')}`;
     const tradeTs = new Date(now - index * 12_000);
     const direction = index % 3 === 0 ? 'sell' : 'buy';
     const contracts = Number((0.1 + (index % 5) * 0.25).toFixed(4));
     const referencePriceUsd = baseSpot + (index % 9) * (underlying === 'BTC' ? 120 : 8);
-    const price = Number((optionType === 'call' ? 480 + (index % 7) * 38 : 410 + (index % 6) * 29).toFixed(2));
+    const price = Number(
+      (optionType === 'call' ? 480 + (index % 7) * 38 : 410 + (index % 6) * 29).toFixed(2),
+    );
     const premiumUsd = Number((price * contracts).toFixed(2));
     const notionalUsd = Number((contracts * referencePriceUsd).toFixed(2));
     const instrumentName = formatInstrument(underlying, expiry, strike, optionType);
@@ -85,17 +105,21 @@ function buildLiveRecords(underlying: 'BTC' | 'ETH', now: number, count: number)
   });
 }
 
-function buildBlockRecords(underlying: 'BTC' | 'ETH', now: number, count: number): PersistedTradeRecord[] {
+function buildBlockRecords(
+  underlying: 'BTC' | 'ETH',
+  now: number,
+  count: number,
+): PersistedTradeRecord[] {
   const venues = ['deribit', 'bybit', 'okx', 'binance', 'derive'] as const;
-  const expiries = underlying === 'BTC'
-    ? ['2026-04-24', '2026-05-29']
-    : ['2026-04-24', '2026-05-29'];
+  const expiries =
+    underlying === 'BTC' ? ['2026-04-24', '2026-05-29'] : ['2026-04-24', '2026-05-29'];
   const baseSpot = underlying === 'BTC' ? 69_800 : 3_520;
 
   return Array.from({ length: count }, (_, index) => {
     const venue = pickVenue(venues, index);
     const expiry = expiries[index % expiries.length] ?? expiries[0]!;
-    const lowerStrike = (underlying === 'BTC' ? 68_000 : 3_200) + ((index % 6) * (underlying === 'BTC' ? 1_000 : 50));
+    const lowerStrike =
+      (underlying === 'BTC' ? 68_000 : 3_200) + (index % 6) * (underlying === 'BTC' ? 1_000 : 50);
     const upperStrike = lowerStrike + (underlying === 'BTC' ? 4_000 : 200);
     const optionType = index % 2 === 0 ? 'call' : 'put';
     const tradeId = `seed-block-${underlying.toLowerCase()}-${String(index + 1).padStart(4, '0')}`;
@@ -156,7 +180,12 @@ function buildBlockRecords(underlying: 'BTC' | 'ETH', now: number, count: number
   });
 }
 
-function formatInstrument(underlying: string, expiry: string, strike: number, optionType: 'call' | 'put'): string {
+function formatInstrument(
+  underlying: string,
+  expiry: string,
+  strike: number,
+  optionType: 'call' | 'put',
+): string {
   const [, year, month, day] = expiry.match(/^(\d{4})-(\d{2})-(\d{2})$/) ?? [];
   if (!year || !month || !day) {
     throw new Error(`Invalid expiry: ${expiry}`);

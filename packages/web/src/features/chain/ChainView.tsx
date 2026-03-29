@@ -1,28 +1,28 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from 'react';
 
-import { useAppStore } from "@stores/app-store";
-import { useChainQuery, useExpiries, useStats } from "./queries";
-import { useChainWs } from "@hooks/useChainWs";
-import { useOpenPalette } from "@components/layout";
-import { Spinner, EmptyState } from "@components/ui";
-import { useIsMobile } from "@hooks/useIsMobile";
-import { fmtIv, fmtUsdCompact } from "@lib/format";
+import { useAppStore } from '@stores/app-store';
+import { useChainQuery, useExpiries, useStats } from './queries';
+import { useChainWs } from '@hooks/useChainWs';
+import { useOpenPalette } from '@components/layout';
+import { Spinner, EmptyState } from '@components/ui';
+import { useIsMobile } from '@hooks/useIsMobile';
+import { fmtIv, fmtUsdCompact } from '@lib/format';
 
-import ExpiryBar    from "./ExpiryBar";
-import StatStrip    from "./StatStrip";
-import ChainTable from "./ChainTable";
-import VenueSidebar from "./VenueSidebar";
-import MyIvInput    from "./MyIvInput";
-import styles       from "./ChainView.module.css";
+import ExpiryBar from './ExpiryBar';
+import StatStrip from './StatStrip';
+import ChainTable from './ChainTable';
+import VenueSidebar from './VenueSidebar';
+import MyIvInput from './MyIvInput';
+import styles from './ChainView.module.css';
 
 export default function ChainView() {
-  const underlying  = useAppStore((s) => s.underlying);
-  const expiry      = useAppStore((s) => s.expiry);
-  const setExpiry   = useAppStore((s) => s.setExpiry);
+  const underlying = useAppStore((s) => s.underlying);
+  const expiry = useAppStore((s) => s.expiry);
+  const setExpiry = useAppStore((s) => s.setExpiry);
   const activeVenues = useAppStore((s) => s.activeVenues);
   const toggleVenue = useAppStore((s) => s.toggleVenue);
   const setActiveVenues = useAppStore((s) => s.setActiveVenues);
-  const myIv        = useAppStore((s) => s.myIv);
+  const myIv = useAppStore((s) => s.myIv);
   const openPalette = useOpenPalette();
 
   const { data: expiriesData } = useExpiries(underlying);
@@ -32,7 +32,11 @@ export default function ChainView() {
   const { data: chain, isLoading, error } = useChainQuery(underlying, expiry, activeVenues);
   const { data: marketStats } = useStats(underlying);
   const setFeedStatus = useAppStore((s) => s.setFeedStatus);
-  const { connectionState, staleMs, failedVenues } = useChainWs({ underlying, expiry, venues: activeVenues });
+  const { connectionState, staleMs, failedVenues } = useChainWs({
+    underlying,
+    expiry,
+    venues: activeVenues,
+  });
 
   useEffect(() => {
     setFeedStatus({ connectionState, failedVenueCount: failedVenues.length, staleMs });
@@ -60,7 +64,7 @@ export default function ChainView() {
   const isMobile = useIsMobile();
   const [statsExpanded, setStatsExpanded] = useState(false);
 
-  const myIvFloat = myIv !== "" ? parseFloat(myIv) / 100 : null;
+  const myIvFloat = myIv !== '' ? parseFloat(myIv) / 100 : null;
   const myIvValid = myIvFloat != null && !isNaN(myIvFloat) && myIvFloat > 0;
 
   if (isMobile) {
@@ -74,9 +78,12 @@ export default function ChainView() {
               onClick={() => setStatsExpanded((v) => !v)}
             >
               <span className={styles.mstLabel}>
-                ATM {fmtIv(chain.stats.atmIv)} · P/C {chain.stats.putCallOiRatio?.toFixed(2) ?? "—"} · OI {fmtUsdCompact(chain.stats.totalOiUsd)}
+                ATM {fmtIv(chain.stats.atmIv)} · P/C {chain.stats.putCallOiRatio?.toFixed(2) ?? '—'}{' '}
+                · OI {fmtUsdCompact(chain.stats.totalOiUsd)}
               </span>
-              <span className={styles.mstChevron} data-expanded={statsExpanded}>›</span>
+              <span className={styles.mstChevron} data-expanded={statsExpanded}>
+                ›
+              </span>
             </button>
           )}
 
@@ -91,14 +98,14 @@ export default function ChainView() {
           )}
 
           <div className={styles.tableArea}>
-            {isLoading && !chain && (
-              <Spinner size="lg" label="Loading chain data…" />
-            )}
+            {isLoading && !chain && <Spinner size="lg" label="Loading chain data…" />}
             {error && !chain && (
               <EmptyState
                 icon="⚠"
                 title="Failed to load chain"
-                detail={error instanceof Error ? error.message : "Check your connection and try again."}
+                detail={
+                  error instanceof Error ? error.message : 'Check your connection and try again.'
+                }
               />
             )}
             {chain && chain.strikes.length === 0 && (
@@ -157,14 +164,14 @@ export default function ChainView() {
         </div>
 
         <div className={styles.tableArea}>
-          {isLoading && !chain && (
-            <Spinner size="lg" label="Loading chain data…" />
-          )}
+          {isLoading && !chain && <Spinner size="lg" label="Loading chain data…" />}
           {error && !chain && (
             <EmptyState
               icon="⚠"
               title="Failed to load chain"
-              detail={error instanceof Error ? error.message : "Check your connection and try again."}
+              detail={
+                error instanceof Error ? error.message : 'Check your connection and try again.'
+              }
             />
           )}
           {chain && chain.strikes.length === 0 && (

@@ -65,7 +65,10 @@ export function buildOkxInstrumentSubscriptionArgs(
 
 export function buildOkxReplayArgs(state: OkxSubscriptionState): object[] {
   return [
-    ...[...state.subscribedFamilies].map((family) => ({ channel: 'opt-summary', instFamily: family })),
+    ...[...state.subscribedFamilies].map((family) => ({
+      channel: 'opt-summary',
+      instFamily: family,
+    })),
     ...[...state.subscribedTickers].map((id) => ({ channel: 'tickers', instId: id })),
     ...[...state.subscribedMarkPrice].map((id) => ({ channel: 'mark-price', instId: id })),
   ];

@@ -17,18 +17,22 @@ function okResponse(payload: unknown): Response {
 describe('SpotRuntime', () => {
   it('polls snapshots and stores them by symbol and base', async () => {
     const runtime = new SpotRuntime({
-      fetchImpl: vi.fn(async () => okResponse({
-        retCode: 0,
-        result: {
-          list: [{
-            lastPrice: '70000',
-            prevPrice24h: '69000',
-            price24hPcnt: '0.01449',
-            highPrice24h: '71000',
-            lowPrice24h: '68000',
-          }],
-        },
-      })),
+      fetchImpl: vi.fn(async () =>
+        okResponse({
+          retCode: 0,
+          result: {
+            list: [
+              {
+                lastPrice: '70000',
+                prevPrice24h: '69000',
+                price24hPcnt: '0.01449',
+                highPrice24h: '71000',
+                lowPrice24h: '68000',
+              },
+            ],
+          },
+        }),
+      ),
     });
 
     await runtime.start(['BTCUSDT']);
@@ -43,18 +47,22 @@ describe('SpotRuntime', () => {
   it('emits snapshot events to listeners', async () => {
     const listener = vi.fn();
     const runtime = new SpotRuntime({
-      fetchImpl: vi.fn(async () => okResponse({
-        retCode: 0,
-        result: {
-          list: [{
-            lastPrice: '2000',
-            prevPrice24h: '1950',
-            price24hPcnt: '0.02564',
-            highPrice24h: '2050',
-            lowPrice24h: '1900',
-          }],
-        },
-      })),
+      fetchImpl: vi.fn(async () =>
+        okResponse({
+          retCode: 0,
+          result: {
+            list: [
+              {
+                lastPrice: '2000',
+                prevPrice24h: '1950',
+                price24hPcnt: '0.02564',
+                highPrice24h: '2050',
+                lowPrice24h: '1900',
+              },
+            ],
+          },
+        }),
+      ),
     });
 
     runtime.subscribe({ onEvent: listener });
@@ -71,18 +79,22 @@ describe('SpotRuntime', () => {
   it('keeps polling on an interval until disposed', async () => {
     vi.useFakeTimers();
 
-    const fetchImpl = vi.fn(async () => okResponse({
-      retCode: 0,
-      result: {
-        list: [{
-          lastPrice: '100',
-          prevPrice24h: '90',
-          price24hPcnt: '0.1111',
-          highPrice24h: '110',
-          lowPrice24h: '80',
-        }],
-      },
-    }));
+    const fetchImpl = vi.fn(async () =>
+      okResponse({
+        retCode: 0,
+        result: {
+          list: [
+            {
+              lastPrice: '100',
+              prevPrice24h: '90',
+              price24hPcnt: '0.1111',
+              highPrice24h: '110',
+              lowPrice24h: '80',
+            },
+          ],
+        },
+      }),
+    );
 
     const runtime = new SpotRuntime({ fetchImpl, pollIntervalMs: 1_000 });
     await runtime.start(['SOLUSDT']);

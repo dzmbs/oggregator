@@ -29,7 +29,9 @@ export class NoopTradeStore implements TradeStore {
     return [];
   }
 
-  async summarizeHistory(_query: TradeFilterQuery & { mode: PersistedTradeRecord['mode'] }): Promise<TradeHistorySummary> {
+  async summarizeHistory(
+    _query: TradeFilterQuery & { mode: PersistedTradeRecord['mode'] },
+  ): Promise<TradeHistorySummary> {
     return EMPTY_SUMMARY;
   }
 

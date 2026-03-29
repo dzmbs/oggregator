@@ -30,7 +30,9 @@ function createInstrument(exchangeSymbol: string): CachedInstrument {
 describe('Bybit planner', () => {
   it('builds per-instrument ticker topics', () => {
     const state = createBybitSubscriptionState();
-    const topics = buildBybitSubscriptionTopics(state, [createInstrument('BTC-25DEC26-67000-C-USDT')]);
+    const topics = buildBybitSubscriptionTopics(state, [
+      createInstrument('BTC-25DEC26-67000-C-USDT'),
+    ]);
 
     expect(topics).toEqual(['tickers.BTC-25DEC26-67000-C-USDT']);
   });

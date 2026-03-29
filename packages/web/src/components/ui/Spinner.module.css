@@ -8,7 +8,9 @@
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .ring {
@@ -18,9 +20,19 @@
   animation: spin 0.8s linear infinite;
 }
 
-.wrap[data-size="sm"] .ring { width: 16px; height: 16px; }
-.wrap[data-size="md"] .ring { width: 24px; height: 24px; }
-.wrap[data-size="lg"] .ring { width: 32px; height: 32px; border-width: 3px; }
+.wrap[data-size="sm"] .ring {
+  width: 16px;
+  height: 16px;
+}
+.wrap[data-size="md"] .ring {
+  width: 24px;
+  height: 24px;
+}
+.wrap[data-size="lg"] .ring {
+  width: 32px;
+  height: 32px;
+  border-width: 3px;
+}
 
 .label {
   font-family: var(--font-mono);

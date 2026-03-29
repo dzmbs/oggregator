@@ -7,7 +7,9 @@
   gap: var(--space-4);
 }
 
-.header { flex-shrink: 0; }
+.header {
+  flex-shrink: 0;
+}
 
 .titleRow {
   display: flex;
@@ -38,7 +40,7 @@
 }
 
 /* Curve charts and full-width items span both columns */
-.grid > :nth-child(n+3) {
+.grid > :nth-child(n + 3) {
   grid-column: 1 / -1;
 }
 
@@ -71,7 +73,11 @@
 
 /* ── Venue Volume ──────────────────────────────────── */
 
-.venueList { display: flex; flex-direction: column; gap: var(--space-2); }
+.venueList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
 
 .cardSubtitle {
   font-family: var(--font-mono);
@@ -114,7 +120,11 @@
   color: var(--text-secondary);
 }
 
-.venueLogo { width: 16px; height: 16px; object-fit: contain; }
+.venueLogo {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+}
 
 .barTrack {
   height: 16px;
@@ -148,7 +158,11 @@
 
 /* ── Put/Call Ratio ────────────────────────────────── */
 
-.pcrList { display: flex; flex-direction: column; gap: var(--space-2); }
+.pcrList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
 
 .pcrRow {
   display: grid;
@@ -208,8 +222,12 @@
   text-align: right;
 }
 
-.pcrRatio[data-bullish="true"] { color: var(--color-profit); }
-.pcrRatio[data-bearish="true"] { color: var(--color-loss); }
+.pcrRatio[data-bullish="true"] {
+  color: var(--color-profit);
+}
+.pcrRatio[data-bearish="true"] {
+  color: var(--color-loss);
+}
 
 .pcrLegend {
   display: flex;
@@ -228,8 +246,12 @@
   margin-left: var(--space-2);
 }
 
-.pcrLegendDot[data-type="call"] { background: var(--color-profit); }
-.pcrLegendDot[data-type="put"]  { background: var(--color-loss); }
+.pcrLegendDot[data-type="call"] {
+  background: var(--color-profit);
+}
+.pcrLegendDot[data-type="put"] {
+  background: var(--color-loss);
+}
 
 .pcrLegendNote {
   margin-left: auto;
@@ -322,8 +344,14 @@
   font-size: 11px;
 }
 
-.oiCall { color: var(--color-profit); text-align: right; padding-right: var(--space-2); }
-.oiPut  { color: var(--color-loss); }
+.oiCall {
+  color: var(--color-profit);
+  text-align: right;
+  padding-right: var(--space-2);
+}
+.oiPut {
+  color: var(--color-loss);
+}
 
 .oiLegend {
   display: flex;
@@ -363,7 +391,9 @@
   color: inherit;
   cursor: pointer;
   opacity: 1;
-  transition: opacity var(--transition-fast), color var(--transition-fast);
+  transition:
+    opacity var(--transition-fast),
+    color var(--transition-fast);
 }
 
 .curveLegendItem[data-active="true"] {
@@ -440,8 +470,12 @@
   font-weight: 600;
 }
 
-.summaryLabel[data-type="call"] { color: var(--color-profit); }
-.summaryLabel[data-type="put"]  { color: var(--color-loss); }
+.summaryLabel[data-type="call"] {
+  color: var(--color-profit);
+}
+.summaryLabel[data-type="put"] {
+  color: var(--color-loss);
+}
 
 .summaryValue {
   font-weight: 700;
@@ -462,22 +496,30 @@
     gap: var(--space-3);
   }
 
-  .title { font-size: var(--text-base); }
+  .title {
+    font-size: var(--text-base);
+  }
 
   /* Hide asset picker in header — shared toolbar handles it */
-  .titleRow > :nth-child(2) { display: none; }
+  .titleRow > :nth-child(2) {
+    display: none;
+  }
 
   .grid {
     grid-template-columns: 1fr;
   }
 
-  .grid > :nth-child(n+3) {
+  .grid > :nth-child(n + 3) {
     grid-column: 1;
   }
 
-  .dvolWrap { height: 350px; }
+  .dvolWrap {
+    height: 350px;
+  }
 
-  .card { padding: var(--space-3); }
+  .card {
+    padding: var(--space-3);
+  }
 
   .venueHeader,
   .venueRow {
@@ -494,9 +536,16 @@
     grid-template-columns: 70px 1fr 100px;
   }
 
-  .oiList { max-height: 300px; }
+  .oiList {
+    max-height: 300px;
+  }
 
-  .curveChartArea { min-height: 250px; }
+  .curveChartArea {
+    min-height: 250px;
+  }
 
-  .summaryGrid { grid-template-columns: 1fr; gap: var(--space-3); }
+  .summaryGrid {
+    grid-template-columns: 1fr;
+    gap: var(--space-3);
+  }
 }

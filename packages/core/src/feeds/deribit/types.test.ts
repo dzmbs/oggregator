@@ -149,14 +149,23 @@ describe('DeribitMarkPriceDataSchema', () => {
   });
 
   it('rejects non-array payload', () => {
-    const result = DeribitMarkPriceDataSchema.safeParse({ instrument_name: 'X', mark_price: 1, iv: 1 });
+    const result = DeribitMarkPriceDataSchema.safeParse({
+      instrument_name: 'X',
+      mark_price: 1,
+      iv: 1,
+    });
     expect(result.success).toBe(false);
   });
 
   it('rejects array containing invalid item', () => {
     const bad = [
       { timestamp: 123, mark_price: 0.1, iv: 0.5, instrument_name: 'BTC-2JUN21-37000-P' },
-      { timestamp: 123, mark_price: 'not-a-number', iv: 0.5, instrument_name: 'BTC-4JUN21-40500-P' },
+      {
+        timestamp: 123,
+        mark_price: 'not-a-number',
+        iv: 0.5,
+        instrument_name: 'BTC-4JUN21-40500-P',
+      },
     ];
     const result = DeribitMarkPriceDataSchema.safeParse(bad);
     expect(result.success).toBe(false);

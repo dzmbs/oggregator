@@ -45,13 +45,15 @@ export interface SpotRuntimeOptions {
 const BybitSpotTickerSchema = z.object({
   retCode: z.number(),
   result: z.object({
-    list: z.array(z.object({
-      lastPrice: z.string(),
-      prevPrice24h: z.string(),
-      price24hPcnt: z.string(),
-      highPrice24h: z.string(),
-      lowPrice24h: z.string(),
-    })),
+    list: z.array(
+      z.object({
+        lastPrice: z.string(),
+        prevPrice24h: z.string(),
+        price24hPcnt: z.string(),
+        highPrice24h: z.string(),
+        lowPrice24h: z.string(),
+      }),
+    ),
   }),
 });
 
@@ -127,7 +129,9 @@ export class SpotRuntime {
 
     for (const symbol of this.symbols) {
       try {
-        const response = await this.fetchImpl(`${BYBIT_REST_BASE_URL}${BYBIT_TICKERS}?category=spot&symbol=${symbol}`);
+        const response = await this.fetchImpl(
+          `${BYBIT_REST_BASE_URL}${BYBIT_TICKERS}?category=spot&symbol=${symbol}`,
+        );
         if (!response.ok) {
           this.runtimeLog.warn({ symbol, status: response.status }, 'spot fetch failed');
           continue;

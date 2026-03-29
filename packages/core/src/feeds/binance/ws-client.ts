@@ -103,11 +103,12 @@ export class BinanceWsAdapter extends SdkBaseAdapter {
     await this.fetchTickerSnapshot(instruments);
 
     // Refresh volume + lastPrice periodically — WS stream doesn't carry either.
-    this.tickerRefreshTimer = setInterval(
-      () => { void this.fetchTickerSnapshot(this.instruments); },
-      TICKER_REFRESH_INTERVAL_MS,
-    );
-    this.healthCheckTimer = setInterval(() => { void this.runHealthCheck(); }, HEALTH_CHECK_INTERVAL_MS);
+    this.tickerRefreshTimer = setInterval(() => {
+      void this.fetchTickerSnapshot(this.instruments);
+    }, TICKER_REFRESH_INTERVAL_MS);
+    this.healthCheckTimer = setInterval(() => {
+      void this.runHealthCheck();
+    }, HEALTH_CHECK_INTERVAL_MS);
     void this.runHealthCheck();
 
     return instruments;
@@ -128,19 +129,23 @@ export class BinanceWsAdapter extends SdkBaseAdapter {
     const settle = quoteAsset ?? 'USDT';
 
     // Use API fields when present — more reliable than parsing the symbol name.
-    const right = parsed.side === 'CALL' ? 'call' as const
-      : parsed.side === 'PUT'  ? 'put'  as const
-      : (parts[4] === 'C'      ? 'call' as const : 'put' as const);
+    const right =
+      parsed.side === 'CALL'
+        ? ('call' as const)
+        : parsed.side === 'PUT'
+          ? ('put' as const)
+          : parts[4] === 'C'
+            ? ('call' as const)
+            : ('put' as const);
 
-    const strike = parsed.strikePrice != null
-      ? Number(parsed.strikePrice)
-      : Number(parts[3]);
+    const strike = parsed.strikePrice != null ? Number(parsed.strikePrice) : Number(parts[3]);
 
-    const expiry = parsed.expiryDate != null
-      ? new Date(parsed.expiryDate).toISOString().slice(0, 10)
-      : this.parseExpiry(parts[2]!);
+    const expiry =
+      parsed.expiryDate != null
+        ? new Date(parsed.expiryDate).toISOString().slice(0, 10)
+        : this.parseExpiry(parts[2]!);
 
-    const priceFilter = filters?.find(f => f.filterType === 'PRICE_FILTER');
+    const priceFilter = filters?.find((f) => f.filterType === 'PRICE_FILTER');
 
     return {
       symbol: this.buildCanonicalSymbol(base, settle, expiry, strike, right),
@@ -163,10 +168,7 @@ export class BinanceWsAdapter extends SdkBaseAdapter {
 
   private waitForFirstData(): Promise<void> {
     const target = new Set(
-      [
-        ...this.subscriptions.subscribedStreams,
-        ...this.subscriptions.pendingSubscribeStreams,
-      ]
+      [...this.subscriptions.subscribedStreams, ...this.subscriptions.pendingSubscribeStreams]
         .filter((stream) => stream.endsWith('@optionMarkPrice'))
         .map((stream) => stream.split('@')[0]!),
     ).size;
@@ -179,11 +181,17 @@ export class BinanceWsAdapter extends SdkBaseAdapter {
         }
         if (seen.size >= target) {
           clearInterval(check);
-          log.info({ quotes: this.quoteStore.size, underlyings: seen.size }, 'initial data received');
+          log.info(
+            { quotes: this.quoteStore.size, underlyings: seen.size },
+            'initial data received',
+          );
           resolve();
         }
       }, 200);
-      setTimeout(() => { clearInterval(check); resolve(); }, 10_000);
+      setTimeout(() => {
+        clearInterval(check);
+        resolve();
+      }, 10_000);
     });
   }
 
@@ -202,7 +210,9 @@ export class BinanceWsAdapter extends SdkBaseAdapter {
     if (this.wsClient == null) {
       this.wsClient = new TopicWsClient(BINANCE_MARK_WS_URL, 'binance-ws', {
         onStatusChange: (state) => {
-          this.emitStatus(state === 'connected' ? 'connected' : state === 'down' ? 'down' : 'reconnecting');
+          this.emitStatus(
+            state === 'connected' ? 'connected' : state === 'down' ? 'down' : 'reconnecting',
+          );
         },
         onSocket: (socket) => {
           socket.on('ping', () => {
@@ -319,11 +329,15 @@ export class BinanceWsAdapter extends SdkBaseAdapter {
     }
 
     const removedStreams = streams.filter(
-      (stream) => this.subscriptions.subscribedStreams.has(stream) || this.subscriptions.pendingSubscribeStreams.has(stream),
+      (stream) =>
+        this.subscriptions.subscribedStreams.has(stream) ||
+        this.subscriptions.pendingSubscribeStreams.has(stream),
     );
     if (removedStreams.length === 0) return;
 
-    const ackedStreams = removedStreams.filter((stream) => this.subscriptions.subscribedStreams.has(stream));
+    const ackedStreams = removedStreams.filter((stream) =>
+      this.subscriptions.subscribedStreams.has(stream),
+    );
     if (ackedStreams.length > 0) {
       this.wsClient.send({ method: 'UNSUBSCRIBE', params: ackedStreams, id: ++this.msgId });
     }
@@ -356,9 +370,10 @@ export class BinanceWsAdapter extends SdkBaseAdapter {
     }
 
     if (typeof record['code'] === 'number' && typeof record['msg'] === 'string') {
-      const streams = id != null
-        ? this.pendingSubscribeById.get(id) ?? []
-        : [...this.subscriptions.pendingSubscribeStreams];
+      const streams =
+        id != null
+          ? (this.pendingSubscribeById.get(id) ?? [])
+          : [...this.subscriptions.pendingSubscribeStreams];
       if (streams.length > 0) {
         rollbackBinancePendingStreams(this.subscriptions, streams);
       }
@@ -367,7 +382,10 @@ export class BinanceWsAdapter extends SdkBaseAdapter {
       } else {
         this.pendingSubscribeById.clear();
       }
-      log.warn({ code: record['code'], message: record['msg'], id, count: streams.length }, 'stream subscribe rejected');
+      log.warn(
+        { code: record['code'], message: record['msg'], id, count: streams.length },
+        'stream subscribe rejected',
+      );
       return true;
     }
 
@@ -437,9 +455,9 @@ export class BinanceWsAdapter extends SdkBaseAdapter {
     const parts = d.s.match(/^(\w+)-(\d{6})-([\d.]+)-([CP])$/);
     if (!parts) return;
 
-    const base   = parts[1]!;
+    const base = parts[1]!;
     const settle = d.qa;
-    const right  = d.d === 'CALL' ? 'call' as const : 'put' as const;
+    const right = d.d === 'CALL' ? ('call' as const) : ('put' as const);
     const strike = Number(d.sp);
     const expiry = new Date(d.dt).toISOString().slice(0, 10);
 
@@ -462,10 +480,7 @@ export class BinanceWsAdapter extends SdkBaseAdapter {
     this.symbolIndex.set(inst.symbol, inst.exchangeSymbol);
 
     // Subscribe OI stream for this instrument's expiry if not already tracked.
-    const oiStreams = trackBinanceStreams(
-      this.subscriptions,
-      buildBinanceOiStreams([inst]),
-    );
+    const oiStreams = trackBinanceStreams(this.subscriptions, buildBinanceOiStreams([inst]));
     if (oiStreams.length > 0) this.sendSubscribe(oiStreams);
 
     log.info({ symbol: d.s }, 'added new instrument from !optionSymbol');
@@ -512,7 +527,10 @@ export class BinanceWsAdapter extends SdkBaseAdapter {
         const prev = this.quoteStore.get(ticker.symbol);
         if (!prev) continue;
 
-        this.emitQuoteUpdate(ticker.symbol, mergeBinanceRestTicker(prev, ticker, (value) => this.safeNum(value)));
+        this.emitQuoteUpdate(
+          ticker.symbol,
+          mergeBinanceRestTicker(prev, ticker, (value) => this.safeNum(value)),
+        );
         merged++;
       }
       log.info({ count: merged }, 'refreshed volume + lastPrice from ticker');
@@ -521,7 +539,11 @@ export class BinanceWsAdapter extends SdkBaseAdapter {
     }
 
     // OI REST call only on first run — WS openInterest streams keep it updated.
-    if (this.quoteStore.size > 0 && [...this.quoteStore.values()].some(q => q.openInterest != null)) return;
+    if (
+      this.quoteStore.size > 0 &&
+      [...this.quoteStore.values()].some((q) => q.openInterest != null)
+    )
+      return;
 
     const oiPairs = new Set<string>();
     for (const inst of instruments) {
@@ -533,10 +555,16 @@ export class BinanceWsAdapter extends SdkBaseAdapter {
       const [base, expiry] = pair.split(':');
       if (!base || !expiry) continue;
       try {
-        const raw = await this.fetchEapi(`/eapi/v1/openInterest?underlyingAsset=${base}&expiration=${expiry}`);
+        const raw = await this.fetchEapi(
+          `/eapi/v1/openInterest?underlyingAsset=${base}&expiration=${expiry}`,
+        );
         if (!Array.isArray(raw)) continue;
         for (const item of raw) {
-          const t = item as { symbol?: string; sumOpenInterest?: string; sumOpenInterestUsd?: string };
+          const t = item as {
+            symbol?: string;
+            sumOpenInterest?: string;
+            sumOpenInterestUsd?: string;
+          };
           if (typeof t.symbol !== 'string') continue;
           const prev = this.quoteStore.get(t.symbol);
           if (prev) {
@@ -593,8 +621,14 @@ export class BinanceWsAdapter extends SdkBaseAdapter {
   }
 
   override async dispose(): Promise<void> {
-    if (this.tickerRefreshTimer) { clearInterval(this.tickerRefreshTimer); this.tickerRefreshTimer = null; }
-    if (this.healthCheckTimer) { clearInterval(this.healthCheckTimer); this.healthCheckTimer = null; }
+    if (this.tickerRefreshTimer) {
+      clearInterval(this.tickerRefreshTimer);
+      this.tickerRefreshTimer = null;
+    }
+    if (this.healthCheckTimer) {
+      clearInterval(this.healthCheckTimer);
+      this.healthCheckTimer = null;
+    }
     await this.unsubscribeAll();
     await this.wsClient?.disconnect();
     this.wsClient = null;

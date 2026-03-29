@@ -12,8 +12,9 @@ export function deriveBinanceHealth(
     };
   }
 
-  const hasSymbols = exchangeInfo != null
-    && (Array.isArray(exchangeInfo.optionSymbols) || Array.isArray(exchangeInfo.symbols));
+  const hasSymbols =
+    exchangeInfo != null &&
+    (Array.isArray(exchangeInfo.optionSymbols) || Array.isArray(exchangeInfo.symbols));
 
   if (serverTime != null && hasSymbols) {
     return {

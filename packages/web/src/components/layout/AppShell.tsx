@@ -1,26 +1,26 @@
-import { useState, useEffect, createContext, useContext } from "react";
-import type { ReactNode } from "react";
+import { useState, useEffect, createContext, useContext } from 'react';
+import type { ReactNode } from 'react';
 
-import { CommandPalette } from "@components/ui";
-import { useAppStore } from "@stores/app-store";
+import { CommandPalette } from '@components/ui';
+import { useAppStore } from '@stores/app-store';
 
-import { useIsMobile } from "@hooks/useIsMobile";
+import { useIsMobile } from '@hooks/useIsMobile';
 
-import TopBar from "./TopBar";
-import MobileNav from "./MobileNav";
-import MobileToolbar from "./MobileToolbar";
-import styles from "./AppShell.module.css";
+import TopBar from './TopBar';
+import MobileNav from './MobileNav';
+import MobileToolbar from './MobileToolbar';
+import styles from './AppShell.module.css';
 
 interface Tab {
-  id:     string;
-  label:  string;
+  id: string;
+  label: string;
   badge?: string;
 }
 
 interface AppShellProps {
-  children:    ReactNode;
+  children: ReactNode;
   underlyings: string[];
-  tabs:        readonly Tab[];
+  tabs: readonly Tab[];
 }
 
 const PaletteContext = createContext<() => void>(() => {});
@@ -31,19 +31,19 @@ export function useOpenPalette() {
 
 export default function AppShell({ children, underlyings, tabs }: AppShellProps) {
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const underlying    = useAppStore((s) => s.underlying);
+  const underlying = useAppStore((s) => s.underlying);
   const setUnderlying = useAppStore((s) => s.setUnderlying);
-  const isMobile      = useIsMobile();
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
         setPaletteOpen((v) => !v);
       }
     }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
   return (

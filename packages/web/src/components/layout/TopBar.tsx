@@ -1,35 +1,36 @@
-import { useAppStore } from "@stores/app-store";
+import { useAppStore } from '@stores/app-store';
 
-import styles from "./TopBar.module.css";
+import styles from './TopBar.module.css';
 
 interface Tab {
-  id:     string;
-  label:  string;
+  id: string;
+  label: string;
   badge?: string;
 }
 
 interface TopBarProps {
-  tabs:          readonly Tab[];
+  tabs: readonly Tab[];
   onOpenPalette: () => void;
 }
 
 export default function TopBar({ tabs, onOpenPalette }: TopBarProps) {
-  const activeTab    = useAppStore((s) => s.activeTab);
+  const activeTab = useAppStore((s) => s.activeTab);
   const setActiveTab = useAppStore((s) => s.setActiveTab);
   const activeVenues = useAppStore((s) => s.activeVenues);
-  const feedStatus   = useAppStore((s) => s.feedStatus);
+  const feedStatus = useAppStore((s) => s.feedStatus);
 
   const { connectionState, failedVenueCount, staleMs } = feedStatus;
   const activeFeeds = activeVenues.length - failedVenueCount;
-  const isLive      = connectionState === "live";
-  const isWarning   = connectionState === "reconnecting" || connectionState === "stale";
-  const statusText  = isLive && staleMs != null
-    ? `${activeFeeds} feeds · ${staleMs}ms`
-    : `${activeFeeds} feeds`;
+  const isLive = connectionState === 'live';
+  const isWarning = connectionState === 'reconnecting' || connectionState === 'stale';
+  const statusText =
+    isLive && staleMs != null ? `${activeFeeds} feeds · ${staleMs}ms` : `${activeFeeds} feeds`;
 
   return (
     <header className={styles.bar}>
-      <a href="#" className={styles.logo}>oggregator</a>
+      <a href="#" className={styles.logo}>
+        oggregator
+      </a>
 
       <div className={styles.pillGroup} role="tablist">
         {tabs.map((tab) => (

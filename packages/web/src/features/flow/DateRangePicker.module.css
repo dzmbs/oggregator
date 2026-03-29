@@ -17,7 +17,10 @@
   font-size: 11px;
   font-weight: 600;
   cursor: pointer;
-  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast);
 }
 
 .trigger:hover {
@@ -90,7 +93,9 @@
   border: 1px solid var(--border-subtle);
   border-radius: 11px;
   background: color-mix(in srgb, var(--bg-base) 92%, transparent);
-  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  transition:
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast);
 }
 
 .inputWrap:focus-within,

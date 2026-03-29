@@ -21,7 +21,6 @@ import type { TradeEvent, TradeRuntimeHealth, TradeStreamState, VenueStream } fr
 
 const log = feedLogger('trade-runtime');
 
-
 /**
  * Subscribes to bulk option trade streams across all 5 venues.
  * Maintains a ring buffer of the last N trades per underlying.
@@ -53,14 +52,12 @@ export class TradeRuntime {
     }
 
     // Seed recent trades in the background. Slow REST venues must not delay live flow availability.
-    void Promise.allSettled(underlyings.map(u => this.seedFromRest(u)));
+    void Promise.allSettled(underlyings.map((u) => this.seedFromRest(u)));
   }
 
   private async seedFromRest(underlying: string): Promise<void> {
     const seedStreams = VENUE_STREAMS.filter((stream) => stream.seed != null);
-    const results = await Promise.allSettled(
-      seedStreams.map((stream) => stream.seed!(underlying)),
-    );
+    const results = await Promise.allSettled(seedStreams.map((stream) => stream.seed!(underlying)));
 
     let total = 0;
     for (const [index, result] of results.entries()) {
@@ -68,7 +65,10 @@ export class TradeRuntime {
       if (!stream) continue;
 
       if (result.status === 'rejected') {
-        log.warn({ venue: stream.venue, underlying, err: String(result.reason) }, 'trade seed failed');
+        log.warn(
+          { venue: stream.venue, underlying, err: String(result.reason) },
+          'trade seed failed',
+        );
         continue;
       }
 
@@ -113,7 +113,9 @@ export class TradeRuntime {
           reconnects: currentState?.reconnects ?? 0,
           errors: currentState?.errors ?? 0,
           seedTrades: currentState?.seedTrades ?? 0,
-          bufferedTrades: this.buffers.get(underlying)?.filter((trade) => trade.venue === stream.venue).length ?? 0,
+          bufferedTrades:
+            this.buffers.get(underlying)?.filter((trade) => trade.venue === stream.venue).length ??
+            0,
         } satisfies TradeRuntimeHealth;
       }),
     );
@@ -135,7 +137,10 @@ export class TradeRuntime {
         connected: true,
         lastStatusAt: Date.now(),
       });
-      log.info({ venue: stream.venue, underlying: subscribedUnderlyings.join(',') }, 'trade stream connected');
+      log.info(
+        { venue: stream.venue, underlying: subscribedUnderlyings.join(',') },
+        'trade stream connected',
+      );
       stream.connect(ws, underlying);
 
       if (stream.startKeepalive) {
@@ -180,7 +185,9 @@ export class TradeRuntime {
         const nextAttempt = didOpen ? 0 : attempt + 1;
         for (const subscribedUnderlying of subscribedUnderlyings) {
           this.updateStreamState(stream.venue, subscribedUnderlying, {
-            reconnects: (this.streamState.get(this.streamKey(stream.venue, subscribedUnderlying))?.reconnects ?? 0) + 1,
+            reconnects:
+              (this.streamState.get(this.streamKey(stream.venue, subscribedUnderlying))
+                ?.reconnects ?? 0) + 1,
           });
         }
         const delay = backoffDelay(nextAttempt);
@@ -195,11 +202,16 @@ export class TradeRuntime {
     ws.on('error', (err) => {
       for (const subscribedUnderlying of subscribedUnderlyings) {
         this.updateStreamState(stream.venue, subscribedUnderlying, {
-          errors: (this.streamState.get(this.streamKey(stream.venue, subscribedUnderlying))?.errors ?? 0) + 1,
+          errors:
+            (this.streamState.get(this.streamKey(stream.venue, subscribedUnderlying))?.errors ??
+              0) + 1,
           lastStatusAt: Date.now(),
         });
       }
-      log.warn({ venue: stream.venue, underlying: subscribedUnderlyings.join(','), err: err.message }, 'trade stream error');
+      log.warn(
+        { venue: stream.venue, underlying: subscribedUnderlyings.join(','), err: err.message },
+        'trade stream error',
+      );
     });
 
     this.connections.set(key, ws);
@@ -212,12 +224,15 @@ export class TradeRuntime {
   private connectionKey(stream: VenueStream, underlying: string): string {
     if (stream.venue !== 'deribit') return this.streamKey(stream.venue, underlying);
     const tradeCurrency = getDeribitTradeCurrency(underlying);
-    return tradeCurrency ? this.streamKey(stream.venue, tradeCurrency) : this.streamKey(stream.venue, underlying);
+    return tradeCurrency
+      ? this.streamKey(stream.venue, tradeCurrency)
+      : this.streamKey(stream.venue, underlying);
   }
 
   private registerConnectionUnderlying(stream: VenueStream, underlying: string): void {
     const key = this.connectionKey(stream, underlying);
-    const subscribedUnderlyings = this.subscribedUnderlyingsByConnection.get(key) ?? new Set<string>();
+    const subscribedUnderlyings =
+      this.subscribedUnderlyingsByConnection.get(key) ?? new Set<string>();
     subscribedUnderlyings.add(underlying);
     this.subscribedUnderlyingsByConnection.set(key, subscribedUnderlyings);
   }
@@ -228,14 +243,22 @@ export class TradeRuntime {
     return subscribedUnderlyings ? [...subscribedUnderlyings] : [underlying];
   }
 
-  private updateStreamState(venue: VenueId, underlying: string, patch: Partial<TradeStreamState>): void {
+  private updateStreamState(
+    venue: VenueId,
+    underlying: string,
+    patch: Partial<TradeStreamState>,
+  ): void {
     const key = this.streamKey(venue, underlying);
     const current = this.streamState.get(key);
     if (!current) return;
     this.streamState.set(key, mergeTradeStreamState(current, patch));
   }
 
-  private updateStreamStates(venue: VenueId, underlyings: string[], patch: Partial<TradeStreamState>): void {
+  private updateStreamStates(
+    venue: VenueId,
+    underlyings: string[],
+    patch: Partial<TradeStreamState>,
+  ): void {
     for (const underlying of underlyings) {
       this.updateStreamState(venue, underlying, patch);
     }
@@ -273,12 +296,18 @@ export class TradeRuntime {
 // ── Per-venue trade schemas ────────────────────────────────────
 
 const numStr = z.union([z.string(), z.number()]).transform(Number).refine(Number.isFinite);
-const optNum = z.union([z.string(), z.number(), z.null()]).optional().transform((v) => {
-  if (v == null) return null;
-  const n = Number(v);
-  return Number.isFinite(n) ? n : null;
-});
-const sideStr = z.string().transform((s) => s.toLowerCase()).pipe(z.enum(['buy', 'sell']));
+const optNum = z
+  .union([z.string(), z.number(), z.null()])
+  .optional()
+  .transform((v) => {
+    if (v == null) return null;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  });
+const sideStr = z
+  .string()
+  .transform((s) => s.toLowerCase())
+  .pipe(z.enum(['buy', 'sell']));
 
 const DeribitTradeSchema = z.object({
   instrument_name: z.string(),
@@ -289,8 +318,14 @@ const DeribitTradeSchema = z.object({
   mark_price: z.number().optional(),
   index_price: z.number().optional(),
   block_trade_id: z.string().optional(),
-  trade_id: z.union([z.string(), z.number()]).optional().transform((value) => value != null ? String(value) : null),
-  trade_seq: z.union([z.string(), z.number()]).optional().transform((value) => value != null ? String(value) : null),
+  trade_id: z
+    .union([z.string(), z.number()])
+    .optional()
+    .transform((value) => (value != null ? String(value) : null)),
+  trade_seq: z
+    .union([z.string(), z.number()])
+    .optional()
+    .transform((value) => (value != null ? String(value) : null)),
   timestamp: z.number(),
 });
 
@@ -300,7 +335,10 @@ const OkxTradeSchema = z.object({
   px: numStr,
   sz: numStr,
   fillVol: numStr.optional(),
-  tradeId: z.union([z.string(), z.number()]).optional().transform((value) => value != null ? String(value) : null),
+  tradeId: z
+    .union([z.string(), z.number()])
+    .optional()
+    .transform((value) => (value != null ? String(value) : null)),
   ts: numStr,
 });
 
@@ -323,7 +361,10 @@ const BinanceTradeSchema = z.object({
   S: sideStr,
   p: numStr,
   q: numStr,
-  t: z.union([z.string(), z.number()]).optional().transform((value) => value != null ? String(value) : null),
+  t: z
+    .union([z.string(), z.number()])
+    .optional()
+    .transform((value) => (value != null ? String(value) : null)),
   X: z.string().optional(),
   T: z.number(),
 });
@@ -331,7 +372,10 @@ const BinanceTradeSchema = z.object({
 const DeriveTradeSchema = z.object({
   instrument_name: z.string(),
   direction: sideStr,
-  trade_id: z.union([z.string(), z.number()]).optional().transform((value) => value != null ? String(value) : null),
+  trade_id: z
+    .union([z.string(), z.number()])
+    .optional()
+    .transform((value) => (value != null ? String(value) : null)),
   trade_price: numStr,
   trade_amount: numStr,
   mark_price: optNum,
@@ -364,7 +408,10 @@ function isDeribitTradeForUnderlying(instrument: string, underlying: string): bo
   return getDeribitUnderlyingFromInstrument(instrument) === normalizeTradeUnderlying(underlying);
 }
 
-function deribitTradeToEvent(raw: z.infer<typeof DeribitTradeSchema>, underlying: string): TradeEvent {
+function deribitTradeToEvent(
+  raw: z.infer<typeof DeribitTradeSchema>,
+  underlying: string,
+): TradeEvent {
   return {
     venue: 'deribit',
     tradeId: raw.trade_id ?? raw.trade_seq,
@@ -398,11 +445,14 @@ function deribitRpcSeed(currency: string): Promise<TradeEvent[]> {
     const ws = new WebSocket(DERIBIT_WS_URL);
 
     ws.on('open', () => {
-      ws.send(JSON.stringify({
-        jsonrpc: '2.0', id: 1,
-        method: 'public/get_last_trades_by_currency',
-        params: { currency, kind: 'option', count: 50 },
-      }));
+      ws.send(
+        JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'public/get_last_trades_by_currency',
+          params: { currency, kind: 'option', count: 50 },
+        }),
+      );
     });
 
     ws.on('message', (raw: WebSocket.RawData) => {
@@ -411,17 +461,33 @@ function deribitRpcSeed(currency: string): Promise<TradeEvent[]> {
 
       ws.close();
       const trades = (msg['result'] as Record<string, unknown> | undefined)?.['trades'];
-      if (!Array.isArray(trades)) { resolve([]); return; }
+      if (!Array.isArray(trades)) {
+        resolve([]);
+        return;
+      }
 
-      resolve(trades.flatMap((t) => {
-        const p = DeribitTradeSchema.safeParse(t);
-        if (!p.success) return [];
-        return [deribitTradeToEvent(p.data, getDeribitUnderlyingFromInstrument(p.data.instrument_name) ?? currency)];
-      }));
+      resolve(
+        trades.flatMap((t) => {
+          const p = DeribitTradeSchema.safeParse(t);
+          if (!p.success) return [];
+          return [
+            deribitTradeToEvent(
+              p.data,
+              getDeribitUnderlyingFromInstrument(p.data.instrument_name) ?? currency,
+            ),
+          ];
+        }),
+      );
     });
 
-    ws.on('error', () => { ws.close(); resolve([]); });
-    setTimeout(() => { ws.close(); resolve([]); }, 10_000);
+    ws.on('error', () => {
+      ws.close();
+      resolve([]);
+    });
+    setTimeout(() => {
+      ws.close();
+      resolve([]);
+    }, 10_000);
   });
 }
 
@@ -433,11 +499,14 @@ const VENUE_STREAMS: VenueStream[] = [
       const tradeCurrency = getDeribitTradeCurrency(underlying);
       if (!tradeCurrency) return;
 
-      ws.send(JSON.stringify({
-        jsonrpc: '2.0', id: 1,
-        method: 'public/subscribe',
-        params: { channels: [`trades.option.${tradeCurrency}.100ms`] },
-      }));
+      ws.send(
+        JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'public/subscribe',
+          params: { channels: [`trades.option.${tradeCurrency}.100ms`] },
+        }),
+      );
     },
     parse(msg, underlying) {
       const m = msg as Record<string, unknown>;
@@ -449,11 +518,16 @@ const VENUE_STREAMS: VenueStream[] = [
       const trades: TradeEvent[] = [];
       for (const item of data) {
         const parsed = DeribitTradeSchema.safeParse(item);
-        if (!parsed.success || !isDeribitTradeForUnderlying(parsed.data.instrument_name, underlying)) continue;
+        if (
+          !parsed.success ||
+          !isDeribitTradeForUnderlying(parsed.data.instrument_name, underlying)
+        )
+          continue;
         trades.push(
           deribitTradeToEvent(
             parsed.data,
-            getDeribitUnderlyingFromInstrument(parsed.data.instrument_name) ?? normalizeTradeUnderlying(underlying),
+            getDeribitUnderlyingFromInstrument(parsed.data.instrument_name) ??
+              normalizeTradeUnderlying(underlying),
           ),
         );
       }
@@ -464,7 +538,7 @@ const VENUE_STREAMS: VenueStream[] = [
       if (!tradeCurrency) return [];
 
       const allTrades = await fetchDeribitTradesByCurrency(tradeCurrency);
-      return allTrades.filter(t => isDeribitTradeForUnderlying(t.instrument, underlying));
+      return allTrades.filter((t) => isDeribitTradeForUnderlying(t.instrument, underlying));
     },
   },
   {
@@ -472,13 +546,17 @@ const VENUE_STREAMS: VenueStream[] = [
     url: OKX_WS_URL,
     // OKX drops idle connections — must send "ping" text every 25s
     startKeepalive(ws) {
-      return setInterval(() => { if (ws.readyState === WebSocket.OPEN) ws.send('ping'); }, 25_000);
+      return setInterval(() => {
+        if (ws.readyState === WebSocket.OPEN) ws.send('ping');
+      }, 25_000);
     },
     connect(ws, underlying) {
-      ws.send(JSON.stringify({
-        op: 'subscribe',
-        args: [{ channel: 'option-trades', instType: 'OPTION', instFamily: `${underlying}-USD` }],
-      }));
+      ws.send(
+        JSON.stringify({
+          op: 'subscribe',
+          args: [{ channel: 'option-trades', instType: 'OPTION', instFamily: `${underlying}-USD` }],
+        }),
+      );
     },
     parse(msg, underlying) {
       const m = msg as Record<string, unknown>;
@@ -488,12 +566,17 @@ const VENUE_STREAMS: VenueStream[] = [
         const parsed = OkxTradeSchema.safeParse(item);
         if (!parsed.success) continue;
         trades.push({
-          venue: 'okx', tradeId: parsed.data.tradeId,
-          instrument: parsed.data.instId, underlying,
+          venue: 'okx',
+          tradeId: parsed.data.tradeId,
+          instrument: parsed.data.instId,
+          underlying,
           side: parsed.data.side,
-          price: parsed.data.px, size: parsed.data.sz,
+          price: parsed.data.px,
+          size: parsed.data.sz,
           iv: parsed.data.fillVol ?? null,
-          markPrice: null, indexPrice: null, isBlock: false,
+          markPrice: null,
+          indexPrice: null,
+          isBlock: false,
           timestamp: parsed.data.ts,
         });
       }
@@ -505,7 +588,7 @@ const VENUE_STREAMS: VenueStream[] = [
           `${OKX_REST_BASE_URL}${OKX_INSTRUMENT_FAMILY_TRADES}?instFamily=${underlying}-USD`,
           { signal: AbortSignal.timeout(10_000) },
         );
-        const data = await res.json() as Record<string, unknown>;
+        const data = (await res.json()) as Record<string, unknown>;
         const items = data['data'] as Array<Record<string, unknown>> | undefined;
         if (!items) return [];
         // OKX REST groups trades by optType with a tradeInfo array
@@ -514,7 +597,10 @@ const VENUE_STREAMS: VenueStream[] = [
           side: sideStr,
           px: numStr,
           sz: numStr,
-          tradeId: z.union([z.string(), z.number()]).optional().transform((value) => value != null ? String(value) : null),
+          tradeId: z
+            .union([z.string(), z.number()])
+            .optional()
+            .transform((value) => (value != null ? String(value) : null)),
           ts: numStr,
         });
         const trades: TradeEvent[] = [];
@@ -525,16 +611,25 @@ const VENUE_STREAMS: VenueStream[] = [
             const p = OkxRestTradeSchema.safeParse(raw);
             if (!p.success) continue;
             trades.push({
-              venue: 'okx', tradeId: p.data.tradeId,
-              instrument: p.data.instId, underlying,
-              side: p.data.side, price: p.data.px, size: p.data.sz,
-              iv: null, markPrice: null, indexPrice: null,
-              isBlock: false, timestamp: p.data.ts,
+              venue: 'okx',
+              tradeId: p.data.tradeId,
+              instrument: p.data.instId,
+              underlying,
+              side: p.data.side,
+              price: p.data.px,
+              size: p.data.sz,
+              iv: null,
+              markPrice: null,
+              indexPrice: null,
+              isBlock: false,
+              timestamp: p.data.ts,
             });
           }
         }
         return trades;
-      } catch { return []; }
+      } catch {
+        return [];
+      }
     },
   },
   {
@@ -542,7 +637,9 @@ const VENUE_STREAMS: VenueStream[] = [
     url: BYBIT_WS_URL,
     // Bybit requires JSON ping every 20s — not WS-level ping frames
     startKeepalive(ws) {
-      return setInterval(() => { if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ op: 'ping' })); }, 20_000);
+      return setInterval(() => {
+        if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ op: 'ping' }));
+      }, 20_000);
     },
     connect(ws, underlying) {
       ws.send(JSON.stringify({ op: 'subscribe', args: [`publicTrade.${underlying}`] }));
@@ -555,13 +652,16 @@ const VENUE_STREAMS: VenueStream[] = [
         const parsed = BybitTradeSchema.safeParse(item);
         if (!parsed.success) continue;
         trades.push({
-          venue: 'bybit', tradeId: parsed.data.i ?? null,
+          venue: 'bybit',
+          tradeId: parsed.data.i ?? null,
           instrument: parsed.data.s,
           underlying: parsed.data.s.split('-')[0]!,
           side: parsed.data.S,
-          price: parsed.data.p, size: parsed.data.v,
+          price: parsed.data.p,
+          size: parsed.data.v,
           iv: parsed.data.iv ?? null,
-          markPrice: parsed.data.mP, indexPrice: parsed.data.iP,
+          markPrice: parsed.data.mP,
+          indexPrice: parsed.data.iP,
           isBlock: parsed.data.BT === true,
           timestamp: parsed.data.T,
         });
@@ -570,8 +670,11 @@ const VENUE_STREAMS: VenueStream[] = [
     },
     async seed(underlying) {
       try {
-        const res = await fetch(`${BYBIT_REST_BASE_URL}${BYBIT_RECENT_TRADE}?category=option&baseCoin=${underlying}&limit=50`, { signal: AbortSignal.timeout(10_000) });
-        const data = await res.json() as Record<string, unknown>;
+        const res = await fetch(
+          `${BYBIT_REST_BASE_URL}${BYBIT_RECENT_TRADE}?category=option&baseCoin=${underlying}&limit=50`,
+          { signal: AbortSignal.timeout(10_000) },
+        );
+        const data = (await res.json()) as Record<string, unknown>;
         const result = data['result'] as Record<string, unknown> | undefined;
         const list = result?.['list'] as Array<Record<string, unknown>> | undefined;
         if (!list) return [];
@@ -593,18 +696,24 @@ const VENUE_STREAMS: VenueStream[] = [
           const p = RestTradeSchema.safeParse(item);
           if (!p.success) continue;
           trades.push({
-            venue: 'bybit', tradeId: p.data.execId ?? null,
-            instrument: p.data.symbol, underlying,
+            venue: 'bybit',
+            tradeId: p.data.execId ?? null,
+            instrument: p.data.symbol,
+            underlying,
             side: p.data.side,
-            price: p.data.price, size: p.data.size,
+            price: p.data.price,
+            size: p.data.size,
             iv: p.data.iv ?? null,
-            markPrice: p.data.mP, indexPrice: p.data.iP,
+            markPrice: p.data.mP,
+            indexPrice: p.data.iP,
             isBlock: p.data.isBlockTrade === true,
             timestamp: p.data.time,
           });
         }
         return trades;
-      } catch { return []; }
+      } catch {
+        return [];
+      }
     },
   },
   {
@@ -614,11 +723,13 @@ const VENUE_STREAMS: VenueStream[] = [
     // requires a specific symbol — there is no bulk "all trades for underlying"
     // equivalent without auth. Users see no history until a live trade arrives.
     connect(ws, underlying) {
-      ws.send(JSON.stringify({
-        method: 'SUBSCRIBE',
-        params: [`${underlying.toLowerCase()}usdt@optionTrade`],
-        id: 1,
-      }));
+      ws.send(
+        JSON.stringify({
+          method: 'SUBSCRIBE',
+          params: [`${underlying.toLowerCase()}usdt@optionTrade`],
+          id: 1,
+        }),
+      );
     },
     parse(msg) {
       const m = msg as Record<string, unknown>;
@@ -627,30 +738,36 @@ const VENUE_STREAMS: VenueStream[] = [
       const parsed = BinanceTradeSchema.safeParse(data);
       if (!parsed.success) return [];
 
-      return [{
-        venue: 'binance' as VenueId,
-        tradeId: parsed.data.t,
-        instrument: parsed.data.s,
-        underlying: parsed.data.s.split('-')[0]!,
-        side: parsed.data.S,
-        price: parsed.data.p,
-        size: parsed.data.q,
-        iv: null,
-        markPrice: null, indexPrice: null,
-        isBlock: parsed.data.X === 'BLOCK',
-        timestamp: parsed.data.T,
-      }];
+      return [
+        {
+          venue: 'binance' as VenueId,
+          tradeId: parsed.data.t,
+          instrument: parsed.data.s,
+          underlying: parsed.data.s.split('-')[0]!,
+          side: parsed.data.S,
+          price: parsed.data.p,
+          size: parsed.data.q,
+          iv: null,
+          markPrice: null,
+          indexPrice: null,
+          isBlock: parsed.data.X === 'BLOCK',
+          timestamp: parsed.data.T,
+        },
+      ];
     },
   },
   {
     venue: 'derive',
     url: DERIVE_WS_URL,
     connect(ws, underlying) {
-      ws.send(JSON.stringify({
-        jsonrpc: '2.0', id: 1,
-        method: 'subscribe',
-        params: { channels: [`trades.option.${underlying}`] },
-      }));
+      ws.send(
+        JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'subscribe',
+          params: { channels: [`trades.option.${underlying}`] },
+        }),
+      );
     },
     parse(msg, underlying) {
       const m = msg as Record<string, unknown>;
@@ -664,10 +781,13 @@ const VENUE_STREAMS: VenueStream[] = [
         const parsed = DeriveTradeSchema.safeParse(item);
         if (!parsed.success) continue;
         trades.push({
-          venue: 'derive', tradeId: parsed.data.trade_id,
-          instrument: parsed.data.instrument_name, underlying,
+          venue: 'derive',
+          tradeId: parsed.data.trade_id,
+          instrument: parsed.data.instrument_name,
+          underlying,
           side: parsed.data.direction,
-          price: parsed.data.trade_price, size: parsed.data.trade_amount,
+          price: parsed.data.trade_price,
+          size: parsed.data.trade_amount,
           iv: null,
           markPrice: parsed.data.mark_price,
           indexPrice: parsed.data.index_price,
@@ -689,18 +809,19 @@ const VENUE_STREAMS: VenueStream[] = [
         };
 
         ws.on('open', () => {
-          ws.send(JSON.stringify({
-            jsonrpc: '2.0',
-            id: 1,
-            method: 'public/get_trade_history',
-            params: {
-              currency: underlying,
-              instrument_type: 'option',
-              page: 999999,
-              page_size: 100,
-            }, // last page = newest trades per Derive docs
-
-          }));
+          ws.send(
+            JSON.stringify({
+              jsonrpc: '2.0',
+              id: 1,
+              method: 'public/get_trade_history',
+              params: {
+                currency: underlying,
+                instrument_type: 'option',
+                page: 999999,
+                page_size: 100,
+              }, // last page = newest trades per Derive docs
+            }),
+          );
         });
 
         ws.on('message', (raw) => {

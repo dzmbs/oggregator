@@ -40,6 +40,8 @@ export interface TradeStore {
   writeMany(records: PersistedTradeRecord[]): Promise<void>;
   loadRecent(query: RecentTradeQuery): Promise<PersistedTradeRecord[]>;
   loadHistory(query: TradeHistoryQuery): Promise<PersistedTradeRecord[]>;
-  summarizeHistory(query: TradeFilterQuery & { mode: PersistedTradeMode }): Promise<TradeHistorySummary>;
+  summarizeHistory(
+    query: TradeFilterQuery & { mode: PersistedTradeMode },
+  ): Promise<TradeHistorySummary>;
   dispose(): Promise<void>;
 }

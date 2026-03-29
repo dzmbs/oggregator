@@ -101,14 +101,14 @@ function contractToVenueQuote(contract: NormalizedOptionContract): VenueQuote {
   // One-sided markets (bid=0 or ask=0) and Derive's inverted quotes (bid > ask)
   // both produce ±200% or negative spread via the formula — return null so the
   // UI renders '–' rather than a misleading red percentage.
-  const validSpread = bid !== null && ask !== null && bid > 0 && ask > 0 && ask >= bid && mid !== null && mid > 0;
+  const validSpread =
+    bid !== null && ask !== null && bid > 0 && ask > 0 && ask >= bid && mid !== null && mid > 0;
   const spreadPct = validSpread ? ((ask - bid) / mid) * 100 : null;
 
   // Cost to enter: mid + half-spread (you pay ask) + taker fee.
   const fees = contract.quote.estimatedFees;
   const halfSpread = bid !== null && ask !== null ? (ask - bid) / 2 : 0;
-  const totalCost =
-    mid !== null ? mid + halfSpread + (fees?.taker ?? 0) : null;
+  const totalCost = mid !== null ? mid + halfSpread + (fees?.taker ?? 0) : null;
 
   return {
     bid,
@@ -131,8 +131,9 @@ function contractToVenueQuote(contract: NormalizedOptionContract): VenueQuote {
     // Prefer normalized USD OI from the feed layer. Do not reconstruct it here
     // from raw OI, because venues do not agree on OI units.
     openInterestUsd: contract.quote.openInterestUsd,
-    volume24hUsd: contract.quote.volume24hUsd
-      ?? (contract.quote.volume24h != null && contract.quote.underlyingPriceUsd != null
+    volume24hUsd:
+      contract.quote.volume24hUsd ??
+      (contract.quote.volume24h != null && contract.quote.underlyingPriceUsd != null
         ? contract.quote.volume24h * contract.quote.underlyingPriceUsd
         : null),
   };
@@ -161,9 +162,11 @@ function buildEnrichedSide(
 
     // Exclude phantom quotes: some venues list instruments with identical bid/ask
     // and zero OI — no real market exists. Require OI > 0 or a genuine spread.
-    const hasQuotes = (quote.bid !== null && quote.bid > 0) || (quote.ask !== null && quote.ask > 0);
-    const hasLiquidity = (quote.openInterest ?? 0) > 0
-      || (quote.bid !== null && quote.ask !== null && quote.bid !== quote.ask);
+    const hasQuotes =
+      (quote.bid !== null && quote.bid > 0) || (quote.ask !== null && quote.ask > 0);
+    const hasLiquidity =
+      (quote.openInterest ?? 0) > 0 ||
+      (quote.bid !== null && quote.ask !== null && quote.bid !== quote.ask);
     const hasMarket = hasQuotes && hasLiquidity;
     const iv = quote.markIv;
     if (iv !== null && hasMarket && (bestIv === null || iv < bestIv)) {
@@ -196,9 +199,10 @@ export function enrichComparisonRow(row: ComparisonRow): EnrichedStrike {
  * is less venue-biased than "first chain wins" and keeps summary stats aligned
  * with the selected venue set.
  */
-function extractPrices(
-  venueChains: VenueOptionChain[],
-): { spotIndexUsd: number | null; indexPriceUsd: number | null } {
+function extractPrices(venueChains: VenueOptionChain[]): {
+  spotIndexUsd: number | null;
+  indexPriceUsd: number | null;
+} {
   const spots: number[] = [];
   const indices: number[] = [];
 
@@ -220,12 +224,10 @@ function extractPrices(
     if (venueIndex !== null) indices.push(venueIndex);
   }
 
-  const spotIndexUsd = spots.length > 0
-    ? spots.reduce((sum, value) => sum + value, 0) / spots.length
-    : null;
-  const indexPriceUsd = indices.length > 0
-    ? indices.reduce((sum, value) => sum + value, 0) / indices.length
-    : null;
+  const spotIndexUsd =
+    spots.length > 0 ? spots.reduce((sum, value) => sum + value, 0) / spots.length : null;
+  const indexPriceUsd =
+    indices.length > 0 ? indices.reduce((sum, value) => sum + value, 0) / indices.length : null;
 
   return { spotIndexUsd, indexPriceUsd };
 }
@@ -404,9 +406,7 @@ export function computeGex(
 ): GexStrike[] {
   const result: GexStrike[] = [];
 
-  const rowByStrike = new Map<number, ComparisonRow>(
-    rows.map((r) => [r.strike, r]),
-  );
+  const rowByStrike = new Map<number, ComparisonRow>(rows.map((r) => [r.strike, r]));
 
   for (const s of strikes) {
     const row = rowByStrike.get(s.strike);
@@ -422,9 +422,8 @@ export function computeGex(
       }
       const original = row?.call[venueKey];
       const size = original?.contractSize ?? 1;
-      const venueSpot = original?.quote.indexPriceUsd
-        ?? original?.quote.underlyingPriceUsd
-        ?? fallbackSpotPrice;
+      const venueSpot =
+        original?.quote.indexPriceUsd ?? original?.quote.underlyingPriceUsd ?? fallbackSpotPrice;
       callGex += (vq.openInterest * vq.gamma * size * venueSpot * venueSpot) / 1_000_000;
     }
 
@@ -437,9 +436,8 @@ export function computeGex(
       }
       const original = row?.put[venueKey];
       const size = original?.contractSize ?? 1;
-      const venueSpot = original?.quote.indexPriceUsd
-        ?? original?.quote.underlyingPriceUsd
-        ?? fallbackSpotPrice;
+      const venueSpot =
+        original?.quote.indexPriceUsd ?? original?.quote.underlyingPriceUsd ?? fallbackSpotPrice;
       putGex += (vq.openInterest * vq.gamma * size * venueSpot * venueSpot) / 1_000_000;
     }
 
@@ -454,9 +452,7 @@ export function computeGex(
  * Math.ceil so that the expiry day itself counts as 1 DTE, not 0.
  */
 export function computeDte(expiry: string): number {
-  return Math.ceil(
-    (new Date(expiry + 'T08:00:00Z').getTime() - Date.now()) / 86_400_000,
-  );
+  return Math.ceil((new Date(expiry + 'T08:00:00Z').getTime() - Date.now()) / 86_400_000);
 }
 
 /**
@@ -472,7 +468,8 @@ export function computeIvSurface(
   strikes: EnrichedStrike[],
   referencePrice: number | null = null,
 ): IvSurfaceRow {
-  const atm = closestStrikeToPrice(strikes, referencePrice) ?? closestDeltaStrike(strikes, 0.5, 'call');
+  const atm =
+    closestStrikeToPrice(strikes, referencePrice) ?? closestDeltaStrike(strikes, 0.5, 'call');
   const d25c = closestDeltaStrike(strikes, 0.25, 'call');
   const d10c = closestDeltaStrike(strikes, 0.1, 'call');
   const d25p = closestDeltaStrike(strikes, -0.25, 'put');

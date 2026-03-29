@@ -1,16 +1,16 @@
-import { VENUES } from "@lib/venue-meta";
-import { venueColor } from "@lib/colors";
+import { VENUES } from '@lib/venue-meta';
+import { venueColor } from '@lib/colors';
 
-import styles from "./VenueDot.module.css";
+import styles from './VenueDot.module.css';
 
 interface VenueDotProps {
   venueId: string;
   isBest?: boolean;
-  title?:  string;
+  title?: string;
 }
 
 export default function VenueDot({ venueId, isBest = false, title }: VenueDotProps) {
-  const meta  = VENUES[venueId];
+  const meta = VENUES[venueId];
   const color = venueColor(venueId);
 
   return (

@@ -1,24 +1,24 @@
-import { useAppStore } from "@stores/app-store";
-import styles from "./MobileNav.module.css";
+import { useAppStore } from '@stores/app-store';
+import styles from './MobileNav.module.css';
 
 interface Tab {
-  id:     string;
-  label:  string;
-  icon:   string;
+  id: string;
+  label: string;
+  icon: string;
   badge?: string;
 }
 
 const MOBILE_TABS: Tab[] = [
-  { id: "chain",     label: "Chain",     icon: "⟐" },
-  { id: "architect", label: "Builder", icon: "⚙" },
-  { id: "surface",   label: "Surface",   icon: "◈" },
-  { id: "flow",      label: "Flow",      icon: "⚡", badge: "LIVE" },
-  { id: "analytics", label: "Analytics", icon: "◎" },
-  { id: "gex",       label: "GEX",       icon: "▧" },
+  { id: 'chain', label: 'Chain', icon: '⟐' },
+  { id: 'architect', label: 'Builder', icon: '⚙' },
+  { id: 'surface', label: 'Surface', icon: '◈' },
+  { id: 'flow', label: 'Flow', icon: '⚡', badge: 'LIVE' },
+  { id: 'analytics', label: 'Analytics', icon: '◎' },
+  { id: 'gex', label: 'GEX', icon: '▧' },
 ];
 
 export default function MobileNav() {
-  const activeTab    = useAppStore((s) => s.activeTab);
+  const activeTab = useAppStore((s) => s.activeTab);
   const setActiveTab = useAppStore((s) => s.setActiveTab);
 
   return (
@@ -32,9 +32,7 @@ export default function MobileNav() {
         >
           <span className={styles.icon}>{tab.icon}</span>
           <span className={styles.label}>{tab.label}</span>
-          {tab.badge && tab.id === activeTab && (
-            <span className={styles.badge}>{tab.badge}</span>
-          )}
+          {tab.badge && tab.id === activeTab && <span className={styles.badge}>{tab.badge}</span>}
         </button>
       ))}
     </nav>

@@ -69,9 +69,10 @@ export function applyDeribitBookSummary(
   safeNum: (value: unknown) => number | null,
 ): void {
   const rawOpenInterest = safeNum(summary.open_interest);
-  const normalizedOpenInterest = rawOpenInterest != null && contractSize != null && contractSize > 0
-    ? rawOpenInterest / contractSize
-    : rawOpenInterest;
+  const normalizedOpenInterest =
+    rawOpenInterest != null && contractSize != null && contractSize > 0
+      ? rawOpenInterest / contractSize
+      : rawOpenInterest;
 
   quoteStore.set(summary.instrument_name, {
     bidPrice: safeNum(summary.bid_price),
@@ -161,9 +162,10 @@ export function buildDeribitTickerQuote(
 ): LiveQuote {
   const greeks = ticker.greeks;
   const rawOpenInterest = safeNum(ticker.open_interest);
-  const normalizedOpenInterest = rawOpenInterest != null && contractSize != null && contractSize > 0
-    ? rawOpenInterest / contractSize
-    : rawOpenInterest;
+  const normalizedOpenInterest =
+    rawOpenInterest != null && contractSize != null && contractSize > 0
+      ? rawOpenInterest / contractSize
+      : rawOpenInterest;
 
   return {
     bidPrice: safeNum(ticker.best_bid_price),

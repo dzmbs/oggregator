@@ -1,1 +1,1 @@
-export { default as DebugChain } from "./DebugChain";
+export { default as DebugChain } from './DebugChain';

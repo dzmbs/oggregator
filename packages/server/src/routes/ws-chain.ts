@@ -25,8 +25,11 @@ export async function wsChainRoute(app: FastifyInstance) {
 
     if (!isReady()) {
       send(socket, {
-        type: 'error', subscriptionId: null, code: 'NOT_READY',
-        message: 'Server bootstrapping', retryable: true,
+        type: 'error',
+        subscriptionId: null,
+        code: 'NOT_READY',
+        message: 'Server bootstrapping',
+        retryable: true,
       });
       socket.close(1013, 'Try again later');
       return;
@@ -58,21 +61,36 @@ export async function wsChainRoute(app: FastifyInstance) {
         return;
       }
 
-      log.info({ subscriptionId, underlying: request.underlying, expiry: request.expiry, venues: request.venues.length }, 'subscribed');
+      log.info(
+        {
+          subscriptionId,
+          underlying: request.underlying,
+          expiry: request.expiry,
+          venues: request.venues.length,
+        },
+        'subscribed',
+      );
     }
 
     // ── Client messages ───────────────────────────────────────────
 
     socket.on('message', (raw) => {
       let json: unknown;
-      try { json = JSON.parse(raw.toString()); }
-      catch { log.debug('malformed JSON from client'); return; }
+      try {
+        json = JSON.parse(raw.toString());
+      } catch {
+        log.debug('malformed JSON from client');
+        return;
+      }
 
       const parsed = ClientWsMessageSchema.safeParse(json);
       if (!parsed.success) {
         send(socket, {
-          type: 'error', subscriptionId: null, code: 'INVALID_MESSAGE',
-          message: parsed.error.message, retryable: false,
+          type: 'error',
+          subscriptionId: null,
+          code: 'INVALID_MESSAGE',
+          message: parsed.error.message,
+          retryable: false,
         });
         return;
       }

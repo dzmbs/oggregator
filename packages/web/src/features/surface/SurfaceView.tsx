@@ -1,46 +1,50 @@
-import type { IvSurfaceRow, TermStructure } from "@shared/enriched";
+import type { IvSurfaceRow, TermStructure } from '@shared/enriched';
 
-import { useAppStore } from "@stores/app-store";
-import { Spinner, EmptyState, AssetPickerButton, VenuePickerButton } from "@components/ui";
-import { fmtIv, formatExpiry, dteDays } from "@lib/format";
-import { heatmapColor } from "@lib/colors";
-import { useSurface } from "./queries";
-import VolSmile from "./VolSmile";
-import styles from "./SurfaceView.module.css";
+import { useAppStore } from '@stores/app-store';
+import { Spinner, EmptyState, AssetPickerButton, VenuePickerButton } from '@components/ui';
+import { fmtIv, formatExpiry, dteDays } from '@lib/format';
+import { heatmapColor } from '@lib/colors';
+import { useSurface } from './queries';
+import VolSmile from './VolSmile';
+import styles from './SurfaceView.module.css';
 
 const DELTA_COLS = [
-  { key: "delta10p" as const, label: "10Δp", title: "10-delta put (deep OTM put)" },
-  { key: "delta25p" as const, label: "25Δp", title: "25-delta put" },
-  { key: "atm"      as const, label: "ATM",  title: "At-the-money" },
-  { key: "delta25c" as const, label: "25Δc", title: "25-delta call" },
-  { key: "delta10c" as const, label: "10Δc", title: "10-delta call (deep OTM call)" },
+  { key: 'delta10p' as const, label: '10Δp', title: '10-delta put (deep OTM put)' },
+  { key: 'delta25p' as const, label: '25Δp', title: '25-delta put' },
+  { key: 'atm' as const, label: 'ATM', title: 'At-the-money' },
+  { key: 'delta25c' as const, label: '25Δc', title: '25-delta call' },
+  { key: 'delta10c' as const, label: '10Δc', title: '10-delta call (deep OTM call)' },
 ];
 
 function termStructureColor(ts: TermStructure): string {
-  if (ts === "contango")     return "var(--color-profit)";
-  if (ts === "backwardation") return "var(--color-loss)";
-  return "var(--text-secondary)";
+  if (ts === 'contango') return 'var(--color-profit)';
+  if (ts === 'backwardation') return 'var(--color-loss)';
+  return 'var(--text-secondary)';
 }
 
 function termStructureDesc(ts: TermStructure): string {
-  if (ts === "contango")     return "Far vol > near vol (normal)";
-  if (ts === "backwardation") return "Near vol > far vol (stressed)";
-  return "Near ≈ far vol";
+  if (ts === 'contango') return 'Far vol > near vol (normal)';
+  if (ts === 'backwardation') return 'Near vol > far vol (stressed)';
+  return 'Near ≈ far vol';
 }
 
 interface HeatCellProps {
-  iv:      number | null;
-  minIv:   number;
-  maxIv:   number;
+  iv: number | null;
+  minIv: number;
+  maxIv: number;
 }
 
 function HeatCell({ iv, minIv, maxIv }: HeatCellProps) {
   if (iv == null) {
-    return <td className={styles.cell} data-empty="true">–</td>;
+    return (
+      <td className={styles.cell} data-empty="true">
+        –
+      </td>
+    );
   }
   const range = maxIv - minIv;
-  const norm  = range > 0 ? (iv - minIv) / range : 0.5;
-  const bg    = heatmapColor(Math.max(0, Math.min(1, norm)));
+  const norm = range > 0 ? (iv - minIv) / range : 0.5;
+  const bg = heatmapColor(Math.max(0, Math.min(1, norm)));
 
   return (
     <td
@@ -69,7 +73,7 @@ function computeMinMax(rows: IvSurfaceRow[]): { min: number; max: number } {
 }
 
 export default function SurfaceView() {
-  const underlying   = useAppStore((s) => s.underlying);
+  const underlying = useAppStore((s) => s.underlying);
   const activeVenues = useAppStore((s) => s.activeVenues);
   const { data, isLoading, error } = useSurface(underlying, activeVenues);
 
@@ -87,7 +91,7 @@ export default function SurfaceView() {
         <EmptyState
           icon="⚠"
           title="Failed to load surface"
-          detail={error instanceof Error ? error.message : "Check your connection and try again."}
+          detail={error instanceof Error ? error.message : 'Check your connection and try again.'}
         />
       </div>
     );
@@ -103,7 +107,7 @@ export default function SurfaceView() {
 
   const { min: minIv, max: maxIv } = computeMinMax(data.surface);
   const tsColor = termStructureColor(data.termStructure);
-  const tsDesc  = termStructureDesc(data.termStructure);
+  const tsDesc = termStructureDesc(data.termStructure);
 
   return (
     <div className={styles.view}>

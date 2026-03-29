@@ -58,7 +58,11 @@ function snapshotMetaFromChains(venueChains: VenueOptionChain[]): SnapshotMeta {
   };
 }
 
-function comparisonRowsMap(underlying: string, expiry: string, venueChains: VenueOptionChain[]): Map<number, ComparisonRow> {
+function comparisonRowsMap(
+  underlying: string,
+  expiry: string,
+  venueChains: VenueOptionChain[],
+): Map<number, ComparisonRow> {
   const comparison = buildComparisonChain(underlying, expiry, venueChains);
   return new Map(comparison.rows.map((row) => [row.strike, row]));
 }
@@ -86,7 +90,12 @@ export class ChainProjection {
     this.comparisonRows = comparisonRowsMap(this.underlying, this.expiry, venueChains);
     this.enrichedStrikes = enrichedStrikesMap(this.comparisonRows);
 
-    return buildEnrichedChain(this.underlying, this.expiry, [...this.comparisonRows.values()], venueChains);
+    return buildEnrichedChain(
+      this.underlying,
+      this.expiry,
+      [...this.comparisonRows.values()],
+      venueChains,
+    );
   }
 
   buildSnapshotMeta(): SnapshotMeta {
@@ -119,7 +128,9 @@ export class ChainProjection {
     }
 
     const venueChains = [...this.venueChains.values()];
-    const strikes = [...this.enrichedStrikes.values()].sort((left, right) => left.strike - right.strike);
+    const strikes = [...this.enrichedStrikes.values()].sort(
+      (left, right) => left.strike - right.strike,
+    );
     const stats = computeChainStats(strikes, venueChains);
     const spotPrice = stats.spotIndexUsd ?? stats.indexPriceUsd ?? 0;
     const gex = computeGex([...this.comparisonRows.values()], strikes, spotPrice);

@@ -31,7 +31,9 @@ function createInstrument(exchangeSymbol: string, base = 'BTC'): CachedInstrumen
 describe('OKX planner', () => {
   it('builds family, ticker, and mark-price subscriptions for a chain', () => {
     const state = createOkxSubscriptionState();
-    const args = buildOkxChainSubscriptionArgs(state, 'BTC', [createInstrument('BTC-USD-260328-60000-C')]);
+    const args = buildOkxChainSubscriptionArgs(state, 'BTC', [
+      createInstrument('BTC-USD-260328-60000-C'),
+    ]);
 
     expect(args).toEqual([
       { channel: 'opt-summary', instFamily: 'BTC-USD' },
@@ -42,7 +44,9 @@ describe('OKX planner', () => {
 
   it('adds only instrument-level subscriptions for newly listed contracts', () => {
     const state = createOkxSubscriptionState();
-    const args = buildOkxInstrumentSubscriptionArgs(state, [createInstrument('BTC-USD-260328-65000-C')]);
+    const args = buildOkxInstrumentSubscriptionArgs(state, [
+      createInstrument('BTC-USD-260328-65000-C'),
+    ]);
 
     expect(args).toEqual([
       { channel: 'tickers', instId: 'BTC-USD-260328-65000-C' },

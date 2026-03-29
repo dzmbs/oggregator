@@ -1,27 +1,32 @@
-import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
 
-import styles from "./DropdownPicker.module.css";
+import styles from './DropdownPicker.module.css';
 
 interface DropdownOption {
   value: string;
   label: string;
-  meta?:  string;
+  meta?: string;
 }
 
 interface DropdownPickerProps {
-  options:  DropdownOption[];
-  value:    string;
+  options: DropdownOption[];
+  value: string;
   onChange: (value: string) => void;
-  icon?:    React.ReactNode;
-  size?:    "sm" | "md";
+  icon?: React.ReactNode;
+  size?: 'sm' | 'md';
 }
 
 // Module-level open state keyed by instance id so multiple pickers
 // don't interfere. Only one can be open at a time.
 let _openId: string | null = null;
 const _listeners = new Set<() => void>();
-function subscribe(cb: () => void) { _listeners.add(cb); return () => _listeners.delete(cb); }
-function getSnapshot() { return _openId; }
+function subscribe(cb: () => void) {
+  _listeners.add(cb);
+  return () => _listeners.delete(cb);
+}
+function getSnapshot() {
+  return _openId;
+}
 function setOpenId(id: string | null) {
   if (id === _openId) return;
   _openId = id;
@@ -30,7 +35,13 @@ function setOpenId(id: string | null) {
 
 let _nextId = 0;
 
-export default function DropdownPicker({ options, value, onChange, icon, size = "md" }: DropdownPickerProps) {
+export default function DropdownPicker({
+  options,
+  value,
+  onChange,
+  icon,
+  size = 'md',
+}: DropdownPickerProps) {
   const idRef = useRef(`dp-${_nextId++}`);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const openId = useSyncExternalStore(subscribe, getSnapshot);
@@ -43,14 +54,14 @@ export default function DropdownPicker({ options, value, onChange, icon, size = 
       }
     }
     function handleEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") setOpenId(null);
+      if (event.key === 'Escape') setOpenId(null);
     }
 
-    document.addEventListener("mousedown", handlePointerDown);
-    document.addEventListener("keydown", handleEscape);
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleEscape);
     return () => {
-      document.removeEventListener("mousedown", handlePointerDown);
-      document.removeEventListener("keydown", handleEscape);
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleEscape);
     };
   }, [isOpen]);
 
@@ -72,7 +83,9 @@ export default function DropdownPicker({ options, value, onChange, icon, size = 
         {icon}
         <span className={styles.label}>{selected?.label ?? value}</span>
         {selected?.meta && <span className={styles.meta}>{selected.meta}</span>}
-        <span className={styles.chevron} data-open={isOpen || undefined}>▾</span>
+        <span className={styles.chevron} data-open={isOpen || undefined}>
+          ▾
+        </span>
       </button>
 
       {isOpen ? (
@@ -83,7 +96,10 @@ export default function DropdownPicker({ options, value, onChange, icon, size = 
               type="button"
               className={styles.option}
               data-active={opt.value === value || undefined}
-              onClick={() => { onChange(opt.value); setOpenId(null); }}
+              onClick={() => {
+                onChange(opt.value);
+                setOpenId(null);
+              }}
             >
               <span className={styles.optionLabel}>{opt.label}</span>
               {opt.meta && <span className={styles.optionMeta}>{opt.meta}</span>}

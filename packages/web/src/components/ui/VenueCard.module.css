@@ -105,8 +105,12 @@
   letter-spacing: 0.04em;
 }
 
-.dir[data-direction="buy"]  { color: var(--color-profit); }
-.dir[data-direction="sell"] { color: var(--color-loss); }
+.dir[data-direction="buy"] {
+  color: var(--color-profit);
+}
+.dir[data-direction="sell"] {
+  color: var(--color-loss);
+}
 
 .strike {
   color: var(--text-primary);
@@ -184,7 +188,8 @@
   color: var(--text-dim);
 }
 
-.footerLabel {}
+.footerLabel {
+}
 
 .footerSavings {
   color: var(--color-profit);

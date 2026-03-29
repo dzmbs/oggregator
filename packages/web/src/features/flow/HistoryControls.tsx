@@ -1,12 +1,12 @@
-import { useMemo } from "react";
+import { useMemo } from 'react';
 
-import { VENUES } from "@lib/venue-meta";
-import { fmtUsd } from "@lib/format";
-import type { HistoryRange, HistorySummary } from "./queries";
-import DateRangePicker from "./DateRangePicker";
-import styles from "./HistoryControls.module.css";
+import { VENUES } from '@lib/venue-meta';
+import { fmtUsd } from '@lib/format';
+import type { HistoryRange, HistorySummary } from './queries';
+import DateRangePicker from './DateRangePicker';
+import styles from './HistoryControls.module.css';
 
-export type HistoryPreset = "today" | "yesterday" | "last7d" | "last30d" | "custom";
+export type HistoryPreset = 'today' | 'yesterday' | 'last7d' | 'last30d' | 'custom';
 
 interface HistoryControlsProps {
   preset: HistoryPreset;
@@ -58,7 +58,7 @@ export function HistoryControls({
       <div className={styles.toolbar}>
         <div className={styles.toolbarLeft}>
           <div className={styles.presetRow}>
-            {(["today", "yesterday", "last7d", "last30d", "custom"] as const).map((value) => (
+            {(['today', 'yesterday', 'last7d', 'last30d', 'custom'] as const).map((value) => (
               <button
                 key={value}
                 className={styles.presetBtn}
@@ -71,15 +71,24 @@ export function HistoryControls({
           </div>
         </div>
 
-        {preset === "custom" ? (
+        {preset === 'custom' ? (
           <DateRangePicker range={range} bounds={bounds} onApply={onRangeChange} />
         ) : null}
       </div>
 
       <div className={styles.summaryGrid}>
-        <SummaryCard label="Trades" value={isSummaryLoading ? "…" : formatCount(summary?.count ?? 0)} />
-        <SummaryCard label="Premium" value={isSummaryLoading ? "…" : formatMoney(summary?.premiumUsd ?? 0)} />
-        <SummaryCard label="Notional" value={isSummaryLoading ? "…" : formatMoney(summary?.notionalUsd ?? 0)} />
+        <SummaryCard
+          label="Trades"
+          value={isSummaryLoading ? '…' : formatCount(summary?.count ?? 0)}
+        />
+        <SummaryCard
+          label="Premium"
+          value={isSummaryLoading ? '…' : formatMoney(summary?.premiumUsd ?? 0)}
+        />
+        <SummaryCard
+          label="Notional"
+          value={isSummaryLoading ? '…' : formatMoney(summary?.notionalUsd ?? 0)}
+        />
         <SummaryCard label="Window" value={formatWindowLabel(summary, range)} />
       </div>
 
@@ -90,7 +99,9 @@ export function HistoryControls({
             return (
               <span key={venue.venue} className={styles.venueChip}>
                 {meta?.logo ? <img src={meta.logo} alt="" className={styles.venueLogo} /> : null}
-                <span className={styles.venueCode}>{meta?.shortLabel ?? venue.venue.toUpperCase()}</span>
+                <span className={styles.venueCode}>
+                  {meta?.shortLabel ?? venue.venue.toUpperCase()}
+                </span>
                 <span className={styles.venueCount}>{formatCount(venue.count)}</span>
               </span>
             );
@@ -98,9 +109,21 @@ export function HistoryControls({
         </div>
 
         <div className={styles.pageControls}>
-          <button className={styles.pageBtn} onClick={onPreviousPage} disabled={!hasPreviousPage || isPageLoading}>Prev</button>
+          <button
+            className={styles.pageBtn}
+            onClick={onPreviousPage}
+            disabled={!hasPreviousPage || isPageLoading}
+          >
+            Prev
+          </button>
           <span className={styles.pageLabel}>Page {page}</span>
-          <button className={styles.pageBtn} onClick={onNextPage} disabled={!hasNextPage || isPageLoading}>Next</button>
+          <button
+            className={styles.pageBtn}
+            onClick={onNextPage}
+            disabled={!hasNextPage || isPageLoading}
+          >
+            Next
+          </button>
         </div>
       </div>
     </div>
@@ -117,19 +140,19 @@ function SummaryCard({ label, value }: { label: string; value: string }) {
 }
 
 function getPresetLabel(preset: HistoryPreset): string {
-  if (preset === "today") return "Today";
-  if (preset === "yesterday") return "Yesterday";
-  if (preset === "last7d") return "7D";
-  if (preset === "last30d") return "30D";
-  return "Custom";
+  if (preset === 'today') return 'Today';
+  if (preset === 'yesterday') return 'Yesterday';
+  if (preset === 'last7d') return '7D';
+  if (preset === 'last30d') return '30D';
+  return 'Custom';
 }
 
 function formatCount(count: number): string {
-  return count.toLocaleString("en-US");
+  return count.toLocaleString('en-US');
 }
 
 function formatMoney(value: number): string {
-  return value > 0 ? fmtUsd(value) : "—";
+  return value > 0 ? fmtUsd(value) : '—';
 }
 
 function formatWindowLabel(summary: HistorySummary | undefined, range: HistoryRange): string {
@@ -139,7 +162,7 @@ function formatWindowLabel(summary: HistorySummary | undefined, range: HistoryRa
   if (range.start && range.end) {
     return `${formatIsoLabel(range.start)} → ${formatIsoLabel(new Date(new Date(range.end).getTime() - 1).toISOString())}`;
   }
-  return "No data";
+  return 'No data';
 }
 
 function formatIsoLabel(value: string): string {
@@ -150,23 +173,23 @@ function formatIsoLabel(value: string): string {
 export function getPresetRange(preset: HistoryPreset, now = new Date()): HistoryRange {
   const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 
-  if (preset === "today") {
+  if (preset === 'today') {
     return { start: todayStart.toISOString(), end: now.toISOString() };
   }
 
-  if (preset === "yesterday") {
+  if (preset === 'yesterday') {
     const yesterdayStart = new Date(todayStart);
     yesterdayStart.setUTCDate(yesterdayStart.getUTCDate() - 1);
     return { start: yesterdayStart.toISOString(), end: todayStart.toISOString() };
   }
 
-  if (preset === "last7d") {
+  if (preset === 'last7d') {
     const start = new Date(todayStart);
     start.setUTCDate(start.getUTCDate() - 6);
     return { start: start.toISOString(), end: now.toISOString() };
   }
 
-  if (preset === "last30d") {
+  if (preset === 'last30d') {
     const start = new Date(todayStart);
     start.setUTCDate(start.getUTCDate() - 29);
     return { start: start.toISOString(), end: now.toISOString() };

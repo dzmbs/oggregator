@@ -36,8 +36,12 @@ async function buildApp() {
 describe('GET /flow', () => {
   let app: Awaited<ReturnType<typeof buildApp>>;
 
-  beforeAll(async () => { app = await buildApp(); });
-  afterAll(async () => { await app.close(); });
+  beforeAll(async () => {
+    app = await buildApp();
+  });
+  afterAll(async () => {
+    await app.close();
+  });
 
   it('returns 503 when flow service is not ready', async () => {
     setFlowReady(false);
@@ -48,12 +52,23 @@ describe('GET /flow', () => {
 
   // Build a minimal TradeEvent for test data — only fields the route serialises matter.
   function fakeTrades(count: number): TradeEvent[] {
-    return Array.from({ length: count }, (_, i) => ({
-      venue: 'deribit', instrument: `BTC-28MAR26-${70_000 + i}-C`,
-      underlying: 'BTC', side: 'buy', price: 70_000 + i, size: 1,
-      iv: 0.5, markPrice: 70_000, indexPrice: 70_000,
-      isBlock: false, timestamp: Date.now() + i,
-    } as TradeEvent));
+    return Array.from(
+      { length: count },
+      (_, i) =>
+        ({
+          venue: 'deribit',
+          instrument: `BTC-28MAR26-${70_000 + i}-C`,
+          underlying: 'BTC',
+          side: 'buy',
+          price: 70_000 + i,
+          size: 1,
+          iv: 0.5,
+          markPrice: 70_000,
+          indexPrice: 70_000,
+          isBlock: false,
+          timestamp: Date.now() + i,
+        }) as TradeEvent,
+    );
   }
 
   it('returns trades with defaults (underlying=BTC, limit=100)', async () => {
@@ -72,12 +87,30 @@ describe('GET /flow', () => {
     setFlowReady(true);
     getTrades().mockReturnValue([
       {
-        venue: 'bybit', instrument: 'ETH-28MAR26-3000-C', underlying: 'ETH', side: 'buy', price: 10, size: 1,
-        iv: 0.5, markPrice: 10, indexPrice: 100, isBlock: false, timestamp: Date.now(),
+        venue: 'bybit',
+        instrument: 'ETH-28MAR26-3000-C',
+        underlying: 'ETH',
+        side: 'buy',
+        price: 10,
+        size: 1,
+        iv: 0.5,
+        markPrice: 10,
+        indexPrice: 100,
+        isBlock: false,
+        timestamp: Date.now(),
       } as TradeEvent,
       {
-        venue: 'bybit', instrument: 'ETH-28MAR26-3000-C', underlying: 'ETH', side: 'buy', price: 10, size: 10,
-        iv: 0.5, markPrice: 10, indexPrice: 100, isBlock: false, timestamp: Date.now() + 1,
+        venue: 'bybit',
+        instrument: 'ETH-28MAR26-3000-C',
+        underlying: 'ETH',
+        side: 'buy',
+        price: 10,
+        size: 10,
+        iv: 0.5,
+        markPrice: 10,
+        indexPrice: 100,
+        isBlock: false,
+        timestamp: Date.now() + 1,
       } as TradeEvent,
     ]);
 
@@ -123,7 +156,7 @@ describe('GET /flow', () => {
 
   it('returns trades in reverse order (newest first)', async () => {
     setFlowReady(true);
-    const trades = fakeTrades(3);  // timestamps: now+0, now+1, now+2
+    const trades = fakeTrades(3); // timestamps: now+0, now+1, now+2
     getTrades().mockReturnValue(trades);
 
     const res = await app.inject({ method: 'GET', url: '/flow?limit=3' });

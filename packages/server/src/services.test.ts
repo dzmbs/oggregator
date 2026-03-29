@@ -13,26 +13,46 @@ vi.mock('@oggregator/core', async (importOriginal) => {
     // Arrow functions are not `new`-compatible — use class syntax so services.ts
     // can call `new DvolService()` etc. without a "not a constructor" error.
     DvolService: class {
-      start() { return startResolves.dvol ? Promise.resolve() : Promise.reject(new Error('dvol boom')); }
+      start() {
+        return startResolves.dvol ? Promise.resolve() : Promise.reject(new Error('dvol boom'));
+      }
       dispose() {}
-      getSnapshot() { return null; }
-      getAllSnapshots() { return []; }
+      getSnapshot() {
+        return null;
+      }
+      getAllSnapshots() {
+        return [];
+      }
     },
     SpotRuntime: class {
-      start() { return startResolves.spot ? Promise.resolve() : Promise.reject(new Error('spot boom')); }
+      start() {
+        return startResolves.spot ? Promise.resolve() : Promise.reject(new Error('spot boom'));
+      }
       dispose() {}
-      getSnapshot() { return null; }
+      getSnapshot() {
+        return null;
+      }
     },
     TradeRuntime: class {
-      start() { return startResolves.flow ? Promise.resolve() : Promise.reject(new Error('flow boom')); }
+      start() {
+        return startResolves.flow ? Promise.resolve() : Promise.reject(new Error('flow boom'));
+      }
       dispose() {}
-      getTrades() { return []; }
+      getTrades() {
+        return [];
+      }
     },
     BlockTradeRuntime: class {
-      start() { return Promise.resolve(); }
+      start() {
+        return Promise.resolve();
+      }
       dispose() {}
-      getTrades() { return []; }
-      getHealth() { return []; }
+      getTrades() {
+        return [];
+      }
+      getHealth() {
+        return [];
+      }
     },
   };
 });
@@ -49,8 +69,9 @@ describe('bootstrapServices — readiness transitions', () => {
   });
 
   it('marks all services ready after all start() calls resolve', async () => {
-    const { bootstrapServices, isDvolReady, isSpotReady, isFlowReady } =
-      await import('./services.js');
+    const { bootstrapServices, isDvolReady, isSpotReady, isFlowReady } = await import(
+      './services.js'
+    );
 
     await bootstrapServices({ info: vi.fn(), warn: vi.fn() } as unknown as FastifyBaseLogger);
 
@@ -68,8 +89,9 @@ describe('bootstrapServices — readiness transitions', () => {
 
   it('leaves flow as not ready when flow start() rejects', async () => {
     startResolves.flow = false;
-    const { bootstrapServices, isDvolReady, isSpotReady, isFlowReady } =
-      await import('./services.js');
+    const { bootstrapServices, isDvolReady, isSpotReady, isFlowReady } = await import(
+      './services.js'
+    );
 
     await bootstrapServices({ info: vi.fn(), warn: vi.fn() } as unknown as FastifyBaseLogger);
 
@@ -99,7 +121,8 @@ describe('bootstrapServices — readiness transitions', () => {
     await bootstrapServices(log);
 
     const summaryCall = infoFn.mock.calls.find(
-      (args: unknown[]) => typeof args[0] === 'object' && args[0] !== null && 'ms' in (args[0] as object),
+      (args: unknown[]) =>
+        typeof args[0] === 'object' && args[0] !== null && 'ms' in (args[0] as object),
     );
     expect(summaryCall).toBeDefined();
     expect((summaryCall![0] as { ms: number }).ms).toBeGreaterThanOrEqual(0);

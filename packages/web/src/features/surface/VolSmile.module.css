@@ -47,7 +47,9 @@
   transition: all var(--transition-fast);
 }
 
-.modeBtn:hover { color: var(--text-secondary); }
+.modeBtn:hover {
+  color: var(--text-secondary);
+}
 
 .modeBtn[data-active="true"] {
   background: var(--bg-elevated);
@@ -55,8 +57,12 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
-.modeBtn[data-active="true"][data-type="call"] { color: var(--color-profit); }
-.modeBtn[data-active="true"][data-type="put"]  { color: var(--color-loss); }
+.modeBtn[data-active="true"][data-type="call"] {
+  color: var(--color-profit);
+}
+.modeBtn[data-active="true"][data-type="put"] {
+  color: var(--color-loss);
+}
 
 /* ── Legend ───────────────────────────────────────────── */
 
@@ -79,8 +85,12 @@
   border-radius: 1px;
 }
 
-.legendLine[data-type="call"] { background: var(--color-profit); }
-.legendLine[data-type="put"]  { background: var(--color-loss); }
+.legendLine[data-type="call"] {
+  background: var(--color-profit);
+}
+.legendLine[data-type="put"] {
+  background: var(--color-loss);
+}
 
 .legendLine[data-dashed] {
   background: repeating-linear-gradient(

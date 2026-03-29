@@ -59,8 +59,12 @@
   font-weight: 600;
 }
 
-.spotChange[data-positive="true"]  { color: var(--color-profit); }
-.spotChange[data-positive="false"] { color: var(--color-loss); }
+.spotChange[data-positive="true"] {
+  color: var(--color-profit);
+}
+.spotChange[data-positive="false"] {
+  color: var(--color-loss);
+}
 
 .assetChevron {
   font-size: 10px;
@@ -86,7 +90,9 @@
   min-width: 0;
 }
 
-.tabs::-webkit-scrollbar { display: none; }
+.tabs::-webkit-scrollbar {
+  display: none;
+}
 
 .tab {
   display: flex;

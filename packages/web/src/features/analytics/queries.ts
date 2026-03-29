@@ -1,8 +1,8 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from '@tanstack/react-query';
 
-import { fetchJson } from "@lib/http";
-import type { EnrichedChainResponse } from "@shared/enriched";
-import { useExpiries } from "@features/chain/queries";
+import { fetchJson } from '@lib/http';
+import type { EnrichedChainResponse } from '@shared/enriched';
+import { useExpiries } from '@features/chain/queries';
 
 /**
  * Fetches chain data for ALL expiries of an underlying and merges them.
@@ -14,9 +14,9 @@ export function useAllExpiriesChain(underlying: string, venues: string[]) {
   const expiries = expiriesData?.expiries ?? [];
 
   return useQuery({
-    queryKey: ["analytics", underlying, venues.join(","), expiries.join(",")],
+    queryKey: ['analytics', underlying, venues.join(','), expiries.join(',')],
     queryFn: async (): Promise<EnrichedChainResponse[]> => {
-      const venueParam = venues.length > 0 ? `&venues=${venues.join(",")}` : "";
+      const venueParam = venues.length > 0 ? `&venues=${venues.join(',')}` : '';
       const results = await Promise.all(
         expiries.map((exp) =>
           fetchJson<EnrichedChainResponse>(

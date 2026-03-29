@@ -143,13 +143,13 @@ describe('BinanceMarkPriceSchema', () => {
     // Assert
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.d).toBe('0.11111964');   // delta
-      expect(result.data.g).toBe('0.00001245');   // gamma
+      expect(result.data.d).toBe('0.11111964'); // delta
+      expect(result.data.g).toBe('0.00001245'); // gamma
       expect(result.data.t).toBe('-164.26702615'); // theta
-      expect(result.data.v).toBe('30.63855919');  // vega
-      expect(result.data.vo).toBe('0.9408058');   // mark IV
-      expect(result.data.b).toBe('-1.0');          // bid IV (-1 = no bid)
-      expect(result.data.a).toBe('0.98161161');   // ask IV
+      expect(result.data.v).toBe('30.63855919'); // vega
+      expect(result.data.vo).toBe('0.9408058'); // mark IV
+      expect(result.data.b).toBe('-1.0'); // bid IV (-1 = no bid)
+      expect(result.data.a).toBe('0.98161161'); // ask IV
     }
   });
 

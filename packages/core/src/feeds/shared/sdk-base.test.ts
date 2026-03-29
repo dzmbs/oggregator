@@ -14,7 +14,9 @@ class TestSdkAdapter extends SdkBaseAdapter {
   };
 
   protected initClients(): void {}
-  protected async fetchInstruments(): Promise<CachedInstrument[]> { return []; }
+  protected async fetchInstruments(): Promise<CachedInstrument[]> {
+    return [];
+  }
   protected async subscribeChain(): Promise<void> {}
   protected async unsubscribeAll(): Promise<void> {}
 
@@ -41,7 +43,11 @@ class TestSdkAdapter extends SdkBaseAdapter {
   }
 }
 
-function createInstrument(exchangeSymbol: string, strike: number, inverse = false): CachedInstrument {
+function createInstrument(
+  exchangeSymbol: string,
+  strike: number,
+  inverse = false,
+): CachedInstrument {
   return {
     symbol: `BTC/USD:USDT-260327-${strike}-C`,
     exchangeSymbol,

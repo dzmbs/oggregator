@@ -1,23 +1,23 @@
-import { useEffect } from "react";
+import { useEffect } from 'react';
 
-import { AppShell } from "@components/layout";
-import { ChainView, useUnderlyings } from "@features/chain";
-import { SurfaceView }               from "@features/surface";
-import { GexView }                   from "@features/gex";
-import { FlowView }                  from "@features/flow";
-import { AnalyticsView }             from "@features/analytics";
-import { ArchitectView }             from "@features/architect";
-import { useAppStore }               from "@stores/app-store";
+import { AppShell } from '@components/layout';
+import { ChainView, useUnderlyings } from '@features/chain';
+import { SurfaceView } from '@features/surface';
+import { GexView } from '@features/gex';
+import { FlowView } from '@features/flow';
+import { AnalyticsView } from '@features/analytics';
+import { ArchitectView } from '@features/architect';
+import { useAppStore } from '@stores/app-store';
 
-import styles from "./App.module.css";
+import styles from './App.module.css';
 
 const TABS = [
-  { id: "chain",      label: "Chain" },
-  { id: "architect",  label: "Builder" },
-  { id: "surface",    label: "Surface" },
-  { id: "flow",       label: "Flow", badge: "LIVE" },
-  { id: "analytics",  label: "Analytics" },
-  { id: "gex",        label: "GEX" },
+  { id: 'chain', label: 'Chain' },
+  { id: 'architect', label: 'Builder' },
+  { id: 'surface', label: 'Surface' },
+  { id: 'flow', label: 'Flow', badge: 'LIVE' },
+  { id: 'analytics', label: 'Analytics' },
+  { id: 'gex', label: 'GEX' },
 ] as const;
 
 export default function App() {
@@ -25,9 +25,9 @@ export default function App() {
   const underlyings = underlyingsData?.underlyings ?? [];
   const activeTab = useAppStore((s) => s.activeTab);
 
-  const underlying    = useAppStore((s) => s.underlying);
+  const underlying = useAppStore((s) => s.underlying);
   const setUnderlying = useAppStore((s) => s.setUnderlying);
-  const setActiveTab  = useAppStore((s) => s.setActiveTab);
+  const setActiveTab = useAppStore((s) => s.setActiveTab);
   useEffect(() => {
     if (underlyings.length > 0 && !underlyings.includes(underlying)) {
       setUnderlying(underlyings[0]!);
@@ -36,20 +36,20 @@ export default function App() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.has("strategy")) {
-      setActiveTab("architect");
+    if (params.has('strategy')) {
+      setActiveTab('architect');
     }
   }, [setActiveTab]);
 
   return (
     <AppShell underlyings={underlyings} tabs={TABS}>
       <div className={styles.panel}>
-        {activeTab === "chain"     && <ChainView />}
-        {activeTab === "architect" && <ArchitectView />}
-        {activeTab === "surface"   && <SurfaceView />}
-        {activeTab === "flow"      && <FlowView />}
-        {activeTab === "analytics" && <AnalyticsView />}
-        {activeTab === "gex"       && <GexView />}
+        {activeTab === 'chain' && <ChainView />}
+        {activeTab === 'architect' && <ArchitectView />}
+        {activeTab === 'surface' && <SurfaceView />}
+        {activeTab === 'flow' && <FlowView />}
+        {activeTab === 'analytics' && <AnalyticsView />}
+        {activeTab === 'gex' && <GexView />}
       </div>
     </AppShell>
   );

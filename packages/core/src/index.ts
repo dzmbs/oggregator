@@ -26,7 +26,12 @@ export { EMPTY_GREEKS } from './core/types.js';
 export { ClientWsMessageSchema, ServerWsMessageSchema } from '@oggregator/protocol';
 
 export { buildComparisonChain } from './core/aggregator.js';
-export { registerAdapter, getAdapter, getAllAdapters, getRegisteredVenues } from './core/registry.js';
+export {
+  registerAdapter,
+  getAdapter,
+  getAllAdapters,
+  getRegisteredVenues,
+} from './core/registry.js';
 export {
   VenueSubscriptionCoordinator,
   type VenueSubscriptionHandle,
@@ -57,7 +62,11 @@ export type {
 } from './core/enrichment.js';
 
 // feeds/shared — adapter interfaces
-export type { OptionVenueAdapter, VenueCapabilities, StreamHandlers } from './feeds/shared/types.js';
+export type {
+  OptionVenueAdapter,
+  VenueCapabilities,
+  StreamHandlers,
+} from './feeds/shared/types.js';
 export { BaseAdapter } from './feeds/shared/base.js';
 
 // runtime

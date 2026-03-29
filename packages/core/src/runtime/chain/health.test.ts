@@ -7,7 +7,12 @@ describe('VenueHealthManager', () => {
 
     manager.ingest({ venue: 'deribit', state: 'connected', ts: 1 });
     manager.ingest({ venue: 'deribit', state: 'connected', ts: 2, message: 'platform healthy' });
-    const status = manager.ingest({ venue: 'deribit', state: 'reconnecting', ts: 3, message: 'transport closed' });
+    const status = manager.ingest({
+      venue: 'deribit',
+      state: 'reconnecting',
+      ts: 3,
+      message: 'transport closed',
+    });
 
     expect(status?.state).toBe('reconnecting');
     expect(manager.get('deribit')?.state).toBe('reconnecting');
@@ -17,7 +22,12 @@ describe('VenueHealthManager', () => {
     const manager = new VenueHealthManager();
 
     manager.ingest({ venue: 'okx', state: 'connected', ts: 1 });
-    const status = manager.ingest({ venue: 'okx', state: 'degraded', ts: 2, message: 'maintenance' });
+    const status = manager.ingest({
+      venue: 'okx',
+      state: 'degraded',
+      ts: 2,
+      message: 'maintenance',
+    });
 
     expect(status?.state).toBe('degraded');
     expect(manager.get('okx')?.message).toBe('maintenance');
@@ -27,8 +37,18 @@ describe('VenueHealthManager', () => {
     const manager = new VenueHealthManager();
     const now = Date.now();
 
-    const first = manager.ingest({ venue: 'binance', state: 'connected', ts: now, message: 'rest health ok' });
-    const second = manager.ingest({ venue: 'binance', state: 'connected', ts: now + 1, message: 'rest health ok' });
+    const first = manager.ingest({
+      venue: 'binance',
+      state: 'connected',
+      ts: now,
+      message: 'rest health ok',
+    });
+    const second = manager.ingest({
+      venue: 'binance',
+      state: 'connected',
+      ts: now + 1,
+      message: 'rest health ok',
+    });
 
     expect(first?.state).toBe('connected');
     expect(second).toBeNull();

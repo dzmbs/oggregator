@@ -18,7 +18,9 @@ export function deriveBybitHealth(
     };
   }
 
-  const active = status.result.list.find((item) => item.state === 'scheduled' || item.state === 'ongoing');
+  const active = status.result.list.find(
+    (item) => item.state === 'scheduled' || item.state === 'ongoing',
+  );
   if (active != null) {
     const title = active.title != null ? `: ${active.title}` : '';
     return {

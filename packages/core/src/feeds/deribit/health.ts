@@ -40,9 +40,10 @@ export function applyDeribitPlatformState(
   state.lockedPriceIndexes.delete(update.price_index);
 }
 
-export function deriveDeribitPlatformHealth(
-  state: DeribitHealthState,
-): { status: 'connected' | 'degraded'; message: string } {
+export function deriveDeribitPlatformHealth(state: DeribitHealthState): {
+  status: 'connected' | 'degraded';
+  message: string;
+} {
   if (state.platformMaintenance) {
     return { status: 'degraded', message: 'platform maintenance' };
   }

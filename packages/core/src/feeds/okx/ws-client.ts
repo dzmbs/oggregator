@@ -43,7 +43,13 @@ import {
   mergeOkxRestOpenInterest,
   mergeOkxWsTicker,
 } from './state.js';
-import { OKX_OPTION_SYMBOL_RE, type OkxInstrument, type OkxMarkPrice, type OkxOptSummary, type OkxTicker } from './types.js';
+import {
+  OKX_OPTION_SYMBOL_RE,
+  type OkxInstrument,
+  type OkxMarkPrice,
+  type OkxOptSummary,
+  type OkxTicker,
+} from './types.js';
 
 const log = feedLogger('okx');
 
@@ -117,8 +123,12 @@ export class OkxWsAdapter extends SdkBaseAdapter {
 
     // Refresh OI and mark price in the background — no WS bulk channel for either.
     this.refreshTimers.push(
-      setInterval(() => { void this.refreshOi(); }, REFRESH_INTERVAL_MS),
-      setInterval(() => { void this.refreshMarkPrice(); }, REFRESH_INTERVAL_MS),
+      setInterval(() => {
+        void this.refreshOi();
+      }, REFRESH_INTERVAL_MS),
+      setInterval(() => {
+        void this.refreshMarkPrice();
+      }, REFRESH_INTERVAL_MS),
     );
 
     return instruments;
@@ -134,9 +144,14 @@ export class OkxWsAdapter extends SdkBaseAdapter {
     const settle = item.settleCcy ?? base;
 
     // Use API fields directly — more reliable than regex-parsing the instId string.
-    const right = item.optType === 'C' ? 'call' as const
-      : item.optType === 'P' ? 'put'  as const
-      : (match[5] === 'C'   ? 'call' as const : 'put' as const);
+    const right =
+      item.optType === 'C'
+        ? ('call' as const)
+        : item.optType === 'P'
+          ? ('put' as const)
+          : match[5] === 'C'
+            ? ('call' as const)
+            : ('put' as const);
 
     const strike = item.stk != null ? Number(item.stk) : Number(match[4]);
 
@@ -208,7 +223,10 @@ export class OkxWsAdapter extends SdkBaseAdapter {
         const prev = this.quoteStore.get(item.instId);
         if (!prev) continue;
 
-        this.emitQuoteUpdate(item.instId, mergeOkxRestOpenInterest(prev, item, (value) => this.safeNum(value)));
+        this.emitQuoteUpdate(
+          item.instId,
+          mergeOkxRestOpenInterest(prev, item, (value) => this.safeNum(value)),
+        );
         merged++;
       }
       log.info({ count: merged, instFamily }, 'fetched open interest');
@@ -227,7 +245,10 @@ export class OkxWsAdapter extends SdkBaseAdapter {
         const prev = this.quoteStore.get(parsed.instId);
         if (!prev) continue;
 
-        this.emitQuoteUpdate(parsed.instId, mergeOkxRestMarkPrice(prev, parsed, (value) => this.safeNum(value)));
+        this.emitQuoteUpdate(
+          parsed.instId,
+          mergeOkxRestMarkPrice(prev, parsed, (value) => this.safeNum(value)),
+        );
         merged++;
       }
       log.info({ count: merged, instFamily }, 'fetched mark prices');
@@ -292,7 +313,10 @@ export class OkxWsAdapter extends SdkBaseAdapter {
     if (args.length === 0) return;
 
     this.sendSubscribeBatched(args, 'unsubscribe');
-    removeOkxSubscribedInstruments(this.subscriptions, instruments.map((instrument) => instrument.exchangeSymbol));
+    removeOkxSubscribedInstruments(
+      this.subscriptions,
+      instruments.map((instrument) => instrument.exchangeSymbol),
+    );
   }
 
   protected async unsubscribeAll(): Promise<void> {
@@ -316,7 +340,9 @@ export class OkxWsAdapter extends SdkBaseAdapter {
         pingIntervalMs: OKX_PING_INTERVAL_MS,
         pingMessage: 'ping',
         onStatusChange: (state) => {
-          this.emitStatus(state === 'connected' ? 'connected' : state === 'down' ? 'down' : 'reconnecting');
+          this.emitStatus(
+            state === 'connected' ? 'connected' : state === 'down' ? 'down' : 'reconnecting',
+          );
         },
         getReplayMessages: () => {
           const args = buildOkxReplayArgs(this.subscriptions);
@@ -328,12 +354,8 @@ export class OkxWsAdapter extends SdkBaseAdapter {
         onOpen: () => {
           this.sendJson({
             op: 'subscribe',
-            args: [
-              { channel: 'instruments', instType: 'OPTION' },
-              { channel: 'status' },
-            ],
+            args: [{ channel: 'instruments', instType: 'OPTION' }, { channel: 'status' }],
           });
-
         },
       });
     }
@@ -348,11 +370,17 @@ export class OkxWsAdapter extends SdkBaseAdapter {
     if (str === 'pong') return;
 
     let json: unknown;
-    try { json = JSON.parse(str); } catch { log.debug('malformed WS frame'); return; }
+    try {
+      json = JSON.parse(str);
+    } catch {
+      log.debug('malformed WS frame');
+      return;
+    }
 
     if (json == null || typeof json !== 'object') return;
     const obj = json as Record<string, unknown>;
-    if (obj['event'] === 'subscribe' || obj['event'] === 'unsubscribe' || obj['event'] === 'error') return;
+    if (obj['event'] === 'subscribe' || obj['event'] === 'unsubscribe' || obj['event'] === 'error')
+      return;
 
     if (obj['event'] === 'notice') {
       const notice = parseOkxWsNotice(json);
@@ -499,11 +527,17 @@ export class OkxWsAdapter extends SdkBaseAdapter {
     const prev = this.quoteStore.get(id);
 
     if (prev != null) {
-      this.emitQuoteUpdate(id, mergeOkxOptSummary(prev, item, (value) => this.safeNum(value)));
+      this.emitQuoteUpdate(
+        id,
+        mergeOkxOptSummary(prev, item, (value) => this.safeNum(value)),
+      );
       return;
     }
 
-    this.quoteStore.set(id, mergeOkxOptSummary(undefined, item, (value) => this.safeNum(value)));
+    this.quoteStore.set(
+      id,
+      mergeOkxOptSummary(undefined, item, (value) => this.safeNum(value)),
+    );
   }
 
   // ── helpers ───────────────────────────────────────────────────
@@ -513,7 +547,10 @@ export class OkxWsAdapter extends SdkBaseAdapter {
    * Chunks at 60KB to stay safely under OKX's 64KB per-message limit.
    * One chain (~50 instruments × ~55 bytes) ≈ 2.75KB — never splits in practice.
    */
-  private sendSubscribeBatched(args: object[], op: 'subscribe' | 'unsubscribe' = 'subscribe'): void {
+  private sendSubscribeBatched(
+    args: object[],
+    op: 'subscribe' | 'unsubscribe' = 'subscribe',
+  ): void {
     let batch: object[] = [];
     let batchBytes = 0;
 

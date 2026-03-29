@@ -14,8 +14,15 @@ import { wsChainRoute } from './ws-chain.js';
 
 export function registerRoutes(app: FastifyInstance) {
   app.addHook('onRequest', async (_req, reply) => {
-    if (!isTrafficReady() && _req.url !== '/api/health' && _req.url !== '/api/ready' && !_req.url.startsWith('/ws/')) {
-      return reply.status(503).send({ error: 'initializing', message: 'Server is loading market data' });
+    if (
+      !isTrafficReady() &&
+      _req.url !== '/api/health' &&
+      _req.url !== '/api/ready' &&
+      !_req.url.startsWith('/ws/')
+    ) {
+      return reply
+        .status(503)
+        .send({ error: 'initializing', message: 'Server is loading market data' });
     }
   });
 

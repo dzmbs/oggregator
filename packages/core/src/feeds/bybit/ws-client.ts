@@ -116,8 +116,12 @@ export class BybitWsAdapter extends SdkBaseAdapter {
 
     // Poll for new strikes/expiries every 10 minutes — Bybit has no instrument
     // lifecycle push channel unlike Deribit's instrument.state.
-    this.refreshTimer = setInterval(() => { void this.refreshInstruments(); }, INSTRUMENT_REFRESH_INTERVAL_MS);
-    this.healthTimer = setInterval(() => { void this.refreshHealth(); }, HEALTH_CHECK_INTERVAL_MS);
+    this.refreshTimer = setInterval(() => {
+      void this.refreshInstruments();
+    }, INSTRUMENT_REFRESH_INTERVAL_MS);
+    this.healthTimer = setInterval(() => {
+      void this.refreshHealth();
+    }, HEALTH_CHECK_INTERVAL_MS);
     void this.refreshHealth();
 
     return instruments;
@@ -190,7 +194,10 @@ export class BybitWsAdapter extends SdkBaseAdapter {
 
       if (this.wsClient?.isConnected) {
         for (let i = 0; i < expiredTopics.length; i += BYBIT_MAX_TOPICS_PER_BATCH) {
-          this.sendJson({ op: 'unsubscribe', args: expiredTopics.slice(i, i + BYBIT_MAX_TOPICS_PER_BATCH) });
+          this.sendJson({
+            op: 'unsubscribe',
+            args: expiredTopics.slice(i, i + BYBIT_MAX_TOPICS_PER_BATCH),
+          });
         }
       }
 
@@ -209,7 +216,10 @@ export class BybitWsAdapter extends SdkBaseAdapter {
 
       if (newTopics.length > 0 && this.wsClient?.isConnected) {
         for (let i = 0; i < newTopics.length; i += BYBIT_MAX_TOPICS_PER_BATCH) {
-          this.sendJson({ op: 'subscribe', args: newTopics.slice(i, i + BYBIT_MAX_TOPICS_PER_BATCH) });
+          this.sendJson({
+            op: 'subscribe',
+            args: newTopics.slice(i, i + BYBIT_MAX_TOPICS_PER_BATCH),
+          });
         }
       }
 
@@ -226,7 +236,7 @@ export class BybitWsAdapter extends SdkBaseAdapter {
     const strikeStr = match[3]!;
     const expiry = this.parseExpiry(expiryRaw);
     // optionsType from the API ("Call"/"Put") is authoritative over the regex suffix.
-    const right = item.optionsType === 'Call' ? 'call' as const : 'put' as const;
+    const right = item.optionsType === 'Call' ? ('call' as const) : ('put' as const);
     // item.settleCoin is authoritative — regex suffix is fallback for edge cases
     const settle = item.settleCoin || match[5] || 'USDT';
 
@@ -252,7 +262,7 @@ export class BybitWsAdapter extends SdkBaseAdapter {
   // ── initial REST snapshot ─────────────────────────────────────
 
   private async fetchBulkTickers(instruments: CachedInstrument[]): Promise<void> {
-    const baseCoins = [...new Set(instruments.map(i => i.base))];
+    const baseCoins = [...new Set(instruments.map((i) => i.base))];
 
     for (const baseCoin of baseCoins) {
       try {
@@ -273,7 +283,10 @@ export class BybitWsAdapter extends SdkBaseAdapter {
         for (const item of parsed.result.list) {
           const ticker = parseBybitRestTicker(item);
           if (ticker == null) continue;
-          this.quoteStore.set(ticker.symbol, buildBybitRestQuote(ticker, (value) => this.safeNum(value)));
+          this.quoteStore.set(
+            ticker.symbol,
+            buildBybitRestQuote(ticker, (value) => this.safeNum(value)),
+          );
         }
 
         log.info({ count: parsed.result.list.length, baseCoin }, 'fetched tickers');
@@ -348,14 +361,19 @@ export class BybitWsAdapter extends SdkBaseAdapter {
         pingIntervalMs: BYBIT_PING_INTERVAL_MS,
         pingMessage: { op: 'ping' },
         onStatusChange: (state) => {
-          this.emitStatus(state === 'connected' ? 'connected' : state === 'down' ? 'down' : 'reconnecting');
+          this.emitStatus(
+            state === 'connected' ? 'connected' : state === 'down' ? 'down' : 'reconnecting',
+          );
         },
         getReplayMessages: () => {
           if (this.subscriptions.subscribedTopics.size === 0) return [];
           const messages: Array<Record<string, unknown>> = [];
           const topics = [...this.subscriptions.subscribedTopics];
           for (let index = 0; index < topics.length; index += BYBIT_MAX_TOPICS_PER_BATCH) {
-            messages.push({ op: 'subscribe', args: topics.slice(index, index + BYBIT_MAX_TOPICS_PER_BATCH) });
+            messages.push({
+              op: 'subscribe',
+              args: topics.slice(index, index + BYBIT_MAX_TOPICS_PER_BATCH),
+            });
           }
           return messages;
         },
@@ -404,7 +422,10 @@ export class BybitWsAdapter extends SdkBaseAdapter {
     const exchangeSymbol = msg.data.symbol;
     if (!this.instrumentMap.has(exchangeSymbol)) return;
 
-    this.emitQuoteUpdate(exchangeSymbol, buildBybitWsQuote(msg.data, msg.ts, (value) => this.safeNum(value)));
+    this.emitQuoteUpdate(
+      exchangeSymbol,
+      buildBybitWsQuote(msg.data, msg.ts, (value) => this.safeNum(value)),
+    );
   }
 
   // ── helpers ───────────────────────────────────────────────────
@@ -420,8 +441,14 @@ export class BybitWsAdapter extends SdkBaseAdapter {
   }
 
   override async dispose(): Promise<void> {
-    if (this.refreshTimer) { clearInterval(this.refreshTimer); this.refreshTimer = null; }
-    if (this.healthTimer) { clearInterval(this.healthTimer); this.healthTimer = null; }
+    if (this.refreshTimer) {
+      clearInterval(this.refreshTimer);
+      this.refreshTimer = null;
+    }
+    if (this.healthTimer) {
+      clearInterval(this.healthTimer);
+      this.healthTimer = null;
+    }
     await this.unsubscribeAll();
     await this.wsClient?.disconnect();
     this.wsClient = null;

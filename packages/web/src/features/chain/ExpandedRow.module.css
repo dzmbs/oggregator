@@ -8,8 +8,14 @@
 }
 
 @keyframes slideDown {
-  from { opacity: 0; transform: translateY(-3px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* ── Side panels (call / put) ────────────────────────────────────────────── */
@@ -189,15 +195,20 @@
     table-layout: auto;
   }
 
-  .th, .thVenue {
+  .th,
+  .thVenue {
     font-size: 9px;
     padding: 3px 4px;
   }
 
-  .tdNum, .tdVenue, .tdChip {
+  .tdNum,
+  .tdVenue,
+  .tdChip {
     padding: 4px;
     font-size: 11px;
   }
 
-  .thVenue { min-width: 70px; }
+  .thVenue {
+    min-width: 70px;
+  }
 }

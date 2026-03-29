@@ -1,33 +1,38 @@
-import { useState } from "react";
+import { useState } from 'react';
 
-import { VENUES } from "@lib/venue-meta";
-import type { NormalizedOptionContract } from "@shared/common";
+import { VENUES } from '@lib/venue-meta';
+import type { NormalizedOptionContract } from '@shared/common';
 
-import { contractToExecution } from "./build-execution";
-import { computeExecutionCost, rankExecutions } from "./compute-execution";
-import type { OrderSide, OptionSide, ExecutionCost } from "./types";
-import styles from "./OptionBuilder.module.css";
+import { contractToExecution } from './build-execution';
+import { computeExecutionCost, rankExecutions } from './compute-execution';
+import type { OrderSide, OptionSide, ExecutionCost } from './types';
+import styles from './OptionBuilder.module.css';
 
 interface OptionBuilderProps {
-  underlying:      string;
-  expiry:          string;
-  strike:          number;
-  initialSide:     OptionSide;
-  callContracts:   Record<string, NormalizedOptionContract>;
-  putContracts:    Record<string, NormalizedOptionContract>;
+  underlying: string;
+  expiry: string;
+  strike: number;
+  initialSide: OptionSide;
+  callContracts: Record<string, NormalizedOptionContract>;
+  putContracts: Record<string, NormalizedOptionContract>;
   underlyingPrice: number;
-  onClose:         () => void;
+  onClose: () => void;
 }
 
 function fmtUsdExec(v: number): string {
-  if (v >= 100) return "$" + v.toLocaleString("en-US", { maximumFractionDigits: 2 });
-  if (v >= 1)   return "$" + v.toFixed(2);
-  return "$" + v.toFixed(4);
+  if (v >= 100) return '$' + v.toLocaleString('en-US', { maximumFractionDigits: 2 });
+  if (v >= 1) return '$' + v.toFixed(2);
+  return '$' + v.toFixed(4);
 }
 
 function formatExpiry(iso: string): string {
-  const d = new Date(iso + "T00:00:00Z");
-  return d.toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+  const d = new Date(iso + 'T00:00:00Z');
+  return d.toLocaleDateString('en-US', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
 }
 
 interface SavingsBadgeProps {
@@ -47,16 +52,16 @@ function SavingsBadge({ best, current }: SavingsBadgeProps) {
 }
 
 interface ExecutionCardProps {
-  exec:      ExecutionCost;
-  rank:      number;
-  bestCost:  number;
+  exec: ExecutionCost;
+  rank: number;
+  bestCost: number;
   orderSide: OrderSide;
 }
 
 function ExecutionCard({ exec, rank, bestCost, orderSide }: ExecutionCardProps) {
   const meta = VENUES[exec.venue];
   const isBest = rank === 0;
-  const isSell = orderSide === "sell";
+  const isSell = orderSide === 'sell';
 
   return (
     <div className={styles.execCard} data-best={isBest}>
@@ -67,7 +72,8 @@ function ExecutionCard({ exec, rank, bestCost, orderSide }: ExecutionCardProps) 
           {isBest && <span className={styles.bestTag}>BEST</span>}
         </div>
         <span className={isSell ? styles.totalProfit : styles.totalCost}>
-          {isSell ? "+" : ""}{fmtUsdExec(Math.abs(exec.totalCostUsd))}
+          {isSell ? '+' : ''}
+          {fmtUsdExec(Math.abs(exec.totalCostUsd))}
         </span>
       </div>
       {!isBest && (
@@ -98,12 +104,10 @@ function ExecutionCard({ exec, rank, bestCost, orderSide }: ExecutionCardProps) 
       <div className={styles.execFooter}>
         {exec.sizeAvailable != null && (
           <span className={exec.fillable ? styles.sizeOk : styles.sizeWarn}>
-            {exec.fillable ? "✓" : "⚠"} {exec.sizeAvailable.toFixed(1)} avail
+            {exec.fillable ? '✓' : '⚠'} {exec.sizeAvailable.toFixed(1)} avail
           </span>
         )}
-        {exec.slippageWarning && (
-          <span className={styles.slippageWarn}>slippage risk</span>
-        )}
+        {exec.slippageWarning && <span className={styles.slippageWarn}>slippage risk</span>}
       </div>
     </div>
   );
@@ -120,14 +124,12 @@ export default function OptionBuilder({
   onClose,
 }: OptionBuilderProps) {
   const [optionSide, setOptionSide] = useState<OptionSide>(initialSide);
-  const [orderSide, setOrderSide] = useState<OrderSide>("buy");
+  const [orderSide, setOrderSide] = useState<OrderSide>('buy');
   const [quantity, setQuantity] = useState(1);
 
-  const contracts = optionSide === "call" ? callContracts : putContracts;
+  const contracts = optionSide === 'call' ? callContracts : putContracts;
 
-  const executions = Object.values(contracts).map((c) =>
-    contractToExecution(c, underlyingPrice),
-  );
+  const executions = Object.values(contracts).map((c) => contractToExecution(c, underlyingPrice));
 
   const costs = executions.map((ve) => computeExecutionCost(ve, orderSide, quantity));
   const ranked = rankExecutions(costs);
@@ -142,36 +144,46 @@ export default function OptionBuilder({
             {underlying} · {strike.toLocaleString()} · {formatExpiry(expiry)}
           </span>
         </div>
-        <button className={styles.closeBtn} onClick={onClose}>✕</button>
+        <button className={styles.closeBtn} onClick={onClose}>
+          ✕
+        </button>
       </div>
 
       <div className={styles.controls}>
         <div className={styles.toggleGroup}>
           <button
             className={styles.toggleBtn}
-            data-active={optionSide === "call"}
+            data-active={optionSide === 'call'}
             data-variant="call"
-            onClick={() => setOptionSide("call")}
-          >Call</button>
+            onClick={() => setOptionSide('call')}
+          >
+            Call
+          </button>
           <button
             className={styles.toggleBtn}
-            data-active={optionSide === "put"}
+            data-active={optionSide === 'put'}
             data-variant="put"
-            onClick={() => setOptionSide("put")}
-          >Put</button>
+            onClick={() => setOptionSide('put')}
+          >
+            Put
+          </button>
         </div>
 
         <div className={styles.toggleGroup}>
           <button
             className={styles.toggleBtn}
-            data-active={orderSide === "buy"}
-            onClick={() => setOrderSide("buy")}
-          >Buy</button>
+            data-active={orderSide === 'buy'}
+            onClick={() => setOrderSide('buy')}
+          >
+            Buy
+          </button>
           <button
             className={styles.toggleBtn}
-            data-active={orderSide === "sell"}
-            onClick={() => setOrderSide("sell")}
-          >Sell</button>
+            data-active={orderSide === 'sell'}
+            onClick={() => setOrderSide('sell')}
+          >
+            Sell
+          </button>
         </div>
 
         <div className={styles.qtyGroup}>
@@ -205,12 +217,11 @@ export default function OptionBuilder({
       {ranked.length >= 2 && (
         <div className={styles.summary}>
           <span className={styles.summaryText}>
-            Best execution on <strong>{VENUES[ranked[0]!.venue]?.label}</strong>
-            {" "}saves{" "}
+            Best execution on <strong>{VENUES[ranked[0]!.venue]?.label}</strong> saves{' '}
             <strong className={styles.summaryGreen}>
               {fmtUsdExec(ranked[ranked.length - 1]!.totalCostUsd - ranked[0]!.totalCostUsd)}
-            </strong>
-            {" "}vs worst venue
+            </strong>{' '}
+            vs worst venue
           </span>
         </div>
       )}

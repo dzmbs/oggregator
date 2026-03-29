@@ -18,27 +18,27 @@ import { statsRoute } from './stats.js';
 
 function makeDvol(overrides: Partial<DvolSnapshot> = {}): DvolSnapshot {
   return {
-    currency:      'BTC',
-    current:       0.52,
-    high52w:       0.80,
-    low52w:        0.30,
-    ivr:           65,
-    previousClose: 0.50,
-    ivChange1d:    0.02,
-    updatedAt:     Date.now(),
+    currency: 'BTC',
+    current: 0.52,
+    high52w: 0.8,
+    low52w: 0.3,
+    ivr: 65,
+    previousClose: 0.5,
+    ivChange1d: 0.02,
+    updatedAt: Date.now(),
     ...overrides,
   };
 }
 
 function makeSpot(overrides: Partial<SpotSnapshot> = {}): SpotSnapshot {
   return {
-    symbol:       'BTCUSDT',
-    lastPrice:    70_000,
+    symbol: 'BTCUSDT',
+    lastPrice: 70_000,
     prevPrice24h: 68_000,
     change24hPct: 2.5,
-    high24h:      71_000,
-    low24h:       69_000,
-    updatedAt:    Date.now(),
+    high24h: 71_000,
+    low24h: 69_000,
+    updatedAt: Date.now(),
     ...overrides,
   };
 }
@@ -65,8 +65,12 @@ async function buildApp() {
 describe('GET /stats', () => {
   let app: Awaited<ReturnType<typeof buildApp>>;
 
-  beforeAll(async () => { app = await buildApp(); });
-  afterAll(async () => { await app.close(); });
+  beforeAll(async () => {
+    app = await buildApp();
+  });
+  afterAll(async () => {
+    await app.close();
+  });
 
   it('returns 503 when both services are not ready', async () => {
     setReady(false, false);

@@ -1,34 +1,34 @@
-import { useState } from "react";
+import { useState } from 'react';
 
-import type { Leg } from "./payoff";
-import type { EnrichedChainResponse } from "@shared/enriched";
-import type { VenueId } from "@oggregator/protocol";
-import { VENUES } from "@lib/venue-meta";
-import { fmtUsd, formatExpiry } from "@lib/format";
-import { computeExecutionCost } from "@features/builder/compute-execution";
-import type { VenueExecution } from "@features/builder/types";
-import { detectStrategy } from "./payoff";
-import styles from "./VenueSlideover.module.css";
+import type { Leg } from './payoff';
+import type { EnrichedChainResponse } from '@shared/enriched';
+import type { VenueId } from '@oggregator/protocol';
+import { VENUES } from '@lib/venue-meta';
+import { fmtUsd, formatExpiry } from '@lib/format';
+import { computeExecutionCost } from '@features/builder/compute-execution';
+import type { VenueExecution } from '@features/builder/types';
+import { detectStrategy } from './payoff';
+import styles from './VenueSlideover.module.css';
 
 interface VenueSlideoverProps {
-  legs:         Leg[];
-  chain:        EnrichedChainResponse | null;
+  legs: Leg[];
+  chain: EnrichedChainResponse | null;
   activeVenues: string[];
-  onClose:      () => void;
+  onClose: () => void;
 }
 
 interface VenueCost {
-  venue:      string;
-  totalCost:  number;
-  totalFees:  number;
+  venue: string;
+  totalCost: number;
+  totalFees: number;
   totalSpread: number;
-  available:  boolean;
+  available: boolean;
   legDetails: Array<{
-    strike:    number;
-    type:      "call" | "put";
-    direction: "buy" | "sell";
-    price:     number;
-    iv:        number | null;
+    strike: number;
+    type: 'call' | 'put';
+    direction: 'buy' | 'sell';
+    price: number;
+    iv: number | null;
     spreadPct: number | null;
   }>;
 }
@@ -40,7 +40,7 @@ function buildVenueExecution(
 ): VenueExecution | null {
   const strike = chain.strikes.find((s) => s.strike === leg.strike);
   if (!strike) return null;
-  const side = leg.type === "call" ? strike.call : strike.put;
+  const side = leg.type === 'call' ? strike.call : strike.put;
   const q = side.venues[venueId as VenueId];
   if (!q) return null;
   return {
@@ -58,41 +58,53 @@ function buildVenueExecution(
     minQty: 0.01,
     makerFee: q.estimatedFees && q.mid ? q.estimatedFees.maker / q.mid : 0.0003,
     takerFee: q.estimatedFees && q.mid ? q.estimatedFees.taker / q.mid : 0.0005,
-    settleCurrency: "USD",
+    settleCurrency: 'USD',
     inverse: false,
     underlyingPrice: chain.stats.spotIndexUsd ?? chain.stats.indexPriceUsd ?? 0,
   };
 }
 
-export default function VenueSlideover({ legs, chain, activeVenues, onClose }: VenueSlideoverProps) {
+export default function VenueSlideover({
+  legs,
+  chain,
+  activeVenues,
+  onClose,
+}: VenueSlideoverProps) {
   const [expanded, setExpanded] = useState<string | null>(null);
 
   if (!chain || legs.length === 0) return null;
 
   const strategyName = detectStrategy(legs);
-  const strategyExpiry = legs[0]?.expiry ?? "";
+  const strategyExpiry = legs[0]?.expiry ?? '';
 
   const venueCosts: VenueCost[] = activeVenues.map((venueId) => {
     let totalCost = 0;
     let totalFees = 0;
     let totalSpread = 0;
     let allAvailable = true;
-    const legDetails: VenueCost["legDetails"] = [];
+    const legDetails: VenueCost['legDetails'] = [];
 
     for (const leg of legs) {
       const ve = buildVenueExecution(chain, venueId, leg);
-      if (!ve) { allAvailable = false; continue; }
+      if (!ve) {
+        allAvailable = false;
+        continue;
+      }
       const exec = computeExecutionCost(ve, leg.direction, leg.quantity);
-      if (!exec) { allAvailable = false; continue; }
+      if (!exec) {
+        allAvailable = false;
+        continue;
+      }
 
-      const signedCost = leg.direction === "buy" ? -exec.totalCostUsd : exec.totalCostUsd;
+      const signedCost = leg.direction === 'buy' ? -exec.totalCostUsd : exec.totalCostUsd;
       totalCost += signedCost;
       totalFees += exec.feeUsd;
       totalSpread += exec.spreadCostUsd;
 
-      const q = (leg.type === "call"
-        ? chain.strikes.find((s) => s.strike === leg.strike)?.call
-        : chain.strikes.find((s) => s.strike === leg.strike)?.put
+      const q = (
+        leg.type === 'call'
+          ? chain.strikes.find((s) => s.strike === leg.strike)?.call
+          : chain.strikes.find((s) => s.strike === leg.strike)?.put
       )?.venues[venueId as VenueId];
 
       legDetails.push({
@@ -105,7 +117,14 @@ export default function VenueSlideover({ legs, chain, activeVenues, onClose }: V
       });
     }
 
-    return { venue: venueId, totalCost, totalFees, totalSpread, available: allAvailable, legDetails };
+    return {
+      venue: venueId,
+      totalCost,
+      totalFees,
+      totalSpread,
+      available: allAvailable,
+      legDetails,
+    };
   });
 
   const sorted = [...venueCosts].sort((a, b) => {
@@ -122,11 +141,13 @@ export default function VenueSlideover({ legs, chain, activeVenues, onClose }: V
         <div className={styles.headerLeft}>
           <span className={styles.headerTitle}>Venue Comparison</span>
           <span className={styles.headerMeta}>
-            {strategyName} · {legs.length} leg{legs.length !== 1 ? "s" : ""}
-            {strategyExpiry ? ` · ${formatExpiry(strategyExpiry)}` : ""}
+            {strategyName} · {legs.length} leg{legs.length !== 1 ? 's' : ''}
+            {strategyExpiry ? ` · ${formatExpiry(strategyExpiry)}` : ''}
           </span>
         </div>
-        <button className={styles.closeBtn} onClick={onClose}>✕</button>
+        <button className={styles.closeBtn} onClick={onClose}>
+          ✕
+        </button>
       </div>
 
       {bestCost != null && worstCost != null && bestCost !== worstCost && (
@@ -142,17 +163,26 @@ export default function VenueSlideover({ legs, chain, activeVenues, onClose }: V
           const meta = VENUES[vc.venue];
           const isExpanded = expanded === vc.venue;
           const isBest = i === 0 && vc.available;
-          const savings = isBest && worstCost != null && bestCost != null && bestCost !== worstCost
-            ? Math.abs(vc.totalCost - worstCost)
-            : null;
+          const savings =
+            isBest && worstCost != null && bestCost != null && bestCost !== worstCost
+              ? Math.abs(vc.totalCost - worstCost)
+              : null;
 
           return (
-            <div key={vc.venue} className={styles.venueRow} data-best={isBest || undefined} data-unavailable={!vc.available || undefined}>
+            <div
+              key={vc.venue}
+              className={styles.venueRow}
+              data-best={isBest || undefined}
+              data-unavailable={!vc.available || undefined}
+            >
               <div className={styles.rank} data-best={isBest || undefined}>
-                {vc.available ? `#${i + 1}` : "–"}
+                {vc.available ? `#${i + 1}` : '–'}
               </div>
 
-              <button className={styles.venueMain} onClick={() => setExpanded(isExpanded ? null : vc.venue)}>
+              <button
+                className={styles.venueMain}
+                onClick={() => setExpanded(isExpanded ? null : vc.venue)}
+              >
                 <div className={styles.venueId}>
                   {meta?.logo && <img src={meta.logo} alt="" className={styles.venueLogo} />}
                   <span className={styles.venueName}>{meta?.label ?? vc.venue}</span>
@@ -161,8 +191,12 @@ export default function VenueSlideover({ legs, chain, activeVenues, onClose }: V
                 <div className={styles.venueNumbers}>
                   {vc.available ? (
                     <>
-                      <span className={styles.venueTotal} data-positive={vc.totalCost > 0 || undefined}>
-                        {vc.totalCost > 0 ? "+" : ""}{fmtUsd(vc.totalCost)}
+                      <span
+                        className={styles.venueTotal}
+                        data-positive={vc.totalCost > 0 || undefined}
+                      >
+                        {vc.totalCost > 0 ? '+' : ''}
+                        {fmtUsd(vc.totalCost)}
                       </span>
                       <span className={styles.venueSub}>
                         fee {fmtUsd(vc.totalFees)} · spread {fmtUsd(vc.totalSpread)}
@@ -173,11 +207,11 @@ export default function VenueSlideover({ legs, chain, activeVenues, onClose }: V
                   )}
                 </div>
 
-                {savings != null && (
-                  <span className={styles.savingsBadge}>−{fmtUsd(savings)}</span>
-                )}
+                {savings != null && <span className={styles.savingsBadge}>−{fmtUsd(savings)}</span>}
 
-                <span className={styles.chevron} data-open={isExpanded || undefined}>▾</span>
+                <span className={styles.chevron} data-open={isExpanded || undefined}>
+                  ▾
+                </span>
               </button>
 
               {isExpanded && vc.available && (
@@ -191,16 +225,18 @@ export default function VenueSlideover({ legs, chain, activeVenues, onClose }: V
                   {vc.legDetails.map((d, j) => (
                     <div key={j} className={styles.legDetailRow}>
                       <span className={styles.legDetailLeg}>
-                        <span data-direction={d.direction}>{d.direction === "buy" ? "B" : "S"}</span>
-                        {" "}{d.strike.toLocaleString()}{" "}
-                        <span data-type={d.type}>{d.type === "call" ? "C" : "P"}</span>
+                        <span data-direction={d.direction}>
+                          {d.direction === 'buy' ? 'B' : 'S'}
+                        </span>{' '}
+                        {d.strike.toLocaleString()}{' '}
+                        <span data-type={d.type}>{d.type === 'call' ? 'C' : 'P'}</span>
                       </span>
                       <span className={styles.legDetailPrice}>{fmtUsd(d.price)}</span>
                       <span className={styles.legDetailIv}>
-                        {d.iv != null ? `${(d.iv * 100).toFixed(1)}%` : "–"}
+                        {d.iv != null ? `${(d.iv * 100).toFixed(1)}%` : '–'}
                       </span>
                       <span className={styles.legDetailSpread}>
-                        {d.spreadPct != null ? `${d.spreadPct.toFixed(1)}%` : "–"}
+                        {d.spreadPct != null ? `${d.spreadPct.toFixed(1)}%` : '–'}
                       </span>
                     </div>
                   ))}

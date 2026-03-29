@@ -12,9 +12,15 @@ class TestAdapter extends BaseAdapter {
   };
 
   async loadMarkets(): Promise<void> {}
-  async listUnderlyings(): Promise<string[]> { return []; }
-  async listExpiries(): Promise<string[]> { return []; }
-  async fetchOptionChain(): Promise<never> { throw new Error('not implemented'); }
+  async listUnderlyings(): Promise<string[]> {
+    return [];
+  }
+  async listExpiries(): Promise<string[]> {
+    return [];
+  }
+  async fetchOptionChain(): Promise<never> {
+    throw new Error('not implemented');
+  }
 
   public parse(value: unknown): number | null {
     return this.safeNum(value);

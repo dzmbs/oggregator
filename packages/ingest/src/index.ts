@@ -11,25 +11,43 @@ import {
   type BlockTradeEvent,
   type TradeEvent,
 } from '@oggregator/core';
-import { NoopTradeStore, PostgresTradeStore, type PersistedTradeLeg, type PersistedTradeRecord, type TradeStore } from '@oggregator/db';
+import {
+  NoopTradeStore,
+  PostgresTradeStore,
+  type PersistedTradeLeg,
+  type PersistedTradeRecord,
+  type TradeStore,
+} from '@oggregator/db';
 import pino from 'pino';
 
 loadEnv();
 
-const log = pino(process.env['NODE_ENV'] !== 'production'
-  ? {
-      transport: {
-        target: 'pino-pretty',
-        options: {
-          translateTime: 'HH:MM:ss Z',
-          ignore: 'pid,hostname',
+const log = pino(
+  process.env['NODE_ENV'] !== 'production'
+    ? {
+        transport: {
+          target: 'pino-pretty',
+          options: {
+            translateTime: 'HH:MM:ss Z',
+            ignore: 'pid,hostname',
+          },
         },
-      },
-    }
-  : undefined);
+      }
+    : undefined,
+);
 
 const UNDERLYINGS = ['BTC', 'ETH', 'SOL', 'DOGE', 'XRP', 'BNB', 'AVAX', 'TRX', 'HYPE'] as const;
-const SPOT_SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'DOGEUSDT', 'XRPUSDT', 'BNBUSDT', 'AVAXUSDT', 'TRXUSDT', 'HYPEUSDT'] as const;
+const SPOT_SYMBOLS = [
+  'BTCUSDT',
+  'ETHUSDT',
+  'SOLUSDT',
+  'DOGEUSDT',
+  'XRPUSDT',
+  'BNBUSDT',
+  'AVAXUSDT',
+  'TRXUSDT',
+  'HYPEUSDT',
+] as const;
 const FLUSH_INTERVAL_MS = 250;
 const FLUSH_BATCH_SIZE = 250;
 const MAX_PENDING_RECORDS = 10_000;
@@ -78,18 +96,25 @@ async function main(): Promise<void> {
     log.warn({ err: String(blockTradeStart.reason) }, 'block trade runtime failed to start');
   }
 
-  if (spotStart.status === 'rejected' && tradeStart.status === 'rejected' && blockTradeStart.status === 'rejected') {
+  if (
+    spotStart.status === 'rejected' &&
+    tradeStart.status === 'rejected' &&
+    blockTradeStart.status === 'rejected'
+  ) {
     throw new Error('all ingest runtimes failed to start');
   }
 
   const opsTimer = setInterval(() => {
-    log.info({
-      memory: getProcessMemorySnapshot(),
-      writer: writer.getStats(),
-      trades: tradeRuntime.getHealth(),
-      blockTrades: blockTradeRuntime.getHealth(),
-      ingest: ops.snapshot(),
-    }, 'ingest ops snapshot');
+    log.info(
+      {
+        memory: getProcessMemorySnapshot(),
+        writer: writer.getStats(),
+        trades: tradeRuntime.getHealth(),
+        blockTrades: blockTradeRuntime.getHealth(),
+        ingest: ops.snapshot(),
+      },
+      'ingest ops snapshot',
+    );
   }, OPS_LOG_INTERVAL_MS);
 
   let shutdownPromise: Promise<void> | null = null;
@@ -114,8 +139,12 @@ async function main(): Promise<void> {
     await shutdownPromise;
   };
 
-  process.on('SIGINT', () => { void shutdown(); });
-  process.on('SIGTERM', () => { void shutdown(); });
+  process.on('SIGINT', () => {
+    void shutdown();
+  });
+  process.on('SIGTERM', () => {
+    void shutdown();
+  });
 
   log.info({ persistence: tradeStore.enabled ? 'postgres' : 'noop' }, 'ingest worker started');
 }
@@ -142,7 +171,10 @@ class BufferedTradeWriter {
 
     if (this.queue.length > MAX_PENDING_RECORDS) {
       const dropped = this.queue.splice(0, this.queue.length - MAX_PENDING_RECORDS);
-      log.warn({ dropped: dropped.length, queued: this.queue.length }, 'trade queue overflow, dropping oldest records');
+      log.warn(
+        { dropped: dropped.length, queued: this.queue.length },
+        'trade queue overflow, dropping oldest records',
+      );
     }
 
     if (this.queue.length >= FLUSH_BATCH_SIZE) {
@@ -170,7 +202,10 @@ class BufferedTradeWriter {
       const backoffMs = Math.min(1_000 * 2 ** (this.consecutiveFailures - 1), MAX_FLUSH_BACKOFF_MS);
       this.nextFlushAt = Date.now() + backoffMs;
       this.lastFlushError = String(error);
-      log.warn({ err: String(error), count: batch.length, queued: this.queue.length, backoffMs }, 'trade batch write failed');
+      log.warn(
+        { err: String(error), count: batch.length, queued: this.queue.length, backoffMs },
+        'trade batch write failed',
+      );
     } finally {
       this.flushing = false;
     }
@@ -287,7 +322,10 @@ function mapLiveTrade(trade: TradeEvent, spotService: SpotRuntime): PersistedTra
   };
 }
 
-function mapInstitutionalTrade(trade: BlockTradeEvent, spotService: SpotRuntime): PersistedTradeRecord {
+function mapInstitutionalTrade(
+  trade: BlockTradeEvent,
+  spotService: SpotRuntime,
+): PersistedTradeRecord {
   const referencePriceUsd = trade.indexPrice ?? getSpotPriceUsd(spotService, trade.underlying);
   const amounts = computeBlockTradeAmounts(trade, referencePriceUsd);
   const firstInstrument = parseTradeInstrument(trade.legs[0]?.instrument ?? trade.underlying);

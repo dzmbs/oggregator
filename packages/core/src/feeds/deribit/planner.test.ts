@@ -38,10 +38,7 @@ describe('Deribit planner', () => {
     );
 
     expect(plan.indexName).toBe('btc_usd');
-    expect(plan.bulkChannels).toEqual([
-      'markprice.options.btc_usd',
-      'deribit_price_index.btc_usd',
-    ]);
+    expect(plan.bulkChannels).toEqual(['markprice.options.btc_usd', 'deribit_price_index.btc_usd']);
     expect(plan.tickerChannels).toEqual(['ticker.BTC-1JAN26-100-C.agg2']);
     expect(plan.channelsToUnsubscribe).toEqual([]);
   });

@@ -1,2 +1,2 @@
-export { default as ArchitectView } from "./ArchitectView";
-export { useStrategyStore } from "./strategy-store";
+export { default as ArchitectView } from './ArchitectView';
+export { useStrategyStore } from './strategy-store';

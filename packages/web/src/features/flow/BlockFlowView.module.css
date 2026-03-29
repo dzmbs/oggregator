@@ -30,7 +30,10 @@
   font-size: var(--text-xs);
   font-weight: 600;
   cursor: pointer;
-  transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast),
+    border-color var(--transition-fast);
 }
 
 .loadMoreBtn:hover:not(:disabled) {
@@ -67,12 +70,17 @@
   border-left: 3px solid transparent;
 }
 
-.trade:hover, .trade:active {
+.trade:hover,
+.trade:active {
   background: var(--bg-hover);
 }
 
-.trade[data-side="buy"]  { border-left-color: var(--color-profit); }
-.trade[data-side="sell"] { border-left-color: var(--color-loss); }
+.trade[data-side="buy"] {
+  border-left-color: var(--color-profit);
+}
+.trade[data-side="sell"] {
+  border-left-color: var(--color-loss);
+}
 
 .trade[data-whale] {
   background: color-mix(in srgb, var(--accent-primary) 4%, transparent);
@@ -121,8 +129,12 @@
   letter-spacing: 0.04em;
 }
 
-.side[data-side="buy"]  { color: var(--color-profit); }
-.side[data-side="sell"] { color: var(--color-loss); }
+.side[data-side="buy"] {
+  color: var(--color-profit);
+}
+.side[data-side="sell"] {
+  color: var(--color-loss);
+}
 
 .tradeBottom {
   display: flex;
@@ -222,7 +234,9 @@
 .chevron {
   font-size: var(--text-base);
   color: var(--text-dim);
-  transition: transform var(--transition-fast), color var(--transition-fast);
+  transition:
+    transform var(--transition-fast),
+    color var(--transition-fast);
   flex-shrink: 0;
   width: 20px;
   text-align: center;
@@ -245,8 +259,14 @@
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-3px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .leg {
@@ -260,8 +280,12 @@
   border-left: 2px solid transparent;
 }
 
-.leg[data-side="buy"]  { border-left-color: var(--color-profit); }
-.leg[data-side="sell"] { border-left-color: var(--color-loss); }
+.leg[data-side="buy"] {
+  border-left-color: var(--color-profit);
+}
+.leg[data-side="sell"] {
+  border-left-color: var(--color-loss);
+}
 
 .legDir {
   font-size: 10px;
@@ -269,8 +293,12 @@
   min-width: 28px;
 }
 
-.legDir[data-side="buy"]  { color: var(--color-profit); }
-.legDir[data-side="sell"] { color: var(--color-loss); }
+.legDir[data-side="buy"] {
+  color: var(--color-profit);
+}
+.legDir[data-side="sell"] {
+  color: var(--color-loss);
+}
 
 .legSize {
   color: var(--text-secondary);
@@ -344,8 +372,12 @@
     min-width: 120px;
   }
 
-  .strategy { font-size: var(--text-xs); }
-  .tradeBottom { font-size: 11px; }
+  .strategy {
+    font-size: var(--text-xs);
+  }
+  .tradeBottom {
+    font-size: 11px;
+  }
 
   .tradeRight {
     flex-basis: 100%;
@@ -363,11 +395,20 @@
     gap: 1px;
   }
 
-  .notional { font-size: var(--text-sm); }
-  .venue { font-size: 9px; }
-  .time  { font-size: 9px; }
+  .notional {
+    font-size: var(--text-sm);
+  }
+  .venue {
+    font-size: 9px;
+  }
+  .time {
+    font-size: 9px;
+  }
 
-  .chevron { width: 16px; font-size: var(--text-sm); }
+  .chevron {
+    width: 16px;
+    font-size: var(--text-sm);
+  }
 
   .legs {
     padding-left: var(--space-3);
@@ -393,5 +434,8 @@
     margin-left: 0;
   }
 
-  .legDir { font-size: 9px; min-width: 24px; }
+  .legDir {
+    font-size: 9px;
+    min-width: 24px;
+  }
 }

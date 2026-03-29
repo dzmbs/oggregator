@@ -42,7 +42,9 @@ export async function blockFlowRoute(app: FastifyInstance) {
       return reply.status(503).send({ error: 'block flow service not available' });
     }
 
-    const underlying = req.query.underlying ? normalizeApiUnderlying(req.query.underlying) : undefined;
+    const underlying = req.query.underlying
+      ? normalizeApiUnderlying(req.query.underlying)
+      : undefined;
     const limit = parseBoundedLimit(req.query.limit, 100, 300);
     const trades = blockFlowService.getTrades(underlying);
 
@@ -101,7 +103,9 @@ export async function blockFlowRoute(app: FastifyInstance) {
       };
     }
 
-    const summary = await tradeStore.summarizeHistory(buildSummaryQuery(req.query, 'institutional'));
+    const summary = await tradeStore.summarizeHistory(
+      buildSummaryQuery(req.query, 'institutional'),
+    );
 
     return {
       available: true,
@@ -112,12 +116,16 @@ export async function blockFlowRoute(app: FastifyInstance) {
       newestTs: summary.newestTs?.toISOString() ?? null,
       venues: summary.venues.flatMap((venue) => {
         const venueId = toVenueId(venue.venue);
-        return venueId ? [{
-          venue: venueId,
-          count: venue.count,
-          premiumUsd: venue.premiumUsd,
-          notionalUsd: venue.notionalUsd,
-        }] : [];
+        return venueId
+          ? [
+              {
+                venue: venueId,
+                count: venue.count,
+                premiumUsd: venue.premiumUsd,
+                notionalUsd: venue.notionalUsd,
+              },
+            ]
+          : [];
       }),
     };
   });
@@ -145,7 +153,10 @@ function mapStoredBlockTrade(row: PersistedTradeRecord): EnrichedBlockTradeEvent
   return {
     venue,
     tradeUid: row.tradeUid,
-    tradeId: getOptionalString(row.raw, 'tradeId') ?? extractTradeIdFromUid(row.tradeUid, row.venue) ?? row.tradeUid,
+    tradeId:
+      getOptionalString(row.raw, 'tradeId') ??
+      extractTradeIdFromUid(row.tradeUid, row.venue) ??
+      row.tradeUid,
     timestamp: row.tradeTs.getTime(),
     underlying: row.underlying,
     direction: row.direction,
@@ -170,7 +181,15 @@ function buildNextCursor(trades: EnrichedBlockTradeEvent[]): TradeHistoryCursor 
 }
 
 function buildHistoryQuery(
-  query: { underlying?: string; venues?: string; start?: string; end?: string; beforeTs?: string; beforeUid?: string; limit?: string },
+  query: {
+    underlying?: string;
+    venues?: string;
+    start?: string;
+    end?: string;
+    beforeTs?: string;
+    beforeUid?: string;
+    limit?: string;
+  },
   mode: 'live' | 'institutional',
 ): TradeHistoryQuery {
   const historyQuery: TradeHistoryQuery = {
@@ -213,7 +232,10 @@ function normalizeApiUnderlying(underlying: string): string {
   return normalizeTradeUnderlying(underlying);
 }
 
-function parseCursor(beforeTs?: string, beforeUid?: string): { beforeTs: Date; beforeUid: string } | null {
+function parseCursor(
+  beforeTs?: string,
+  beforeUid?: string,
+): { beforeTs: Date; beforeUid: string } | null {
   if (!beforeTs || !beforeUid) return null;
   const parsed = parseDate(beforeTs);
   if (!parsed) return null;
@@ -255,7 +277,13 @@ function getOptionalNumber(raw: Record<string, unknown>, key: string): number | 
 }
 
 function toVenueId(value: string): BlockTradeEvent['venue'] | null {
-  if (value === 'deribit' || value === 'okx' || value === 'bybit' || value === 'binance' || value === 'derive') {
+  if (
+    value === 'deribit' ||
+    value === 'okx' ||
+    value === 'bybit' ||
+    value === 'binance' ||
+    value === 'derive'
+  ) {
     return value;
   }
   return null;

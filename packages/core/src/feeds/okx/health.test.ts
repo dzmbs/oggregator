@@ -3,7 +3,9 @@ import { deriveOkxNoticeHealth, deriveOkxStatusHealth } from './health.js';
 
 describe('OKX health', () => {
   it('turns notice events into reconnecting status', () => {
-    expect(deriveOkxNoticeHealth({ event: 'notice', code: '64008', msg: 'service upgrade' })).toEqual({
+    expect(
+      deriveOkxNoticeHealth({ event: 'notice', code: '64008', msg: 'service upgrade' }),
+    ).toEqual({
       status: 'reconnecting',
       message: 'service upgrade (64008)',
     });

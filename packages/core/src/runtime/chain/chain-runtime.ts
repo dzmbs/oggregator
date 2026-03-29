@@ -168,7 +168,8 @@ export class ChainRuntime {
       },
       onStatus: (status) => {
         if (this.disposed) return;
-        const effective = this.venueHealth.ingest(status) ?? this.venueHealth.get(status.venue) ?? status;
+        const effective =
+          this.venueHealth.ingest(status) ?? this.venueHealth.get(status.venue) ?? status;
         this.broadcast({ type: 'status', status: effective });
       },
     };
@@ -371,20 +372,21 @@ export class ChainRuntime {
       patch: patch.patch,
     };
 
-    this.currentSnapshot = snapshot == null
-      ? null
-      : {
-          type: 'snapshot',
-          seq: this.seq,
-          request: this.activeRequest,
-          meta: patch.meta,
-          data: {
-            ...snapshot.data,
-            stats: patch.patch.stats,
-            strikes: mergeStrikes(snapshot.data.strikes, patch.patch.strikes),
-            gex: patch.patch.gex,
-          },
-        };
+    this.currentSnapshot =
+      snapshot == null
+        ? null
+        : {
+            type: 'snapshot',
+            seq: this.seq,
+            request: this.activeRequest,
+            meta: patch.meta,
+            data: {
+              ...snapshot.data,
+              stats: patch.patch.stats,
+              strikes: mergeStrikes(snapshot.data.strikes, patch.patch.strikes),
+              gex: patch.patch.gex,
+            },
+          };
 
     this.broadcast(event);
   }

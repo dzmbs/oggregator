@@ -1,28 +1,35 @@
-import { useRef, useEffect, useState } from "react";
-import { createChart, AreaSeries, LineSeries, type IChartApi, type ISeriesApi, ColorType } from "lightweight-charts";
+import { useRef, useEffect, useState } from 'react';
+import {
+  createChart,
+  AreaSeries,
+  LineSeries,
+  type IChartApi,
+  type ISeriesApi,
+  ColorType,
+} from 'lightweight-charts';
 
-import { useAppStore } from "@stores/app-store";
-import { Spinner, EmptyState } from "@components/ui";
-import { useStats } from "@features/chain/queries";
-import { useDvolHistory } from "./queries";
-import styles from "./DvolChart.module.css";
+import { useAppStore } from '@stores/app-store';
+import { Spinner, EmptyState } from '@components/ui';
+import { useStats } from '@features/chain/queries';
+import { useDvolHistory } from './queries';
+import styles from './DvolChart.module.css';
 
-const CURRENCIES = ["BTC", "ETH"] as const;
+const CURRENCIES = ['BTC', 'ETH'] as const;
 
 export default function DvolChart() {
   const underlying = useAppStore((s) => s.underlying);
-  const currency   = CURRENCIES.includes(underlying as typeof CURRENCIES[number])
+  const currency = CURRENCIES.includes(underlying as (typeof CURRENCIES)[number])
     ? underlying
-    : "BTC";
+    : 'BTC';
 
   const [selected, setSelected] = useState(currency);
   const { data, isLoading, error } = useDvolHistory(selected);
   const { data: stats } = useStats(selected);
 
-  const chartRef     = useRef<HTMLDivElement>(null);
-  const chartApiRef  = useRef<IChartApi | null>(null);
-  const ivSeriesRef  = useRef<ISeriesApi<"Area"> | null>(null);
-  const hvSeriesRef  = useRef<ISeriesApi<"Line"> | null>(null);
+  const chartRef = useRef<HTMLDivElement>(null);
+  const chartApiRef = useRef<IChartApi | null>(null);
+  const ivSeriesRef = useRef<ISeriesApi<'Area'> | null>(null);
+  const hvSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
 
   useEffect(() => {
     const container = chartRef.current;
@@ -31,46 +38,51 @@ export default function DvolChart() {
     const chart = createChart(container, {
       autoSize: true,
       layout: {
-        background: { type: ColorType.Solid, color: "#0A0A0A" },
-        textColor: "#555B5E",
+        background: { type: ColorType.Solid, color: '#0A0A0A' },
+        textColor: '#555B5E',
         fontFamily: "'IBM Plex Mono', monospace",
         fontSize: 11,
       },
       grid: {
-        vertLines:  { color: "#1A1A1A" },
-        horzLines:  { color: "#1A1A1A" },
+        vertLines: { color: '#1A1A1A' },
+        horzLines: { color: '#1A1A1A' },
       },
       crosshair: {
-        horzLine: { color: "#50D2C1", labelBackgroundColor: "#0E3333" },
-        vertLine: { color: "#50D2C1", labelBackgroundColor: "#0E3333" },
+        horzLine: { color: '#50D2C1', labelBackgroundColor: '#0E3333' },
+        vertLine: { color: '#50D2C1', labelBackgroundColor: '#0E3333' },
       },
       rightPriceScale: {
-        borderColor: "#1F2937",
+        borderColor: '#1F2937',
         scaleMargins: { top: 0.1, bottom: 0.05 },
       },
       timeScale: {
-        borderColor: "#1F2937",
+        borderColor: '#1F2937',
         timeVisible: false,
       },
       handleScale: { mouseWheel: true, pinch: true, axisPressedMouseMove: true },
-      handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: false },
+      handleScroll: {
+        mouseWheel: true,
+        pressedMouseMove: true,
+        horzTouchDrag: true,
+        vertTouchDrag: false,
+      },
     });
 
     // DVOL (implied vol) — teal area
     const ivSeries = chart.addSeries(AreaSeries, {
-      lineColor: "#50D2C1",
-      topColor: "rgba(80, 210, 193, 0.28)",
-      bottomColor: "rgba(80, 210, 193, 0.02)",
+      lineColor: '#50D2C1',
+      topColor: 'rgba(80, 210, 193, 0.28)',
+      bottomColor: 'rgba(80, 210, 193, 0.02)',
       lineWidth: 2,
-      priceFormat: { type: "custom", formatter: (p: number) => `${p.toFixed(1)}%` },
+      priceFormat: { type: 'custom', formatter: (p: number) => `${p.toFixed(1)}%` },
     });
 
     // HV (realized vol) — solid orange line for IV vs HV comparison
     const hvSeries = chart.addSeries(LineSeries, {
-      color: "#F7A600",
+      color: '#F7A600',
       lineWidth: 2,
       lineStyle: 0, // solid
-      priceFormat: { type: "custom", formatter: (p: number) => `${p.toFixed(1)}%` },
+      priceFormat: { type: 'custom', formatter: (p: number) => `${p.toFixed(1)}%` },
       crosshairMarkerVisible: false,
     });
 
@@ -92,7 +104,11 @@ export default function DvolChart() {
     const seenIv = new Set<number>();
     const ivData = data.candles
       .map((c) => ({ time: Math.floor(c.timestamp / 1000) as number, value: c.close }))
-      .filter((p) => { if (seenIv.has(p.time)) return false; seenIv.add(p.time); return true; })
+      .filter((p) => {
+        if (seenIv.has(p.time)) return false;
+        seenIv.add(p.time);
+        return true;
+      })
       .sort((a, b) => a.time - b.time);
     ivSeriesRef.current.setData(ivData as never);
 
@@ -101,7 +117,11 @@ export default function DvolChart() {
       const seen = new Set<number>();
       const hvData = data.hv
         .map((p) => ({ time: Math.floor(p.timestamp / 1000) as number, value: p.value }))
-        .filter((p) => { if (seen.has(p.time)) return false; seen.add(p.time); return true; })
+        .filter((p) => {
+          if (seen.has(p.time)) return false;
+          seen.add(p.time);
+          return true;
+        })
         .sort((a, b) => a.time - b.time);
       hvSeriesRef.current.setData(hvData as never);
     }
@@ -143,7 +163,7 @@ export default function DvolChart() {
             </div>
           </div>
           <span className={styles.subtitle}>
-            30-day ATM implied volatility{data ? ` · ${data.count} daily candles` : ""}
+            30-day ATM implied volatility{data ? ` · ${data.count} daily candles` : ''}
           </span>
           <div className={styles.chartLegend}>
             <span className={styles.legendLine} data-type="iv" />
@@ -169,9 +189,12 @@ export default function DvolChart() {
               <span className={styles.statLabel}>1d Δ</span>
               <span
                 className={styles.statValue}
-                data-positive={dvol.ivChange1d > 0 ? "true" : dvol.ivChange1d < 0 ? "false" : undefined}
+                data-positive={
+                  dvol.ivChange1d > 0 ? 'true' : dvol.ivChange1d < 0 ? 'false' : undefined
+                }
               >
-                {dvol.ivChange1d > 0 ? "+" : ""}{(dvol.ivChange1d * 100).toFixed(1)}pp
+                {dvol.ivChange1d > 0 ? '+' : ''}
+                {(dvol.ivChange1d * 100).toFixed(1)}pp
               </span>
             </div>
             <div className={styles.stat}>
@@ -185,7 +208,11 @@ export default function DvolChart() {
       </div>
 
       <div className={styles.chartArea}>
-        {isLoading && <div className={styles.chartOverlay}><Spinner size="lg" /></div>}
+        {isLoading && (
+          <div className={styles.chartOverlay}>
+            <Spinner size="lg" />
+          </div>
+        )}
         <div className={styles.chartWrap} ref={chartRef} />
         <button
           className={styles.resetBtn}

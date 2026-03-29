@@ -129,7 +129,9 @@ export class PostgresTradeStore implements TradeStore {
     return result.rows.map(mapRow);
   }
 
-  async summarizeHistory(query: TradeFilterQuery & { mode: PersistedTradeRecord['mode'] }): Promise<TradeHistorySummary> {
+  async summarizeHistory(
+    query: TradeFilterQuery & { mode: PersistedTradeRecord['mode'] },
+  ): Promise<TradeHistorySummary> {
     const built = buildWhere(query);
 
     const summaryResult = await this.pool.query<SummaryRow>(

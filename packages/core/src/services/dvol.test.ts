@@ -14,9 +14,11 @@ function buildSnapshot(
   high52wPct: number,
   low52wPct: number,
 ): DvolSnapshot {
-  return (svc as unknown as {
-    buildSnapshot(c: string, cur: number, prev: number, hi: number, lo: number): DvolSnapshot;
-  }).buildSnapshot(currency, currentPct, previousClosePct, high52wPct, low52wPct);
+  return (
+    svc as unknown as {
+      buildSnapshot(c: string, cur: number, prev: number, hi: number, lo: number): DvolSnapshot;
+    }
+  ).buildSnapshot(currency, currentPct, previousClosePct, high52wPct, low52wPct);
 }
 
 function setSnapshot(svc: DvolService, currency: string, snap: DvolSnapshot) {
@@ -32,15 +34,17 @@ function handlePush(svc: DvolService, data: unknown) {
 describe('DvolService — buildSnapshot', () => {
   let svc: DvolService;
 
-  beforeEach(() => { svc = new DvolService(); });
+  beforeEach(() => {
+    svc = new DvolService();
+  });
   afterEach(() => svc.dispose());
 
   it('converts percentage inputs to fraction outputs', () => {
     const snap = buildSnapshot(svc, 'BTC', 52, 50, 80, 30);
     expect(snap.current).toBeCloseTo(0.52);
-    expect(snap.previousClose).toBeCloseTo(0.50);
-    expect(snap.high52w).toBeCloseTo(0.80);
-    expect(snap.low52w).toBeCloseTo(0.30);
+    expect(snap.previousClose).toBeCloseTo(0.5);
+    expect(snap.high52w).toBeCloseTo(0.8);
+    expect(snap.low52w).toBeCloseTo(0.3);
   });
 
   it('computes ivChange1d as current minus previousClose in fraction form', () => {
@@ -87,7 +91,9 @@ describe('DvolService — buildSnapshot', () => {
 describe('DvolService — handlePush', () => {
   let svc: DvolService;
 
-  beforeEach(() => { svc = new DvolService(); });
+  beforeEach(() => {
+    svc = new DvolService();
+  });
   afterEach(() => svc.dispose());
 
   it('updates current DVOL when a valid push arrives', () => {
@@ -105,9 +111,9 @@ describe('DvolService — handlePush', () => {
     handlePush(svc, { index_name: 'btc_usd', volatility: 60 });
 
     const snap = svc.getSnapshot('BTC')!;
-    expect(snap.high52w).toBeCloseTo(0.80);
-    expect(snap.low52w).toBeCloseTo(0.30);
-    expect(snap.previousClose).toBeCloseTo(0.50);
+    expect(snap.high52w).toBeCloseTo(0.8);
+    expect(snap.low52w).toBeCloseTo(0.3);
+    expect(snap.previousClose).toBeCloseTo(0.5);
   });
 
   it('recalculates ivChange1d against stored previousClose', () => {
@@ -140,7 +146,7 @@ describe('DvolService — handlePush', () => {
     handlePush(svc, { index_name: 'eth_usd', volatility: 50 });
 
     const snap = svc.getSnapshot('ETH')!;
-    expect(snap.current).toBeCloseTo(0.50);
+    expect(snap.current).toBeCloseTo(0.5);
   });
 });
 
@@ -149,7 +155,9 @@ describe('DvolService — handlePush', () => {
 describe('DvolService — getSnapshot', () => {
   let svc: DvolService;
 
-  beforeEach(() => { svc = new DvolService(); });
+  beforeEach(() => {
+    svc = new DvolService();
+  });
   afterEach(() => svc.dispose());
 
   it('returns null for unknown currency', () => {
@@ -167,7 +175,7 @@ describe('DvolService — getSnapshot', () => {
     setSnapshot(svc, 'ETH', buildSnapshot(svc, 'ETH', 45, 44, 70, 25));
     const all = svc.getAllSnapshots();
     expect(all).toHaveLength(2);
-    expect(all.map(s => s.currency).sort()).toEqual(['BTC', 'ETH']);
+    expect(all.map((s) => s.currency).sort()).toEqual(['BTC', 'ETH']);
   });
 });
 
@@ -186,7 +194,7 @@ describe('DvolService — fetchHistory runs in parallel', () => {
       'fetchHistory',
     ).mockImplementation(async (_currency) => {
       startTimes.push(Date.now());
-      await new Promise(r => setTimeout(r, 5_000));
+      await new Promise((r) => setTimeout(r, 5_000));
     });
 
     // Stub rpc to make start() not open a real WS
@@ -202,9 +210,11 @@ describe('DvolService — fetchHistory runs in parallel', () => {
 
     // Call the internal method that drives parallel fetching
     const internalStart = async () => {
-      await Promise.all(['BTC', 'ETH'].map(c =>
-        (svc as unknown as { fetchHistory(c: string): Promise<void> }).fetchHistory(c),
-      ));
+      await Promise.all(
+        ['BTC', 'ETH'].map((c) =>
+          (svc as unknown as { fetchHistory(c: string): Promise<void> }).fetchHistory(c),
+        ),
+      );
     };
 
     const p = internalStart();

@@ -88,7 +88,9 @@ export class ChainStreamSession {
     if (this.disposed) return;
     if (!this.initialized) {
       if (event.type === 'snapshot') {
-        this.bufferedEvents = this.bufferedEvents.filter((buffered) => buffered.type !== 'snapshot');
+        this.bufferedEvents = this.bufferedEvents.filter(
+          (buffered) => buffered.type !== 'snapshot',
+        );
       }
       this.bufferedEvents.push(event);
       return;

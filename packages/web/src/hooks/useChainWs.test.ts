@@ -33,14 +33,20 @@ class MockWebSocket {
     }, 0);
   }
 
-  send(data: string) { this.sent.push(data); }
-  close() { this.readyState = 3; }
+  send(data: string) {
+    this.sent.push(data);
+  }
+  close() {
+    this.readyState = 3;
+  }
 
   pushMessage(msg: ServerWsMessage) {
     this.onmessage?.({ data: JSON.stringify(msg) });
   }
 
-  static reset() { MockWebSocket.instances = []; }
+  static reset() {
+    MockWebSocket.instances = [];
+  }
 }
 
 // Stub before importing the hook so it captures our mock
@@ -74,7 +80,9 @@ afterEach(() => {
 
 function snapshot(subId: string, seq: number, underlying = 'BTC'): ServerWsMessage {
   return {
-    type: 'snapshot', subscriptionId: subId, seq,
+    type: 'snapshot',
+    subscriptionId: subId,
+    seq,
     request: { underlying, expiry: '2026-03-27', venues: ['deribit'] },
     meta: { generatedAt: Date.now(), maxQuoteTs: Date.now() - 50, staleMs: 50 },
     data: {
@@ -97,11 +105,16 @@ function snapshot(subId: string, seq: number, underlying = 'BTC'): ServerWsMessa
   };
 }
 
-function subscribedMsg(subId: string, failed?: Array<{ venue: 'binance'; reason: string }>): ServerWsMessage {
+function subscribedMsg(
+  subId: string,
+  failed?: Array<{ venue: 'binance'; reason: string }>,
+): ServerWsMessage {
   return {
-    type: 'subscribed', subscriptionId: subId,
+    type: 'subscribed',
+    subscriptionId: subId,
     request: { underlying: 'BTC', expiry: '2026-03-27', venues: ['deribit'] },
-    serverTime: Date.now(), failedVenues: failed,
+    serverTime: Date.now(),
+    failedVenues: failed,
   };
 }
 
@@ -114,8 +127,23 @@ function deltaMsg(subId: string, seq: number): ServerWsMessage {
     meta: { generatedAt: Date.now(), maxQuoteTs: Date.now() - 25, staleMs: 25 },
     deltas: [{ venue: 'deribit', symbol: 'BTC/USD:USDC-260327-70000-C', ts: Date.now() }],
     patch: {
-      stats: { spotIndexUsd: 70500, indexPriceUsd: 70500, basisPct: 0, atmStrike: 70000, atmIv: 0.51, putCallOiRatio: 1, totalOiUsd: 1, skew25d: 0 },
-      strikes: [{ strike: 70000, call: { venues: {}, bestIv: 0.51, bestVenue: 'deribit' }, put: { venues: {}, bestIv: null, bestVenue: null } }],
+      stats: {
+        spotIndexUsd: 70500,
+        indexPriceUsd: 70500,
+        basisPct: 0,
+        atmStrike: 70000,
+        atmIv: 0.51,
+        putCallOiRatio: 1,
+        totalOiUsd: 1,
+        skew25d: 0,
+      },
+      strikes: [
+        {
+          strike: 70000,
+          call: { venues: {}, bestIv: 0.51, bestVenue: 'deribit' },
+          put: { venues: {}, bestIv: null, bestVenue: null },
+        },
+      ],
       gex: [{ strike: 70000, gexUsdMillions: 12 }],
     },
   };
@@ -123,8 +151,11 @@ function deltaMsg(subId: string, seq: number): ServerWsMessage {
 
 function statusMsg(subId: string, state: 'connected' | 'reconnecting' | 'down'): ServerWsMessage {
   return {
-    type: 'status', subscriptionId: subId,
-    venue: 'deribit', state, ts: Date.now(),
+    type: 'status',
+    subscriptionId: subId,
+    venue: 'deribit',
+    state,
+    ts: Date.now(),
   };
 }
 
@@ -138,10 +169,7 @@ function getLastWs(): MockWebSocket {
 async function renderAndConnect(
   props = { underlying: 'BTC', expiry: '2026-03-27', venues: ['deribit'] },
 ) {
-  const hookResult = renderHook(
-    () => useChainWs(props),
-    { wrapper },
-  );
+  const hookResult = renderHook(() => useChainWs(props), { wrapper });
   // Let useEffect fire and mock WS open via setTimeout
   await act(() => vi.advanceTimersByTimeAsync(50));
   const ws = getLastWs();
@@ -172,13 +200,17 @@ describe('useChainWs', () => {
 
   it('sets connectionState to live on subscribed message', async () => {
     const { hookResult, ws, subId } = await renderAndConnect();
-    await act(() => { ws.pushMessage(subscribedMsg(subId)); });
+    await act(() => {
+      ws.pushMessage(subscribedMsg(subId));
+    });
     expect(hookResult.result.current.connectionState).toBe('live');
   });
 
   it('writes snapshot data into TanStack Query cache', async () => {
     const { hookResult, ws, subId } = await renderAndConnect();
-    await act(() => { ws.pushMessage(snapshot(subId, 1)); });
+    await act(() => {
+      ws.pushMessage(snapshot(subId, 1));
+    });
 
     const key = chainKeys.chain('BTC', '2026-03-27', ['deribit']);
     const cached = queryClient.getQueryData(key);
@@ -189,7 +221,9 @@ describe('useChainWs', () => {
 
   it('ignores snapshot with stale subscriptionId', async () => {
     const { hookResult, ws } = await renderAndConnect();
-    await act(() => { ws.pushMessage(snapshot('wrong-sub-id', 99)); });
+    await act(() => {
+      ws.pushMessage(snapshot('wrong-sub-id', 99));
+    });
 
     expect(hookResult.result.current.lastSeq).toBe(0);
     const key = chainKeys.chain('BTC', '2026-03-27', ['deribit']);
@@ -199,21 +233,31 @@ describe('useChainWs', () => {
   it('maps venue status to connectionState', async () => {
     const { hookResult, ws, subId } = await renderAndConnect();
 
-    await act(() => { ws.pushMessage(statusMsg(subId, 'reconnecting')); });
+    await act(() => {
+      ws.pushMessage(statusMsg(subId, 'reconnecting'));
+    });
     expect(hookResult.result.current.connectionState).toBe('reconnecting');
 
-    await act(() => { ws.pushMessage(statusMsg(subId, 'down')); });
+    await act(() => {
+      ws.pushMessage(statusMsg(subId, 'down'));
+    });
     expect(hookResult.result.current.connectionState).toBe('error');
 
-    await act(() => { ws.pushMessage(snapshot(subId, 1)); });
+    await act(() => {
+      ws.pushMessage(snapshot(subId, 1));
+    });
     expect(hookResult.result.current.connectionState).toBe('live');
   });
 
   it('merges delta patches into the cached chain', async () => {
     const { hookResult, ws, subId } = await renderAndConnect();
 
-    await act(() => { ws.pushMessage(snapshot(subId, 1)); });
-    await act(() => { ws.pushMessage(deltaMsg(subId, 2)); });
+    await act(() => {
+      ws.pushMessage(snapshot(subId, 1));
+    });
+    await act(() => {
+      ws.pushMessage(deltaMsg(subId, 2));
+    });
 
     const key = chainKeys.chain('BTC', '2026-03-27', ['deribit']);
     const cached = queryClient.getQueryData(key) as Record<string, unknown> | undefined;
@@ -242,7 +286,14 @@ describe('useChainWs', () => {
           seq: 1,
           request: { underlying: 'BTC', expiry: '2026-03-27', venues: ['deribit'] },
           meta: { generatedAt: Date.now(), maxQuoteTs: Date.now(), staleMs: 0 },
-          data: { underlying: 'BTC', expiry: '2026-03-27', dte: 7, stats: {}, strikes: [], gex: [] },
+          data: {
+            underlying: 'BTC',
+            expiry: '2026-03-27',
+            dte: 7,
+            stats: {},
+            strikes: [],
+            gex: [],
+          },
         }),
       });
     });
@@ -252,7 +303,13 @@ describe('useChainWs', () => {
 
   it('does not connect when disabled', async () => {
     renderHook(
-      () => useChainWs({ underlying: 'BTC', expiry: '2026-03-27', venues: ['deribit'], enabled: false }),
+      () =>
+        useChainWs({
+          underlying: 'BTC',
+          expiry: '2026-03-27',
+          venues: ['deribit'],
+          enabled: false,
+        }),
       { wrapper },
     );
     await act(() => vi.advanceTimersByTimeAsync(50));
@@ -260,10 +317,9 @@ describe('useChainWs', () => {
   });
 
   it('does not connect with empty expiry', async () => {
-    renderHook(
-      () => useChainWs({ underlying: 'BTC', expiry: '', venues: ['deribit'] }),
-      { wrapper },
-    );
+    renderHook(() => useChainWs({ underlying: 'BTC', expiry: '', venues: ['deribit'] }), {
+      wrapper,
+    });
     await act(() => vi.advanceTimersByTimeAsync(50));
     expect(MockWebSocket.instances).toHaveLength(0);
   });

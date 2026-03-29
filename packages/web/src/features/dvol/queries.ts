@@ -1,32 +1,32 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from '@tanstack/react-query';
 
-import { fetchJson } from "@lib/http";
+import { fetchJson } from '@lib/http';
 
 export interface DvolCandle {
   timestamp: number;
-  open:      number;
-  high:      number;
-  low:       number;
-  close:     number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
 }
 
 export interface HvPoint {
   timestamp: number;
-  value:     number;
+  value: number;
 }
 
 interface DvolHistoryResponse {
   currency: string;
-  count:    number;
-  candles:  DvolCandle[];
-  hv:       HvPoint[];
+  count: number;
+  candles: DvolCandle[];
+  hv: HvPoint[];
 }
 
 export function useDvolHistory(currency: string) {
   return useQuery({
-    queryKey: ["dvol-history", currency],
-    queryFn:  () => fetchJson<DvolHistoryResponse>(`/dvol-history?currency=${currency}`),
-    enabled:  Boolean(currency),
+    queryKey: ['dvol-history', currency],
+    queryFn: () => fetchJson<DvolHistoryResponse>(`/dvol-history?currency=${currency}`),
+    enabled: Boolean(currency),
     staleTime: 5 * 60_000,
   });
 }

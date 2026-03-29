@@ -1,9 +1,5 @@
 import type { CachedInstrument, LiveQuote } from '../shared/sdk-base.js';
-import type {
-  BinanceMarkPrice,
-  BinanceOiEvent,
-  BinanceRestTicker,
-} from './types.js';
+import type { BinanceMarkPrice, BinanceOiEvent, BinanceRestTicker } from './types.js';
 
 // Binance options don't expose per-instrument fees via public API
 export const BINANCE_DEFAULT_MAKER_FEE = 0.0002;

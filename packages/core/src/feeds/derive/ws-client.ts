@@ -70,7 +70,10 @@ export class DeriveWsAdapter extends SdkBaseAdapter {
       subscribeMethod: 'subscribe',
       unsubscribeMethod: 'unsubscribe',
       unsubscribeAllMethod: 'unsubscribe_all',
-      onStatusChange: (state) => this.emitStatus(state === 'connected' ? 'connected' : state === 'down' ? 'down' : 'reconnecting'),
+      onStatusChange: (state) =>
+        this.emitStatus(
+          state === 'connected' ? 'connected' : state === 'down' ? 'down' : 'reconnecting',
+        ),
     });
 
     this.rpc.onSubscription((channel, data) => {
@@ -112,8 +115,12 @@ export class DeriveWsAdapter extends SdkBaseAdapter {
     await this.fetchBulkTickers();
 
     // Derive has no instrument lifecycle push channel — poll for new listings.
-    this.refreshTimer = setInterval(() => { void this.refreshInstruments(); }, INSTRUMENT_REFRESH_INTERVAL_MS);
-    this.healthTimer = setInterval(() => { void this.refreshHealth(); }, HEALTH_CHECK_INTERVAL_MS);
+    this.refreshTimer = setInterval(() => {
+      void this.refreshInstruments();
+    }, INSTRUMENT_REFRESH_INTERVAL_MS);
+    this.healthTimer = setInterval(() => {
+      void this.refreshHealth();
+    }, HEALTH_CHECK_INTERVAL_MS);
     void this.refreshHealth();
 
     // Prune instruments for expiries where Derive returned zero tickers.
@@ -123,7 +130,10 @@ export class DeriveWsAdapter extends SdkBaseAdapter {
     const live = instruments.filter((inst) => this.quoteStore.has(inst.exchangeSymbol));
 
     if (live.length < before) {
-      log.info({ before, after: live.length, pruned: before - live.length }, 'pruned instruments with no quote data');
+      log.info(
+        { before, after: live.length, pruned: before - live.length },
+        'pruned instruments with no quote data',
+      );
     }
 
     return live;
@@ -144,7 +154,13 @@ export class DeriveWsAdapter extends SdkBaseAdapter {
     const settle = inst.quote_currency ?? 'USDC';
 
     return {
-      symbol: this.buildCanonicalSymbol(details.base, settle, expiry, details.strike, details.right),
+      symbol: this.buildCanonicalSymbol(
+        details.base,
+        settle,
+        expiry,
+        details.strike,
+        details.right,
+      ),
       exchangeSymbol: inst.instrument_name,
       base: details.base,
       quote: inst.quote_currency ?? 'USDC',
@@ -180,7 +196,10 @@ export class DeriveWsAdapter extends SdkBaseAdapter {
     let count = 0;
     for (const [name, parsed] of Object.entries(tickersResponse.tickers)) {
       if (parsed == null) continue;
-      this.quoteStore.set(name, buildDeriveQuote(parsed, (value) => this.safeNum(value)));
+      this.quoteStore.set(
+        name,
+        buildDeriveQuote(parsed, (value) => this.safeNum(value)),
+      );
       count++;
     }
 
@@ -203,7 +222,6 @@ export class DeriveWsAdapter extends SdkBaseAdapter {
 
       log.info({ count: totalCount, currency, expiries: expiries.size }, 'fetched tickers');
     }
-
   }
 
   // ─── WebSocket subscriptions ──────────────────────────────────
@@ -241,7 +259,10 @@ export class DeriveWsAdapter extends SdkBaseAdapter {
     if (channels.length === 0) return;
 
     await this.rpc.unsubscribe(channels);
-    removeDeriveSubscribedTickers(this.subscriptions, instruments.map((instrument) => instrument.exchangeSymbol));
+    removeDeriveSubscribedTickers(
+      this.subscriptions,
+      instruments.map((instrument) => instrument.exchangeSymbol),
+    );
   }
 
   protected async unsubscribeAll(): Promise<void> {
@@ -312,14 +333,20 @@ export class DeriveWsAdapter extends SdkBaseAdapter {
         const count = await this.fetchTickersForExpiry(underlying, expiry.replace(/-/g, ''));
         log.info({ count, underlying, expiry }, 'fetched tickers for refreshed expiry');
       } catch (error: unknown) {
-        log.warn({ underlying, expiry, err: String(error) }, 'get_tickers failed for refreshed expiry');
+        log.warn(
+          { underlying, expiry, err: String(error) },
+          'get_tickers failed for refreshed expiry',
+        );
       }
 
       const plan = buildDeriveSubscriptionPlan(this.subscriptions, grouped);
       if (plan.channels.length === 0) continue;
 
       await subscribeDeriveBatches(plan.channels, (batch) => this.rpc.subscribe(batch));
-      log.info({ count: plan.channels.length, underlying, expiry }, 'subscribed refreshed ticker channels');
+      log.info(
+        { count: plan.channels.length, underlying, expiry },
+        'subscribed refreshed ticker channels',
+      );
     }
   }
 
@@ -379,8 +406,14 @@ export class DeriveWsAdapter extends SdkBaseAdapter {
   }
 
   override async dispose(): Promise<void> {
-    if (this.refreshTimer) { clearInterval(this.refreshTimer); this.refreshTimer = null; }
-    if (this.healthTimer) { clearInterval(this.healthTimer); this.healthTimer = null; }
+    if (this.refreshTimer) {
+      clearInterval(this.refreshTimer);
+      this.refreshTimer = null;
+    }
+    if (this.healthTimer) {
+      clearInterval(this.healthTimer);
+      this.healthTimer = null;
+    }
     await this.unsubscribeAll();
     await this.rpc?.disconnect();
   }

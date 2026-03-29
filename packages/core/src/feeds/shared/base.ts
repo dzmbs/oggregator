@@ -31,5 +31,4 @@ export abstract class BaseAdapter implements OptionVenueAdapter {
     const n = Number(value);
     return Number.isFinite(n) ? n / 100 : null;
   }
-
 }

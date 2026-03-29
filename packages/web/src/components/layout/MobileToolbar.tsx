@@ -1,33 +1,33 @@
-import { useState } from "react";
+import { useState } from 'react';
 
-import { useAppStore } from "@stores/app-store";
-import { useOpenPalette } from "./AppShell";
-import { MobileDrawer } from "@components/ui";
-import { getTokenLogo } from "@lib/token-meta";
-import { fmtUsdCompact, formatExpiry, dteDays } from "@lib/format";
-import { useExpiries, useStats } from "@features/chain/queries";
-import VenueSidebar from "@features/chain/VenueSidebar";
-import MyIvInput    from "@features/chain/MyIvInput";
+import { useAppStore } from '@stores/app-store';
+import { useOpenPalette } from './AppShell';
+import { MobileDrawer } from '@components/ui';
+import { getTokenLogo } from '@lib/token-meta';
+import { fmtUsdCompact, formatExpiry, dteDays } from '@lib/format';
+import { useExpiries, useStats } from '@features/chain/queries';
+import VenueSidebar from '@features/chain/VenueSidebar';
+import MyIvInput from '@features/chain/MyIvInput';
 
-import styles from "./MobileToolbar.module.css";
+import styles from './MobileToolbar.module.css';
 
 export default function MobileToolbar() {
-  const underlying    = useAppStore((s) => s.underlying);
-  const expiry        = useAppStore((s) => s.expiry);
-  const setExpiry     = useAppStore((s) => s.setExpiry);
-  const activeVenues  = useAppStore((s) => s.activeVenues);
-  const toggleVenue   = useAppStore((s) => s.toggleVenue);
-  const feedStatus    = useAppStore((s) => s.feedStatus);
-  const openPalette   = useOpenPalette();
+  const underlying = useAppStore((s) => s.underlying);
+  const expiry = useAppStore((s) => s.expiry);
+  const setExpiry = useAppStore((s) => s.setExpiry);
+  const activeVenues = useAppStore((s) => s.activeVenues);
+  const toggleVenue = useAppStore((s) => s.toggleVenue);
+  const feedStatus = useAppStore((s) => s.feedStatus);
+  const openPalette = useOpenPalette();
 
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  const { data: expiriesData }  = useExpiries(underlying);
-  const { data: marketStats }   = useStats(underlying);
+  const { data: expiriesData } = useExpiries(underlying);
+  const { data: marketStats } = useStats(underlying);
   const expiries = expiriesData?.expiries ?? [];
 
   const logo = getTokenLogo(underlying);
-  const dte  = expiry ? dteDays(expiry) : null;
+  const dte = expiry ? dteDays(expiry) : null;
   const spot = marketStats?.spot?.price ?? null;
 
   return (
@@ -42,7 +42,11 @@ export default function MobileToolbar() {
         {expiry && (
           <button className={styles.expiry} onClick={() => setDrawerOpen(true)}>
             {formatExpiry(expiry)}
-            {dte != null && <span className={styles.dte} data-urgent={dte <= 1}>{dte}d</span>}
+            {dte != null && (
+              <span className={styles.dte} data-urgent={dte <= 1}>
+                {dte}d
+              </span>
+            )}
           </button>
         )}
 
@@ -54,16 +58,18 @@ export default function MobileToolbar() {
         </div>
       </div>
 
-      <MobileDrawer
-        open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        title="Settings"
-      >
+      <MobileDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} title="Settings">
         <div className={styles.drawerContent}>
           {/* Asset selection */}
           <div className={styles.section}>
             <div className={styles.sectionLabel}>ASSET</div>
-            <button className={styles.assetRow} onClick={() => { setDrawerOpen(false); openPalette(); }}>
+            <button
+              className={styles.assetRow}
+              onClick={() => {
+                setDrawerOpen(false);
+                openPalette();
+              }}
+            >
               {logo && <img src={logo} className={styles.assetRowLogo} alt="" />}
               <span className={styles.assetRowSymbol}>{underlying}</span>
               {spot != null && <span className={styles.assetRowPrice}>{fmtUsdCompact(spot)}</span>}
@@ -86,7 +92,9 @@ export default function MobileToolbar() {
                       onClick={() => setExpiry(e)}
                     >
                       {formatExpiry(e)}
-                      <span className={styles.chipDte} data-urgent={d <= 1}>{d}d</span>
+                      <span className={styles.chipDte} data-urgent={d <= 1}>
+                        {d}d
+                      </span>
                     </button>
                   );
                 })}
@@ -97,10 +105,7 @@ export default function MobileToolbar() {
           {/* Venues */}
           <div className={styles.section}>
             <div className={styles.sectionLabel}>VENUES</div>
-            <VenueSidebar
-              activeVenues={activeVenues}
-              onToggle={toggleVenue}
-            />
+            <VenueSidebar activeVenues={activeVenues} onToggle={toggleVenue} />
           </div>
 
           {/* My IV */}

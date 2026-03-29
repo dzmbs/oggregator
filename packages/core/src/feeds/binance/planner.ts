@@ -26,10 +26,7 @@ export function buildBinanceInitialStreams(instruments: CachedInstrument[]): str
   ];
 }
 
-export function trackBinanceStreams(
-  state: BinanceSubscriptionState,
-  streams: string[],
-): string[] {
+export function trackBinanceStreams(state: BinanceSubscriptionState, streams: string[]): string[] {
   const accepted: string[] = [];
 
   for (const stream of streams) {
@@ -45,10 +42,7 @@ export function buildBinanceChainStreams(
   underlying: string,
   instruments: CachedInstrument[],
 ): string[] {
-  return [
-    `${underlying.toLowerCase()}usdt@optionMarkPrice`,
-    ...buildBinanceOiStreams(instruments),
-  ];
+  return [`${underlying.toLowerCase()}usdt@optionMarkPrice`, ...buildBinanceOiStreams(instruments)];
 }
 
 export function confirmBinanceSubscribedStreams(

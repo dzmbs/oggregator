@@ -64,10 +64,7 @@ describe('Binance planner', () => {
 
   it('builds chain streams for targeted subscriptions', () => {
     const streams = buildBinanceChainStreams('BTC', [createInstrument('BTC-260328-60000-C')]);
-    expect(streams).toEqual([
-      'btcusdt@optionMarkPrice',
-      'btcusdt@openInterest@260328',
-    ]);
+    expect(streams).toEqual(['btcusdt@optionMarkPrice', 'btcusdt@openInterest@260328']);
   });
 
   it('resets tracked streams', () => {

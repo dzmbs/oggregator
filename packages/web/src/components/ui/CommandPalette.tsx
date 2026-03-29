@@ -1,20 +1,25 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo } from 'react';
 
-import { getTokenLogo } from "@lib/token-meta";
-import { VENUE_LIST } from "@lib/venue-meta";
-import { useUnderlyings } from "@features/chain/queries";
+import { getTokenLogo } from '@lib/token-meta';
+import { VENUE_LIST } from '@lib/venue-meta';
+import { useUnderlyings } from '@features/chain/queries';
 
-import styles from "./CommandPalette.module.css";
+import styles from './CommandPalette.module.css';
 
 interface CommandPaletteProps {
   underlyings: string[];
-  selected:    string;
-  onSelect:    (underlying: string) => void;
-  onClose:     () => void;
+  selected: string;
+  onSelect: (underlying: string) => void;
+  onClose: () => void;
 }
 
-export default function CommandPalette({ underlyings, selected, onSelect, onClose }: CommandPaletteProps) {
-  const [search, setSearch] = useState("");
+export default function CommandPalette({
+  underlyings,
+  selected,
+  onSelect,
+  onClose,
+}: CommandPaletteProps) {
+  const [search, setSearch] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
   const [venueFilter, setVenueFilter] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -46,24 +51,28 @@ export default function CommandPalette({ underlyings, selected, onSelect, onClos
     return true;
   });
 
-  useEffect(() => { inputRef.current?.focus(); }, []);
-  useEffect(() => { setActiveIndex(0); }, [search, venueFilter]);
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+  useEffect(() => {
+    setActiveIndex(0);
+  }, [search, venueFilter]);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       switch (e.key) {
-        case "Escape":
+        case 'Escape':
           onClose();
           break;
-        case "ArrowDown":
+        case 'ArrowDown':
           e.preventDefault();
           setActiveIndex((i) => Math.min(i + 1, filtered.length - 1));
           break;
-        case "ArrowUp":
+        case 'ArrowUp':
           e.preventDefault();
           setActiveIndex((i) => Math.max(i - 1, 0));
           break;
-        case "Enter":
+        case 'Enter':
           if (filtered[activeIndex]) {
             onSelect(filtered[activeIndex]!);
             onClose();
@@ -71,8 +80,8 @@ export default function CommandPalette({ underlyings, selected, onSelect, onClos
           break;
       }
     }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
   }, [filtered, activeIndex, onSelect, onClose]);
 
   function toggleVenueFilter(venueId: string) {
@@ -84,7 +93,9 @@ export default function CommandPalette({ underlyings, selected, onSelect, onClos
       <div className={styles.palette} onClick={(e) => e.stopPropagation()}>
         <div className={styles.header}>
           <span className={styles.headerTitle}>Select Asset</span>
-          <button className={styles.closeBtn} onClick={onClose}>✕</button>
+          <button className={styles.closeBtn} onClick={onClose}>
+            ✕
+          </button>
         </div>
 
         <div className={styles.searchRow}>
@@ -125,7 +136,10 @@ export default function CommandPalette({ underlyings, selected, onSelect, onClos
                 className={styles.assetRow}
                 data-active={i === activeIndex}
                 data-selected={u === selected}
-                onClick={() => { onSelect(u); onClose(); }}
+                onClick={() => {
+                  onSelect(u);
+                  onClose();
+                }}
                 onMouseEnter={() => setActiveIndex(i)}
               >
                 <div className={styles.assetLeft}>
@@ -154,9 +168,15 @@ export default function CommandPalette({ underlyings, selected, onSelect, onClos
         </div>
 
         <div className={styles.footer}>
-          <span className={styles.shortcut}><kbd className={styles.kbd}>↑↓</kbd> Navigate</span>
-          <span className={styles.shortcut}><kbd className={styles.kbd}>Enter</kbd> Select</span>
-          <span className={styles.shortcut}><kbd className={styles.kbd}>Esc</kbd> Close</span>
+          <span className={styles.shortcut}>
+            <kbd className={styles.kbd}>↑↓</kbd> Navigate
+          </span>
+          <span className={styles.shortcut}>
+            <kbd className={styles.kbd}>Enter</kbd> Select
+          </span>
+          <span className={styles.shortcut}>
+            <kbd className={styles.kbd}>Esc</kbd> Close
+          </span>
         </div>
       </div>
     </div>

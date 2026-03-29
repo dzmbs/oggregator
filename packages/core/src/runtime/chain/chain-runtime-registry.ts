@@ -22,9 +22,7 @@ export class ChainRuntimeRegistry {
   private readonly entries = new Map<string, ChainRuntimeEntry>();
   private cleanupTimer: ReturnType<typeof setInterval> | null = null;
 
-  constructor(
-    private readonly options: ChainRuntimeOptions = {},
-  ) {}
+  constructor(private readonly options: ChainRuntimeOptions = {}) {}
 
   start(): void {
     if (this.cleanupTimer != null) return;
@@ -85,8 +83,9 @@ export class ChainRuntimeRegistry {
 
   private async cleanup(): Promise<void> {
     const cutoff = Date.now() - RUNTIME_IDLE_TTL_MS;
-    const staleEntries = [...this.entries.entries()]
-      .filter(([, entry]) => entry.refCount === 0 && entry.lastUsedAt < cutoff);
+    const staleEntries = [...this.entries.entries()].filter(
+      ([, entry]) => entry.refCount === 0 && entry.lastUsedAt < cutoff,
+    );
 
     for (const [key, entry] of staleEntries) {
       this.entries.delete(key);

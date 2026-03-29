@@ -5,7 +5,8 @@
 }
 
 @keyframes noticePulse {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: 0 0 0 0 rgba(80, 210, 193, 0.18);
     border-color: color-mix(in srgb, var(--accent-primary) 34%, var(--border-subtle));
   }
@@ -78,9 +79,11 @@
   font-size: var(--text-xs);
   font-weight: 600;
   cursor: pointer;
-  transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast),
+    border-color var(--transition-fast);
 }
-
 
 .presetBtn[data-active="true"] {
   background: var(--bg-elevated);

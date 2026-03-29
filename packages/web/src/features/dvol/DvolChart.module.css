@@ -65,7 +65,9 @@
   transition: all var(--transition-fast);
 }
 
-.pickerBtn:hover { color: var(--text-secondary); }
+.pickerBtn:hover {
+  color: var(--text-secondary);
+}
 
 .pickerBtn[data-active="true"] {
   background: var(--bg-elevated);
@@ -88,8 +90,13 @@
   border-radius: 1px;
 }
 
-.legendLine[data-type="iv"] { background: var(--accent-primary); }
-.legendLine[data-type="hv"] { background: #F7A600; border-style: dashed; }
+.legendLine[data-type="iv"] {
+  background: var(--accent-primary);
+}
+.legendLine[data-type="hv"] {
+  background: #f7a600;
+  border-style: dashed;
+}
 
 .legendText {
   font-family: var(--font-mono);
@@ -134,8 +141,12 @@
   font-weight: 700;
 }
 
-.statValue[data-positive="true"]  { color: var(--color-profit); }
-.statValue[data-positive="false"] { color: var(--color-loss); }
+.statValue[data-positive="true"] {
+  color: var(--color-profit);
+}
+.statValue[data-positive="false"] {
+  color: var(--color-loss);
+}
 
 /* ── Chart container ─────────────────────────────── */
 
@@ -172,7 +183,8 @@
   transition: opacity var(--transition-fast);
 }
 
-.resetBtn:hover, .resetBtn:active {
+.resetBtn:hover,
+.resetBtn:active {
   opacity: 1;
   background: var(--bg-hover);
 }
@@ -222,9 +234,15 @@
     flex-shrink: 0;
   }
 
-  .statLabel { font-size: 8px; }
-  .statValue { font-size: 11px; }
-  .statValue[data-accent] { font-size: 12px; }
+  .statLabel {
+    font-size: 8px;
+  }
+  .statValue {
+    font-size: 11px;
+  }
+  .statValue[data-accent] {
+    font-size: 12px;
+  }
 
   .chartArea {
     min-height: 200px;

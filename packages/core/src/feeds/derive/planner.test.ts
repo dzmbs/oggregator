@@ -52,7 +52,10 @@ describe('Derive planner', () => {
 
   it('subscribes in batches of 100 channels', async () => {
     const subscribe = vi.fn<(channels: string[]) => Promise<void>>().mockResolvedValue();
-    const channels = Array.from({ length: 205 }, (_, index) => `ticker_slim.instrument-${index}.1000`);
+    const channels = Array.from(
+      { length: 205 },
+      (_, index) => `ticker_slim.instrument-${index}.1000`,
+    );
 
     await subscribeDeriveBatches(channels, subscribe);
 

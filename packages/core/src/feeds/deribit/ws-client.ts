@@ -113,7 +113,10 @@ export class DeribitWsAdapter extends SdkBaseAdapter {
       requestTimeoutMs: 15_000,
       resubscribeBatchSize: SUBSCRIBE_BATCH_SIZE,
       resubscribeBatchDelayMs: SUBSCRIBE_BATCH_DELAY_MS,
-      onStatusChange: (state) => this.emitStatus(state === 'connected' ? 'connected' : state === 'down' ? 'down' : 'reconnecting'),
+      onStatusChange: (state) =>
+        this.emitStatus(
+          state === 'connected' ? 'connected' : state === 'down' ? 'down' : 'reconnecting',
+        ),
     });
 
     this.rpc.onSubscription((channel: string, data: unknown) => {
@@ -163,7 +166,9 @@ export class DeribitWsAdapter extends SdkBaseAdapter {
     const currencies = [...new Set(instruments.map((i) => i.settle))];
     await this.fetchBulkSummaries(currencies);
 
-    this.healthTimer = setInterval(() => { void this.refreshPublicStatus(); }, HEALTH_CHECK_INTERVAL_MS);
+    this.healthTimer = setInterval(() => {
+      void this.refreshPublicStatus();
+    }, HEALTH_CHECK_INTERVAL_MS);
     void this.refreshPublicStatus();
 
     return instruments;
@@ -192,10 +197,12 @@ export class DeribitWsAdapter extends SdkBaseAdapter {
 
     // Use strike directly from the API; fall back to parsing from the name
     // only if the field is absent (should not happen for current API version).
-    const strike = inst.strike ?? (() => {
-      const raw = (parts[3] as string).replace('d', '.');
-      return Number(raw);
-    })();
+    const strike =
+      inst.strike ??
+      (() => {
+        const raw = (parts[3] as string).replace('d', '.');
+        return Number(raw);
+      })();
     if (!Number.isFinite(strike)) return null;
 
     // option_type from the API ("call"/"put"); fall back to name suffix.
@@ -304,7 +311,10 @@ export class DeribitWsAdapter extends SdkBaseAdapter {
 
     if (plan.bulkChannels.length > 0) {
       await this.rpc.subscribe(plan.bulkChannels);
-      log.info({ count: plan.bulkChannels.length, underlying }, 'subscribed to bulk index channels');
+      log.info(
+        { count: plan.bulkChannels.length, underlying },
+        'subscribed to bulk index channels',
+      );
     }
 
     if (plan.channelsToUnsubscribe.length > 0) {
@@ -313,7 +323,10 @@ export class DeribitWsAdapter extends SdkBaseAdapter {
 
     if (plan.tickerChannels.length > 0) {
       await this.subscribeBatched(plan.tickerChannels);
-      log.info({ count: plan.tickerChannels.length, underlying, interval }, 'subscribed to ticker channels');
+      log.info(
+        { count: plan.tickerChannels.length, underlying, interval },
+        'subscribed to ticker channels',
+      );
     }
   }
 
@@ -340,7 +353,10 @@ export class DeribitWsAdapter extends SdkBaseAdapter {
     const channels: string[] = [];
 
     for (const instrument of instruments) {
-      const channel = releaseDeribitTickerSubscription(this.subscriptions, instrument.exchangeSymbol);
+      const channel = releaseDeribitTickerSubscription(
+        this.subscriptions,
+        instrument.exchangeSymbol,
+      );
       if (channel != null) {
         channels.push(channel);
       }
@@ -499,12 +515,8 @@ export class DeribitWsAdapter extends SdkBaseAdapter {
 
       const indexName = deribitIndexNameFor(inst.base);
       const liveUnderlying = this.state.liveIndexPrices.get(indexName);
-      const quote = buildDeribitMarkPriceQuote(
-        mp,
-        prev,
-        liveUnderlying,
-        hasTicker,
-        (value) => this.safeNum(value),
+      const quote = buildDeribitMarkPriceQuote(mp, prev, liveUnderlying, hasTicker, (value) =>
+        this.safeNum(value),
       );
 
       updates.push({ exchangeSymbol: mp.instrument_name, quote });

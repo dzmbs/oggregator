@@ -11,7 +11,11 @@ type BinanceWsAdapterInternals = {
     send: (payload: unknown) => void;
     isConnected: boolean;
   };
-  subscribeChain: (underlying: string, expiry: string, instruments: CachedInstrument[]) => Promise<void>;
+  subscribeChain: (
+    underlying: string,
+    expiry: string,
+    instruments: CachedInstrument[],
+  ) => Promise<void>;
   handleWsMessage: (msg: unknown) => void;
   subscriptions: {
     subscribedStreams: Set<string>;
@@ -29,23 +33,25 @@ describe('BinanceWsAdapter', () => {
       isConnected: true,
     };
 
-    await internals.subscribeChain('BTC', '2026-03-27', [{
-      symbol: 'BTC/USDT:USDT-BTC-260327-70000-C',
-      exchangeSymbol: 'BTC-260327-70000-C',
-      base: 'BTC',
-      quote: 'USDT',
-      settle: 'USDT',
-      expiry: '2026-03-27',
-      strike: 70_000,
-      right: 'call',
-      inverse: false,
-      contractSize: 1,
-      contractValueCurrency: 'BTC',
-      tickSize: null,
-      minQty: null,
-      makerFee: null,
-      takerFee: null,
-    }]);
+    await internals.subscribeChain('BTC', '2026-03-27', [
+      {
+        symbol: 'BTC/USDT:USDT-BTC-260327-70000-C',
+        exchangeSymbol: 'BTC-260327-70000-C',
+        base: 'BTC',
+        quote: 'USDT',
+        settle: 'USDT',
+        expiry: '2026-03-27',
+        strike: 70_000,
+        right: 'call',
+        inverse: false,
+        contractSize: 1,
+        contractValueCurrency: 'BTC',
+        tickSize: null,
+        minQty: null,
+        makerFee: null,
+        takerFee: null,
+      },
+    ]);
 
     expect([...internals.subscriptions.pendingSubscribeStreams]).toEqual([
       'btcusdt@optionMarkPrice',

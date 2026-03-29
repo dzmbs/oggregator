@@ -86,12 +86,14 @@ function makeChain(timestamp: number, bidUsd: number): VenueOptionChain {
 type ChainRuntimeInternals = {
   buildSnapshot: () => Promise<void>;
   venueListener: {
-    onDelta: (deltas: Array<{
-      venue: 'okx';
-      symbol: string;
-      ts: number;
-      quote?: { bid?: { raw: number; rawCurrency: 'BTC'; usd: number } };
-    }>) => void;
+    onDelta: (
+      deltas: Array<{
+        venue: 'okx';
+        symbol: string;
+        ts: number;
+        quote?: { bid?: { raw: number; rawCurrency: 'BTC'; usd: number } };
+      }>,
+    ) => void;
   };
   pendingBySymbol: Map<string, { version: number }>;
 };
@@ -150,12 +152,14 @@ describe('ChainRuntime', () => {
     });
     const internals = runtime as unknown as ChainRuntimeInternals & {
       venueListener: {
-        onDelta: (deltas: Array<{
-          venue: 'okx';
-          symbol: string;
-          ts: number;
-          quote?: { bid?: { raw: number; rawCurrency: 'BTC'; usd: number } };
-        }>) => void;
+        onDelta: (
+          deltas: Array<{
+            venue: 'okx';
+            symbol: string;
+            ts: number;
+            quote?: { bid?: { raw: number; rawCurrency: 'BTC'; usd: number } };
+          }>,
+        ) => void;
       };
     };
 

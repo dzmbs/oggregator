@@ -1,1 +1,1 @@
-export { default as DvolChart } from "./DvolChart";
+export { default as DvolChart } from './DvolChart';

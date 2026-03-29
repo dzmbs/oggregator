@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 
-import { MobileDrawer } from "@components/ui";
-import { useIsMobile } from "@hooks/useIsMobile";
-import type { HistoryRange, HistorySummary } from "./queries";
-import styles from "./DateRangePicker.module.css";
+import { MobileDrawer } from '@components/ui';
+import { useIsMobile } from '@hooks/useIsMobile';
+import type { HistoryRange, HistorySummary } from './queries';
+import styles from './DateRangePicker.module.css';
 
 interface DateRangePickerProps {
   range: HistoryRange;
@@ -11,7 +11,7 @@ interface DateRangePickerProps {
   onApply: (range: HistoryRange) => void;
 }
 
-type ActiveField = "start" | "end";
+type ActiveField = 'start' | 'end';
 type InputKey = keyof DraftInputs;
 
 type InputErrors = Partial<Record<InputKey, string>>;
@@ -33,7 +33,7 @@ interface DraftInputs {
 export default function DateRangePicker({ range, bounds, onApply }: DateRangePickerProps) {
   const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
-  const [activeField, setActiveField] = useState<ActiveField>("start");
+  const [activeField, setActiveField] = useState<ActiveField>('start');
   const [errors, setErrors] = useState<InputErrors>({});
   const rootRef = useRef<HTMLDivElement | null>(null);
 
@@ -42,7 +42,10 @@ export default function DateRangePicker({ range, bounds, onApply }: DateRangePic
   const draft = useMemo(() => parseDraftRange(effectiveRange), [effectiveRange]);
   const [localDraft, setLocalDraft] = useState<DraftRange>(draft);
   const [inputs, setInputs] = useState<DraftInputs>(buildDraftInputs(draft));
-  const visibleMonth = useMemo(() => getVisibleMonth(localDraft, boundsRange), [boundsRange, localDraft]);
+  const visibleMonth = useMemo(
+    () => getVisibleMonth(localDraft, boundsRange),
+    [boundsRange, localDraft],
+  );
   const monthCursor = useMonthCursor(visibleMonth);
   const monthDays = useMemo(() => buildMonthGrid(monthCursor.month), [monthCursor.month]);
   const startBound = bounds?.oldestTs ? new Date(bounds.oldestTs) : null;
@@ -70,21 +73,21 @@ export default function DateRangePicker({ range, bounds, onApply }: DateRangePic
     }
 
     function onEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") setOpen(false);
+      if (event.key === 'Escape') setOpen(false);
     }
 
-    document.addEventListener("mousedown", onPointerDown);
-    document.addEventListener("keydown", onEscape);
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onEscape);
     return () => {
-      document.removeEventListener("mousedown", onPointerDown);
-      document.removeEventListener("keydown", onEscape);
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onEscape);
     };
   }, [isMobile, open]);
 
   function handleOpen() {
     syncDraft(parseDraftRange(effectiveRange));
     setErrors({});
-    setActiveField("start");
+    setActiveField('start');
     setOpen(true);
   }
 
@@ -95,21 +98,24 @@ export default function DateRangePicker({ range, bounds, onApply }: DateRangePic
   }
 
   function handleDateSelect(value: string) {
-    const nextDraft = activeField === "start"
-      ? { ...localDraft, startDate: value }
-      : { ...localDraft, endDate: value };
+    const nextDraft =
+      activeField === 'start'
+        ? { ...localDraft, startDate: value }
+        : { ...localDraft, endDate: value };
 
     setLocalDraft(nextDraft);
-    setInputs((prev) => activeField === "start"
-      ? { ...prev, startDateText: formatLongDate(value) }
-      : { ...prev, endDateText: formatLongDate(value) });
+    setInputs((prev) =>
+      activeField === 'start'
+        ? { ...prev, startDateText: formatLongDate(value) }
+        : { ...prev, endDateText: formatLongDate(value) },
+    );
     setErrors((prev) => {
       const next = { ...prev };
-      if (activeField === "start") delete next.startDateText;
+      if (activeField === 'start') delete next.startDateText;
       else delete next.endDateText;
       return next;
     });
-    if (activeField === "start") setActiveField("end");
+    if (activeField === 'start') setActiveField('end');
   }
 
   function handleApply() {
@@ -145,10 +151,14 @@ export default function DateRangePicker({ range, bounds, onApply }: DateRangePic
     });
   }
 
-  function commitDateInput(field: "startDate" | "endDate", key: "startDateText" | "endDateText", value: string) {
+  function commitDateInput(
+    field: 'startDate' | 'endDate',
+    key: 'startDateText' | 'endDateText',
+    value: string,
+  ) {
     const parsed = parseDateInput(value);
     if (!parsed) {
-      setErrors((prev) => ({ ...prev, [key]: "Use YYYY-MM-DD or a valid short date." }));
+      setErrors((prev) => ({ ...prev, [key]: 'Use YYYY-MM-DD or a valid short date.' }));
       return;
     }
 
@@ -161,10 +171,14 @@ export default function DateRangePicker({ range, bounds, onApply }: DateRangePic
     setInputs((prev) => ({ ...prev, [key]: formatLongDate(parsed) }));
   }
 
-  function commitTimeInput(field: "startHour" | "endHour", key: "startTimeText" | "endTimeText", value: string) {
+  function commitTimeInput(
+    field: 'startHour' | 'endHour',
+    key: 'startTimeText' | 'endTimeText',
+    value: string,
+  ) {
     const parsed = parseTimeInput(value);
     if (parsed == null) {
-      setErrors((prev) => ({ ...prev, [key]: "Use HH:mm, 9, 09:00, or 9pm." }));
+      setErrors((prev) => ({ ...prev, [key]: 'Use HH:mm, 9, 09:00, or 9pm.' }));
       return;
     }
 
@@ -189,11 +203,11 @@ export default function DateRangePicker({ range, bounds, onApply }: DateRangePic
           timeValue={inputs.startTimeText}
           dateError={errors.startDateText}
           timeError={errors.startTimeText}
-          onDateChange={(value) => handleInputChange("startDateText", value)}
-          onTimeChange={(value) => handleInputChange("startTimeText", value)}
-          onDateCommit={(value) => commitDateInput("startDate", "startDateText", value)}
-          onTimeCommit={(value) => commitTimeInput("startHour", "startTimeText", value)}
-          onFocus={() => setActiveField("start")}
+          onDateChange={(value) => handleInputChange('startDateText', value)}
+          onTimeChange={(value) => handleInputChange('startTimeText', value)}
+          onDateCommit={(value) => commitDateInput('startDate', 'startDateText', value)}
+          onTimeCommit={(value) => commitTimeInput('startHour', 'startTimeText', value)}
+          onFocus={() => setActiveField('start')}
         />
 
         <FieldBlock
@@ -202,27 +216,51 @@ export default function DateRangePicker({ range, bounds, onApply }: DateRangePic
           timeValue={inputs.endTimeText}
           dateError={errors.endDateText}
           timeError={errors.endTimeText}
-          onDateChange={(value) => handleInputChange("endDateText", value)}
-          onTimeChange={(value) => handleInputChange("endTimeText", value)}
-          onDateCommit={(value) => commitDateInput("endDate", "endDateText", value)}
-          onTimeCommit={(value) => commitTimeInput("endHour", "endTimeText", value)}
-          onFocus={() => setActiveField("end")}
+          onDateChange={(value) => handleInputChange('endDateText', value)}
+          onTimeChange={(value) => handleInputChange('endTimeText', value)}
+          onDateCommit={(value) => commitDateInput('endDate', 'endDateText', value)}
+          onTimeCommit={(value) => commitTimeInput('endHour', 'endTimeText', value)}
+          onFocus={() => setActiveField('end')}
         />
       </div>
 
       <div className={styles.topRow}>
         <span className={styles.timezoneBadge}>UTC</span>
-        <button type="button" className={styles.fullRangeBtn} onClick={() => syncDraft(parseDraftRange(boundsRange))}>Full range</button>
+        <button
+          type="button"
+          className={styles.fullRangeBtn}
+          onClick={() => syncDraft(parseDraftRange(boundsRange))}
+        >
+          Full range
+        </button>
       </div>
 
       <div className={styles.calendarHeader}>
-        <button type="button" className={styles.navBtn} disabled={!canGoPrev} onClick={() => monthCursor.shiftMonth(-1)} aria-label="Previous month">‹</button>
+        <button
+          type="button"
+          className={styles.navBtn}
+          disabled={!canGoPrev}
+          onClick={() => monthCursor.shiftMonth(-1)}
+          aria-label="Previous month"
+        >
+          ‹
+        </button>
         <span className={styles.monthLabel}>{formatMonthLabel(monthCursor.month)}</span>
-        <button type="button" className={styles.navBtn} disabled={!canGoNext} onClick={() => monthCursor.shiftMonth(1)} aria-label="Next month">›</button>
+        <button
+          type="button"
+          className={styles.navBtn}
+          disabled={!canGoNext}
+          onClick={() => monthCursor.shiftMonth(1)}
+          aria-label="Next month"
+        >
+          ›
+        </button>
       </div>
 
       <div className={styles.weekdays}>
-        {WEEKDAYS.map((day) => <span key={day}>{day}</span>)}
+        {WEEKDAYS.map((day) => (
+          <span key={day}>{day}</span>
+        ))}
       </div>
 
       <div className={styles.calendarGrid}>
@@ -249,7 +287,9 @@ export default function DateRangePicker({ range, bounds, onApply }: DateRangePic
 
       <div className={styles.footer}>
         <span className={styles.preview}>{appliedPreview}</span>
-        <button type="submit" className={styles.applyBtn} disabled={hasErrors}>Apply</button>
+        <button type="submit" className={styles.applyBtn} disabled={hasErrors}>
+          Apply
+        </button>
       </div>
     </form>
   );
@@ -322,7 +362,9 @@ function FieldBlock({
           />
         </div>
       </div>
-      {dateError || timeError ? <span className={styles.errorText}>{dateError ?? timeError}</span> : null}
+      {dateError || timeError ? (
+        <span className={styles.errorText}>{dateError ?? timeError}</span>
+      ) : null}
     </div>
   );
 }
@@ -360,13 +402,15 @@ function buildMonthGrid(month: string): string[] {
 
 function parseDraftRange(range: HistoryRange): DraftRange {
   const start = range.start ? new Date(range.start) : new Date();
-  const end = range.end ? new Date(Math.max(new Date(range.end).getTime() - 1, start.getTime())) : start;
+  const end = range.end
+    ? new Date(Math.max(new Date(range.end).getTime() - 1, start.getTime()))
+    : start;
 
   return {
     startDate: start.toISOString().slice(0, 10),
-    startHour: String(start.getUTCHours()).padStart(2, "0"),
+    startHour: String(start.getUTCHours()).padStart(2, '0'),
     endDate: end.toISOString().slice(0, 10),
-    endHour: String(end.getUTCHours()).padStart(2, "0"),
+    endHour: String(end.getUTCHours()).padStart(2, '0'),
   };
 }
 
@@ -394,14 +438,21 @@ function buildDraftFromInputs(inputs: DraftInputs): DraftRange | null {
 
 function validateInputs(inputs: DraftInputs): InputErrors {
   const next: InputErrors = {};
-  if (!parseDateInput(inputs.startDateText)) next.startDateText = "Use YYYY-MM-DD or a valid short date.";
-  if (!parseDateInput(inputs.endDateText)) next.endDateText = "Use YYYY-MM-DD or a valid short date.";
-  if (parseTimeInput(inputs.startTimeText) == null) next.startTimeText = "Use HH:mm, 9, 09:00, or 9pm.";
-  if (parseTimeInput(inputs.endTimeText) == null) next.endTimeText = "Use HH:mm, 9, 09:00, or 9pm.";
+  if (!parseDateInput(inputs.startDateText))
+    next.startDateText = 'Use YYYY-MM-DD or a valid short date.';
+  if (!parseDateInput(inputs.endDateText))
+    next.endDateText = 'Use YYYY-MM-DD or a valid short date.';
+  if (parseTimeInput(inputs.startTimeText) == null)
+    next.startTimeText = 'Use HH:mm, 9, 09:00, or 9pm.';
+  if (parseTimeInput(inputs.endTimeText) == null) next.endTimeText = 'Use HH:mm, 9, 09:00, or 9pm.';
   return next;
 }
 
-function buildRangeFromDraft(draft: DraftRange, lowerBound: Date | null, upperBound: Date | null): HistoryRange {
+function buildRangeFromDraft(
+  draft: DraftRange,
+  lowerBound: Date | null,
+  upperBound: Date | null,
+): HistoryRange {
   const normalized = normalizeDraft(draft, lowerBound, upperBound);
   const start = new Date(`${normalized.startDate}T${normalized.startHour}:00:00.000Z`);
   const end = new Date(`${normalized.endDate}T${normalized.endHour}:59:59.999Z`);
@@ -412,7 +463,11 @@ function buildRangeFromDraft(draft: DraftRange, lowerBound: Date | null, upperBo
   };
 }
 
-function normalizeDraft(draft: DraftRange, lowerBound: Date | null, upperBound: Date | null): DraftRange {
+function normalizeDraft(
+  draft: DraftRange,
+  lowerBound: Date | null,
+  upperBound: Date | null,
+): DraftRange {
   const next = { ...draft };
   let start = new Date(`${next.startDate}T${next.startHour}:00:00.000Z`);
   let end = new Date(`${next.endDate}T${next.endHour}:59:59.999Z`);
@@ -427,18 +482,22 @@ function normalizeDraft(draft: DraftRange, lowerBound: Date | null, upperBound: 
 
   return {
     startDate: start.toISOString().slice(0, 10),
-    startHour: String(start.getUTCHours()).padStart(2, "0"),
+    startHour: String(start.getUTCHours()).padStart(2, '0'),
     endDate: end.toISOString().slice(0, 10),
-    endHour: String(end.getUTCHours()).padStart(2, "0"),
+    endHour: String(end.getUTCHours()).padStart(2, '0'),
   };
 }
 
 function getVisibleMonth(draft: DraftRange, boundsRange: HistoryRange): string {
-  return draft.startDate.slice(0, 7) || boundsRange.start?.slice(0, 7) || new Date().toISOString().slice(0, 7);
+  return (
+    draft.startDate.slice(0, 7) ||
+    boundsRange.start?.slice(0, 7) ||
+    new Date().toISOString().slice(0, 7)
+  );
 }
 
 function formatTriggerLabel(range: HistoryRange): string {
-  if (!range.start || !range.end) return "Select history range";
+  if (!range.start || !range.end) return 'Select history range';
   const end = new Date(new Date(range.end).getTime() - 1).toISOString();
   return `${formatShortDateTime(range.start)} → ${formatShortDateTime(end)}`;
 }
@@ -450,29 +509,29 @@ function formatShortDateTime(value: string): string {
 
 function formatLongDate(value: string): string {
   const date = new Date(`${value}T00:00:00.000Z`);
-  return date.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    timeZone: "UTC",
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: 'UTC',
   });
 }
 
 function formatShortDate(date: Date): string {
-  return date.toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    timeZone: "UTC",
+  return date.toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
   });
 }
 
 function formatMonthLabel(month: string): string {
   const date = new Date(`${month}-01T00:00:00.000Z`);
-  return date.toLocaleDateString("en-US", {
-    month: "long",
-    year: "numeric",
-    timeZone: "UTC",
+  return date.toLocaleDateString('en-US', {
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
   });
 }
 
@@ -486,13 +545,13 @@ function parseDateInput(value: string): string | null {
 
   const isoMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (isoMatch) {
-    const [, yearToken = "", monthToken = "", dayToken = ""] = isoMatch;
+    const [, yearToken = '', monthToken = '', dayToken = ''] = isoMatch;
     return buildExactIsoDate(Number(yearToken), Number(monthToken) - 1, Number(dayToken));
   }
 
   const monthMatch = trimmed.match(/^([A-Za-z]{3,9})\s+(\d{1,2}),\s*(\d{4})$/);
   if (monthMatch) {
-    const [, monthToken = "", dayToken = "", yearToken = ""] = monthMatch;
+    const [, monthToken = '', dayToken = '', yearToken = ''] = monthMatch;
     const month = MONTH_INDEX[monthToken.slice(0, 3).toLowerCase()];
     const day = Number(dayToken);
     const year = Number(yearToken);
@@ -504,15 +563,16 @@ function parseDateInput(value: string): string | null {
 }
 
 function buildExactIsoDate(year: number, monthIndex: number, day: number): string | null {
-  if (!Number.isInteger(year) || !Number.isInteger(monthIndex) || !Number.isInteger(day)) return null;
+  if (!Number.isInteger(year) || !Number.isInteger(monthIndex) || !Number.isInteger(day))
+    return null;
   if (monthIndex < 0 || monthIndex > 11 || day < 1 || day > 31) return null;
 
   const parsed = new Date(Date.UTC(year, monthIndex, day));
   if (Number.isNaN(parsed.getTime())) return null;
   if (
-    parsed.getUTCFullYear() !== year
-    || parsed.getUTCMonth() !== monthIndex
-    || parsed.getUTCDate() !== day
+    parsed.getUTCFullYear() !== year ||
+    parsed.getUTCMonth() !== monthIndex ||
+    parsed.getUTCDate() !== day
   ) {
     return null;
   }
@@ -528,17 +588,18 @@ function parseTimeInput(value: string): string | null {
   let hour = Number(direct[1]);
   const minutes = direct[2] ? Number(direct[2]) : 0;
   const meridiem = direct[3];
-  if (!Number.isFinite(hour) || !Number.isFinite(minutes) || minutes < 0 || minutes > 59) return null;
+  if (!Number.isFinite(hour) || !Number.isFinite(minutes) || minutes < 0 || minutes > 59)
+    return null;
   if (minutes !== 0) return null;
 
-  if (meridiem === "AM") {
+  if (meridiem === 'AM') {
     if (hour === 12) hour = 0;
-  } else if (meridiem === "PM") {
+  } else if (meridiem === 'PM') {
     if (hour < 12) hour += 12;
   }
 
   if (hour < 0 || hour > 23) return null;
-  return String(hour).padStart(2, "0");
+  return String(hour).padStart(2, '0');
 }
 
 function canMoveMonth(month: string, delta: number, bound: Date | null): boolean {
@@ -557,12 +618,12 @@ function isDateDisabled(value: string, lowerBound: Date | null, upperBound: Date
   return false;
 }
 
-function getDateSelection(value: string, draft: DraftRange): "start" | "end" | "in-range" | null {
+function getDateSelection(value: string, draft: DraftRange): 'start' | 'end' | 'in-range' | null {
   const start = draft.startDate;
   const end = draft.endDate;
-  if (value === start) return "start";
-  if (value === end) return "end";
-  if (value > start && value < end) return "in-range";
+  if (value === start) return 'start';
+  if (value === end) return 'end';
+  if (value > start && value < end) return 'in-range';
   return null;
 }
 
@@ -570,7 +631,7 @@ function startOfUtcDay(date: Date): Date {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
 }
 
-const WEEKDAYS = ["M", "T", "W", "T", "F", "S", "S"];
+const WEEKDAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 const MONTH_INDEX: Record<string, number> = {
   jan: 0,
   feb: 1,

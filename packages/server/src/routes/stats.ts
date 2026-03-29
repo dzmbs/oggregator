@@ -15,19 +15,23 @@ export async function statsRoute(app: FastifyInstance) {
 
     return {
       underlying,
-      spot: spot ? {
-        price: spot.lastPrice,
-        change24hPct: spot.change24hPct,
-        high24h: spot.high24h,
-        low24h: spot.low24h,
-      } : null,
-      dvol: dvol ? {
-        current: dvol.current,
-        ivr: dvol.ivr,
-        ivChange1d: dvol.ivChange1d,
-        high52w: dvol.high52w,
-        low52w: dvol.low52w,
-      } : null,
+      spot: spot
+        ? {
+            price: spot.lastPrice,
+            change24hPct: spot.change24hPct,
+            high24h: spot.high24h,
+            low24h: spot.low24h,
+          }
+        : null,
+      dvol: dvol
+        ? {
+            current: dvol.current,
+            ivr: dvol.ivr,
+            ivChange1d: dvol.ivChange1d,
+            high52w: dvol.high52w,
+            low52w: dvol.low52w,
+          }
+        : null,
     };
   });
 }

@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { OptionVenueAdapter, StreamHandlers, VenueCapabilities } from '../feeds/shared/types.js';
+import type {
+  OptionVenueAdapter,
+  StreamHandlers,
+  VenueCapabilities,
+} from '../feeds/shared/types.js';
 import { VenueSubscriptionCoordinator } from './subscription-coordinator.js';
 import type { ChainRequest, VenueDelta, VenueOptionChain, VenueStatus } from './types.js';
 import type { VenueId } from '../types/common.js';
@@ -166,8 +170,12 @@ describe('VenueSubscriptionCoordinator', () => {
       'deribit',
       { underlying: 'BTC', expiry: '2026-01-01' },
       {
-        onDelta: () => { throw new Error('boom'); },
-        onStatus: () => { throw new Error('boom'); },
+        onDelta: () => {
+          throw new Error('boom');
+        },
+        onStatus: () => {
+          throw new Error('boom');
+        },
       },
     );
     const second = await coordinator.acquire(
@@ -176,9 +184,7 @@ describe('VenueSubscriptionCoordinator', () => {
       { onDelta: healthyDelta, onStatus: healthyStatus },
     );
 
-    adapter.handlers[0]?.onDelta([
-      { venue: 'deribit', symbol: 'BTC/USD:BTC-260101-100-C', ts: 1 },
-    ]);
+    adapter.handlers[0]?.onDelta([{ venue: 'deribit', symbol: 'BTC/USD:BTC-260101-100-C', ts: 1 }]);
     adapter.handlers[0]?.onStatus({ venue: 'deribit', state: 'connected', ts: 2 });
 
     expect(healthyDelta).toHaveBeenCalledWith([

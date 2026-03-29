@@ -30,7 +30,8 @@ export function parseTradeInstrument(instrument: string): ParsedTradeInstrument 
     };
   }
 
-  const numericDate = instrument.match(/(?:^|[-_])(\d{6,8})(?:[-_]|$)/)?.[1] ?? instrument.match(/(\d{6,8})/)?.[1];
+  const numericDate =
+    instrument.match(/(?:^|[-_])(\d{6,8})(?:[-_]|$)/)?.[1] ?? instrument.match(/(\d{6,8})/)?.[1];
   return {
     expiry: numericDate ? parseNumericExpiry(numericDate) : null,
     strike,
@@ -55,44 +56,50 @@ export function buildLiveTradeUid(trade: TradeEvent): string {
     return `${trade.venue}:${trade.instrument}:${trade.tradeId}`;
   }
   return createHash('sha256')
-    .update(JSON.stringify({
-      mode: 'live',
-      venue: trade.venue,
-      payload: {
-        instrument: trade.instrument,
-        timestamp: trade.timestamp,
-        side: trade.side,
-        price: trade.price,
-        size: trade.size,
-        isBlock: trade.isBlock,
-      },
-    }))
+    .update(
+      JSON.stringify({
+        mode: 'live',
+        venue: trade.venue,
+        payload: {
+          instrument: trade.instrument,
+          timestamp: trade.timestamp,
+          side: trade.side,
+          price: trade.price,
+          size: trade.size,
+          isBlock: trade.isBlock,
+        },
+      }),
+    )
     .digest('hex');
 }
 
 export function buildBlockTradeUid(trade: BlockTradeEvent): string {
   return createHash('sha256')
-    .update(JSON.stringify({
-      mode: 'institutional',
-      venue: trade.venue,
-      payload: {
-        tradeId: trade.tradeId,
-        timestamp: trade.timestamp,
-      },
-    }))
+    .update(
+      JSON.stringify({
+        mode: 'institutional',
+        venue: trade.venue,
+        payload: {
+          tradeId: trade.tradeId,
+          timestamp: trade.timestamp,
+        },
+      }),
+    )
     .digest('hex');
 }
 
-export function computeLiveTradeAmounts(trade: TradeEvent, referencePriceUsd: number | null): TradeAmounts {
+export function computeLiveTradeAmounts(
+  trade: TradeEvent,
+  referencePriceUsd: number | null,
+): TradeAmounts {
   const contracts = trade.size * getVenueContractMultiplier(trade.venue, trade.underlying);
   const premiumUsd = isInversePremiumVenue(trade.venue)
     ? referencePriceUsd != null && referencePriceUsd > 0
       ? trade.price * contracts * referencePriceUsd
       : null
     : trade.price * contracts;
-  const notionalUsd = referencePriceUsd != null && referencePriceUsd > 0
-    ? contracts * referencePriceUsd
-    : null;
+  const notionalUsd =
+    referencePriceUsd != null && referencePriceUsd > 0 ? contracts * referencePriceUsd : null;
 
   return {
     premiumUsd,
@@ -102,7 +109,10 @@ export function computeLiveTradeAmounts(trade: TradeEvent, referencePriceUsd: nu
   };
 }
 
-export function computeBlockTradeAmounts(trade: BlockTradeEvent, referencePriceUsd: number | null): TradeAmounts {
+export function computeBlockTradeAmounts(
+  trade: BlockTradeEvent,
+  referencePriceUsd: number | null,
+): TradeAmounts {
   const multiplier = getVenueContractMultiplier(trade.venue, trade.underlying);
   const contracts = trade.totalSize * multiplier;
   const premiumUsd = trade.legs.reduce<number | null>((sum, leg) => {
@@ -111,12 +121,13 @@ export function computeBlockTradeAmounts(trade: BlockTradeEvent, referencePriceU
     return (sum ?? 0) + legPriceUsd * leg.size * leg.ratio * multiplier;
   }, 0);
 
-  const notionalUsd = referencePriceUsd != null && referencePriceUsd > 0
-    ? trade.legs.reduce(
-        (sum, leg) => sum + (leg.size * leg.ratio * multiplier * referencePriceUsd),
-        0,
-      )
-    : null;
+  const notionalUsd =
+    referencePriceUsd != null && referencePriceUsd > 0
+      ? trade.legs.reduce(
+          (sum, leg) => sum + leg.size * leg.ratio * multiplier * referencePriceUsd,
+          0,
+        )
+      : null;
 
   return {
     premiumUsd,

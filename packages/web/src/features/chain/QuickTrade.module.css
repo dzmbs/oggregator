@@ -14,8 +14,12 @@
 }
 
 @keyframes slideIn {
-  from { transform: translateX(100%); }
-  to   { transform: translateX(0); }
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
 }
 
 .header {
@@ -40,8 +44,12 @@
   letter-spacing: 0.06em;
 }
 
-.direction[data-direction="buy"]  { color: var(--color-profit); }
-.direction[data-direction="sell"] { color: var(--color-loss); }
+.direction[data-direction="buy"] {
+  color: var(--color-profit);
+}
+.direction[data-direction="sell"] {
+  color: var(--color-loss);
+}
 
 .strike {
   font-family: var(--font-mono);

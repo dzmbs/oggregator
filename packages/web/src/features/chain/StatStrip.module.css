@@ -82,8 +82,13 @@
 }
 
 @keyframes feedBlink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.3; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
 }
 
 /* ── Mobile ──────────────────────────────────────────── */
@@ -97,7 +102,9 @@
     overflow-x: visible;
   }
 
-  .divider { display: none; }
+  .divider {
+    display: none;
+  }
 
   .cell {
     min-width: unset;
@@ -106,9 +113,17 @@
     border-right: 1px solid color-mix(in srgb, var(--border-subtle) 40%, transparent);
   }
 
-  .cell:nth-child(3n) { border-right: none; }
+  .cell:nth-child(3n) {
+    border-right: none;
+  }
 
-  .label { font-size: 9px; }
-  .value { font-size: 11px; }
-  .sub   { font-size: 9px; }
+  .label {
+    font-size: 9px;
+  }
+  .value {
+    font-size: 11px;
+  }
+  .sub {
+    font-size: 9px;
+  }
 }

@@ -42,15 +42,15 @@ const DvolPushSchema = z.object({
  */
 export interface DvolCandle {
   timestamp: number;
-  open:  number;
-  high:  number;
-  low:   number;
+  open: number;
+  high: number;
+  low: number;
   close: number;
 }
 
 export interface HvPoint {
   timestamp: number;
-  value:     number;
+  value: number;
 }
 
 export class DvolService {
@@ -74,12 +74,9 @@ export class DvolService {
 
     await this.rpc.connect();
 
-    await Promise.all(currencies.map(c => Promise.all([
-      this.fetchHistory(c),
-      this.fetchHv(c),
-    ])));
+    await Promise.all(currencies.map((c) => Promise.all([this.fetchHistory(c), this.fetchHv(c)])));
 
-    const channels = currencies.map(c => `deribit_volatility_index.${c.toLowerCase()}_usd`);
+    const channels = currencies.map((c) => `deribit_volatility_index.${c.toLowerCase()}_usd`);
     await this.rpc.subscribe(channels);
     log.info({ currencies, channels: channels.length }, 'subscribed to DVOL');
 
@@ -124,9 +121,16 @@ export class DvolService {
 
     const candles = parsed.data.data;
 
-    this.candleHistory.set(currency, candles.map(([ts, o, h, l, c]) => ({
-      timestamp: ts, open: o, high: h, low: l, close: c,
-    })));
+    this.candleHistory.set(
+      currency,
+      candles.map(([ts, o, h, l, c]) => ({
+        timestamp: ts,
+        open: o,
+        high: h,
+        low: l,
+        close: c,
+      })),
+    );
 
     let high52w = -Infinity;
     let low52w = Infinity;
@@ -138,16 +142,17 @@ export class DvolService {
     const last = candles[candles.length - 1]!;
     const prev = candles.length >= 2 ? candles[candles.length - 2]! : last;
 
-    this.snapshots.set(currency, this.buildSnapshot(
-      currency, last[4], prev[4], high52w, low52w,
-    ));
+    this.snapshots.set(currency, this.buildSnapshot(currency, last[4], prev[4], high52w, low52w));
 
-    log.info({
-      currency,
-      current: (last[4] / 100).toFixed(4),
-      ivr: this.snapshots.get(currency)!.ivr.toFixed(1),
-      candles: candles.length,
-    }, 'DVOL history loaded');
+    log.info(
+      {
+        currency,
+        current: (last[4] / 100).toFixed(4),
+        ivr: this.snapshots.get(currency)!.ivr.toFixed(1),
+        candles: candles.length,
+      },
+      'DVOL history loaded',
+    );
   }
 
   private async fetchHv(currency: string): Promise<void> {
@@ -162,7 +167,7 @@ export class DvolService {
       const points: HvPoint[] = [];
       for (const item of raw) {
         if (!Array.isArray(item) || item.length < 2) continue;
-        const ts  = Number(item[0]);
+        const ts = Number(item[0]);
         const val = Number(item[1]);
         if (Number.isFinite(ts) && Number.isFinite(val)) {
           points.push({ timestamp: ts, value: val });
@@ -232,8 +237,11 @@ export class DvolService {
       log.info('refreshing DVOL history (daily rollover)');
       await Promise.allSettled(
         this.currencies.map(async (currency) => {
-          try { await this.fetchHistory(currency); }
-          catch (err: unknown) { log.warn({ currency, err: String(err) }, 'DVOL refresh failed'); }
+          try {
+            await this.fetchHistory(currency);
+          } catch (err: unknown) {
+            log.warn({ currency, err: String(err) }, 'DVOL refresh failed');
+          }
         }),
       );
       this.scheduleHistoryRefresh();
@@ -241,7 +249,10 @@ export class DvolService {
   }
 
   dispose(): void {
-    if (this.refreshTimer) { clearTimeout(this.refreshTimer); this.refreshTimer = null; }
+    if (this.refreshTimer) {
+      clearTimeout(this.refreshTimer);
+      this.refreshTimer = null;
+    }
     this.rpc?.disconnect();
     this.rpc = null;
   }

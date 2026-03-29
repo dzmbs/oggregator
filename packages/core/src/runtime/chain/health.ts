@@ -35,7 +35,11 @@ function staleStatus(venue: VenueId, ts: number, now: number): VenueStatus {
   };
 }
 
-function effectiveStatus(sources: VenueHealthSources, venue: VenueId, now: number): VenueStatus | null {
+function effectiveStatus(
+  sources: VenueHealthSources,
+  venue: VenueId,
+  now: number,
+): VenueStatus | null {
   const transport = sources.transport;
   const health = sources.health;
 
@@ -44,13 +48,13 @@ function effectiveStatus(sources: VenueHealthSources, venue: VenueId, now: numbe
   if (transport?.state === 'polling') return transport;
   if (health?.state === 'degraded') return health;
 
-  const freshnessTs = [
-    sources.lastActivityTs,
-    transport?.ts ?? null,
-  ].reduce<number | null>((latest, value) => {
-    if (value == null) return latest;
-    return latest == null ? value : Math.max(latest, value);
-  }, null);
+  const freshnessTs = [sources.lastActivityTs, transport?.ts ?? null].reduce<number | null>(
+    (latest, value) => {
+      if (value == null) return latest;
+      return latest == null ? value : Math.max(latest, value);
+    },
+    null,
+  );
 
   if (freshnessTs != null && now - freshnessTs > STALE_AFTER_MS) {
     return staleStatus(venue, freshnessTs, now);

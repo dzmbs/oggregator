@@ -55,7 +55,14 @@ export async function surfaceRoute(app: FastifyInstance) {
 
       const chains = venueChains
         .filter((r) => r.status === 'fulfilled')
-        .map((r) => (r as PromiseFulfilledResult<Awaited<ReturnType<ReturnType<typeof getAdapter>['fetchOptionChain']>>>).value);
+        .map(
+          (r) =>
+            (
+              r as PromiseFulfilledResult<
+                Awaited<ReturnType<ReturnType<typeof getAdapter>['fetchOptionChain']>>
+              >
+            ).value,
+        );
 
       if (chains.length === 0) continue;
 

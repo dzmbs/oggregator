@@ -34,10 +34,7 @@ export interface OptionVenueAdapter {
   fetchOptionChain(request: ChainRequest): Promise<VenueOptionChain>;
 
   /** Subscribe to real-time updates. Returns an unsubscribe function. */
-  subscribe?(
-    request: ChainRequest,
-    handlers: StreamHandlers,
-  ): Promise<() => Promise<void>>;
+  subscribe?(request: ChainRequest, handlers: StreamHandlers): Promise<() => Promise<void>>;
 
   /** Remove a delta handler without tearing down venue WS connections. */
   removeDeltaHandler?(handlers: StreamHandlers): void;

@@ -27,16 +27,20 @@ export const DeribitTickerSchema = z.object({
   best_bid_amount: z.number().nullable().optional(),
   best_ask_amount: z.number().nullable().optional(),
   timestamp: z.number().optional(),
-  stats: z.object({
-    volume: z.number().optional(),
-  }).optional(),
-  greeks: z.object({
-    delta: z.number().nullable(),
-    gamma: z.number().nullable(),
-    theta: z.number().nullable(),
-    vega: z.number().nullable(),
-    rho: z.number().nullable(),
-  }).optional(),
+  stats: z
+    .object({
+      volume: z.number().optional(),
+    })
+    .optional(),
+  greeks: z
+    .object({
+      delta: z.number().nullable(),
+      gamma: z.number().nullable(),
+      theta: z.number().nullable(),
+      vega: z.number().nullable(),
+      rho: z.number().nullable(),
+    })
+    .optional(),
 });
 export type DeribitTicker = z.infer<typeof DeribitTickerSchema>;
 
@@ -102,12 +106,7 @@ export const DeribitPlatformStateSchema = z.object({
 export type DeribitPlatformState = z.infer<typeof DeribitPlatformStateSchema>;
 
 export const DeribitPublicStatusSchema = z.object({
-  locked: z.union([
-    z.boolean(),
-    z.literal('true'),
-    z.literal('partial'),
-    z.literal('false'),
-  ]),
+  locked: z.union([z.boolean(), z.literal('true'), z.literal('partial'), z.literal('false')]),
   locked_indices: z.array(z.string()).optional(),
   locked_currencies: z.array(z.string()).optional(),
 });

@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "/api";
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '/api';
 const RETRY_DELAY_MS = 1500;
 const MAX_RETRIES = 10;
 
@@ -12,7 +12,7 @@ export async function fetchJson<T>(path: string): Promise<T> {
           await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
           continue;
         }
-        throw new Error("Server still initializing");
+        throw new Error('Server still initializing');
       }
 
       if (!res.ok) throw new Error(`API error: ${res.status} ${res.statusText}`);
@@ -26,5 +26,5 @@ export async function fetchJson<T>(path: string): Promise<T> {
     }
   }
 
-  throw new Error("Max retries exceeded");
+  throw new Error('Max retries exceeded');
 }

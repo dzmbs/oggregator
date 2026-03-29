@@ -54,7 +54,8 @@ export function buildDeribitSubscriptionPlan(
 
   for (const instrument of instruments) {
     const existingInterval = state.tickerIntervals.get(instrument.exchangeSymbol);
-    const existingPriority = existingInterval != null ? (INTERVAL_PRIORITY[existingInterval] ?? 1) : 0;
+    const existingPriority =
+      existingInterval != null ? (INTERVAL_PRIORITY[existingInterval] ?? 1) : 0;
 
     if (requestedPriority <= existingPriority) continue;
 

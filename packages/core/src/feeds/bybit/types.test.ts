@@ -598,11 +598,11 @@ describe('BYBIT_OPTION_SYMBOL_RE', () => {
   it('extracts the correct capture groups for the 5-part format', () => {
     const match = 'BTC-25DEC26-67000-C-USDT'.match(BYBIT_OPTION_SYMBOL_RE);
     expect(match).not.toBeNull();
-    expect(match?.[1]).toBe('BTC');    // base
+    expect(match?.[1]).toBe('BTC'); // base
     expect(match?.[2]).toBe('25DEC26'); // expiry code
-    expect(match?.[3]).toBe('67000');  // strike
-    expect(match?.[4]).toBe('C');      // option type
-    expect(match?.[5]).toBe('USDT');   // settle coin (optional group)
+    expect(match?.[3]).toBe('67000'); // strike
+    expect(match?.[4]).toBe('C'); // option type
+    expect(match?.[5]).toBe('USDT'); // settle coin (optional group)
   });
 
   it('extracts the correct capture groups for the legacy 4-part format', () => {

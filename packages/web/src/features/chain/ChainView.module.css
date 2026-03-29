@@ -44,7 +44,9 @@
   flex-shrink: 0;
 }
 
-.mobileStatsToggle:active { background: var(--bg-hover); }
+.mobileStatsToggle:active {
+  background: var(--bg-hover);
+}
 
 .mstLabel {
   font-size: 11px;

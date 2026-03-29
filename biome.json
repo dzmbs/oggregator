@@ -7,14 +7,7 @@
   },
   "files": {
     "ignoreUnknown": true,
-    "includes": [
-      "**",
-      "!!**/dist",
-      "!!**/coverage",
-      "!!**/.turbo",
-      "!!**/.pi",
-      "!!**/node_modules"
-    ]
+    "includes": ["**", "!!**/dist", "!!**/coverage", "!!**/.turbo", "!!**/.pi", "!!**/node_modules"]
   },
   "formatter": {
     "indentStyle": "space",

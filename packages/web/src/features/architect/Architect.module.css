@@ -48,7 +48,9 @@
   min-height: 0;
 }
 
-.header { flex-shrink: 0; }
+.header {
+  flex-shrink: 0;
+}
 
 .titleRow {
   display: flex;
@@ -97,7 +99,9 @@
   transition: all var(--transition-fast);
 }
 
-.sentimentBtn:hover { color: var(--text-secondary); }
+.sentimentBtn:hover {
+  color: var(--text-secondary);
+}
 
 .sentimentBtn[data-active="true"] {
   background: var(--bg-elevated);
@@ -105,10 +109,18 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
-.sentimentBtn[data-active="true"][data-sentiment="bullish"] { color: var(--color-profit); }
-.sentimentBtn[data-active="true"][data-sentiment="bearish"] { color: var(--color-loss); }
-.sentimentBtn[data-active="true"][data-sentiment="volatile"] { color: var(--color-iv); }
-.sentimentBtn[data-active="true"][data-sentiment="neutral"] { color: var(--color-warning, #f59e0b); }
+.sentimentBtn[data-active="true"][data-sentiment="bullish"] {
+  color: var(--color-profit);
+}
+.sentimentBtn[data-active="true"][data-sentiment="bearish"] {
+  color: var(--color-loss);
+}
+.sentimentBtn[data-active="true"][data-sentiment="volatile"] {
+  color: var(--color-iv);
+}
+.sentimentBtn[data-active="true"][data-sentiment="neutral"] {
+  color: var(--color-warning, #f59e0b);
+}
 
 .templateGrid {
   display: flex;
@@ -118,7 +130,9 @@
   padding-bottom: 2px;
 }
 
-.templateGrid::-webkit-scrollbar { display: none; }
+.templateGrid::-webkit-scrollbar {
+  display: none;
+}
 
 .templateCard {
   flex-shrink: 0;
@@ -145,10 +159,18 @@
   cursor: grabbing;
 }
 
-.templateCard[data-sentiment="bullish"]:hover { border-color: color-mix(in srgb, var(--color-profit) 40%, var(--border-default)); }
-.templateCard[data-sentiment="bearish"]:hover { border-color: color-mix(in srgb, var(--color-loss) 40%, var(--border-default)); }
-.templateCard[data-sentiment="volatile"]:hover { border-color: color-mix(in srgb, var(--color-iv) 40%, var(--border-default)); }
-.templateCard[data-sentiment="neutral"]:hover { border-color: color-mix(in srgb, var(--color-warning, #f59e0b) 40%, var(--border-default)); }
+.templateCard[data-sentiment="bullish"]:hover {
+  border-color: color-mix(in srgb, var(--color-profit) 40%, var(--border-default));
+}
+.templateCard[data-sentiment="bearish"]:hover {
+  border-color: color-mix(in srgb, var(--color-loss) 40%, var(--border-default));
+}
+.templateCard[data-sentiment="volatile"]:hover {
+  border-color: color-mix(in srgb, var(--color-iv) 40%, var(--border-default));
+}
+.templateCard[data-sentiment="neutral"]:hover {
+  border-color: color-mix(in srgb, var(--color-warning, #f59e0b) 40%, var(--border-default));
+}
 
 .templateCardInfo {
   display: flex;
@@ -236,7 +258,9 @@
   opacity: 0.6;
 }
 
-.templateErrorClose:hover { opacity: 1; }
+.templateErrorClose:hover {
+  opacity: 1;
+}
 
 /* ── Leg input ───────────────────────────────────────── */
 
@@ -271,10 +295,22 @@
   transition: all var(--transition-fast);
 }
 
-.toggleBtn[data-active="true"][data-type="buy"]  { background: var(--color-profit); color: #000; }
-.toggleBtn[data-active="true"][data-type="sell"] { background: var(--color-loss); color: #fff; }
-.toggleBtn[data-active="true"][data-type="call"] { background: color-mix(in srgb, var(--color-profit) 20%, transparent); color: var(--color-profit); }
-.toggleBtn[data-active="true"][data-type="put"]  { background: color-mix(in srgb, var(--color-loss) 20%, transparent); color: var(--color-loss); }
+.toggleBtn[data-active="true"][data-type="buy"] {
+  background: var(--color-profit);
+  color: #000;
+}
+.toggleBtn[data-active="true"][data-type="sell"] {
+  background: var(--color-loss);
+  color: #fff;
+}
+.toggleBtn[data-active="true"][data-type="call"] {
+  background: color-mix(in srgb, var(--color-profit) 20%, transparent);
+  color: var(--color-profit);
+}
+.toggleBtn[data-active="true"][data-type="put"] {
+  background: color-mix(in srgb, var(--color-loss) 20%, transparent);
+  color: var(--color-loss);
+}
 
 .legInputField {
   font-family: var(--font-mono);
@@ -410,7 +446,10 @@
   cursor: pointer;
 }
 
-.clearBtn:hover { color: var(--color-loss); border-color: var(--color-loss); }
+.clearBtn:hover {
+  color: var(--color-loss);
+  border-color: var(--color-loss);
+}
 
 .legsList {
   display: flex;
@@ -428,31 +467,75 @@
   font-size: var(--text-xs);
 }
 
-.legRow[data-direction="buy"]  { border-left: 2px solid var(--color-profit); }
-.legRow[data-direction="sell"] { border-left: 2px solid var(--color-loss); }
-
-.legDirection { font-weight: 700; min-width: 28px; font-size: 10px; }
-.legDirection[data-direction="buy"]  { color: var(--color-profit); }
-.legDirection[data-direction="sell"] { color: var(--color-loss); }
-
-.legQty { color: var(--text-secondary); }
-.legStrike { font-weight: 700; color: var(--text-primary); font-size: var(--text-sm); }
-.legType { font-size: 10px; font-weight: 700; padding: 0 3px; border-radius: 2px; }
-.legType[data-type="call"] { color: var(--color-profit); background: color-mix(in srgb, var(--color-profit) 10%, transparent); }
-.legType[data-type="put"]  { color: var(--color-loss); background: color-mix(in srgb, var(--color-loss) 10%, transparent); }
-.legExpiry { color: var(--text-dim); }
-.legPrice { color: var(--text-secondary); font-weight: 700; font-size: var(--text-sm); margin-left: auto; }
-.legRemove {
-  width: 18px; height: 18px; display: flex; align-items: center; justify-content: center;
-  border: none; border-radius: 50%; background: transparent; color: var(--text-dim);
-  cursor: pointer; font-size: 13px;
+.legRow[data-direction="buy"] {
+  border-left: 2px solid var(--color-profit);
 }
-.legRemove:hover { background: color-mix(in srgb, var(--color-loss) 20%, transparent); color: var(--color-loss); }
+.legRow[data-direction="sell"] {
+  border-left: 2px solid var(--color-loss);
+}
+
+.legDirection {
+  font-weight: 700;
+  min-width: 28px;
+  font-size: 10px;
+}
+.legDirection[data-direction="buy"] {
+  color: var(--color-profit);
+}
+.legDirection[data-direction="sell"] {
+  color: var(--color-loss);
+}
+
+.legQty {
+  color: var(--text-secondary);
+}
+.legStrike {
+  font-weight: 700;
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+}
+.legType {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 0 3px;
+  border-radius: 2px;
+}
+.legType[data-type="call"] {
+  color: var(--color-profit);
+  background: color-mix(in srgb, var(--color-profit) 10%, transparent);
+}
+.legType[data-type="put"] {
+  color: var(--color-loss);
+  background: color-mix(in srgb, var(--color-loss) 10%, transparent);
+}
+.legExpiry {
+  color: var(--text-dim);
+}
+.legPrice {
+  color: var(--text-secondary);
+  font-weight: 700;
+  font-size: var(--text-sm);
+  margin-left: auto;
+}
+.legRemove {
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 13px;
+}
+.legRemove:hover {
+  background: color-mix(in srgb, var(--color-loss) 20%, transparent);
+  color: var(--color-loss);
+}
 
 /* ── Metrics row ─────────────────────────────────────── */
-
-
-
 
 /* ── Chart panel ─────────────────────────────────────── */
 
@@ -676,8 +759,6 @@
   background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
 }
 
-
-
 .legEditBtn:hover {
   background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
   color: var(--accent-primary);
@@ -736,8 +817,12 @@
   font-variant-numeric: tabular-nums;
 }
 
-.metricCardVal[data-positive="true"] { color: var(--color-profit); }
-.metricCardVal[data-negative="true"] { color: var(--color-loss); }
+.metricCardVal[data-positive="true"] {
+  color: var(--color-profit);
+}
+.metricCardVal[data-negative="true"] {
+  color: var(--color-loss);
+}
 
 .greeksGrid {
   display: grid;
@@ -821,10 +906,18 @@
   cursor: pointer;
 }
 
-.sliderInput[data-kind="iv"]::-webkit-slider-thumb { background: var(--color-iv); }
-.sliderInput[data-kind="iv"]::-moz-range-thumb { background: var(--color-iv); }
-.sliderInput[data-kind="dte"]::-webkit-slider-thumb { background: var(--color-warning); }
-.sliderInput[data-kind="dte"]::-moz-range-thumb { background: var(--color-warning); }
+.sliderInput[data-kind="iv"]::-webkit-slider-thumb {
+  background: var(--color-iv);
+}
+.sliderInput[data-kind="iv"]::-moz-range-thumb {
+  background: var(--color-iv);
+}
+.sliderInput[data-kind="dte"]::-webkit-slider-thumb {
+  background: var(--color-warning);
+}
+.sliderInput[data-kind="dte"]::-moz-range-thumb {
+  background: var(--color-warning);
+}
 
 .sliderInput:disabled {
   opacity: 0.3;
@@ -893,10 +986,18 @@
   flex-shrink: 0;
 }
 
-.legendDotBase { background: var(--accent-primary); }
-.legendDotIv { background: var(--color-iv); }
-.legendDotDte { background: var(--color-warning); }
-.legendLabel { color: var(--text-dim); }
+.legendDotBase {
+  background: var(--accent-primary);
+}
+.legendDotIv {
+  background: var(--color-iv);
+}
+.legendDotDte {
+  background: var(--color-warning);
+}
+.legendLabel {
+  color: var(--text-dim);
+}
 
 /* ── Share bar ────────────────────────────────────────── */
 
@@ -953,19 +1054,39 @@
     gap: var(--space-2);
   }
 
-  .title { font-size: var(--text-base); }
-  .titleRow > :nth-child(2) { display: none; }
+  .title {
+    font-size: var(--text-base);
+  }
+  .titleRow > :nth-child(2) {
+    display: none;
+  }
 
-  .splitBody { grid-template-columns: 1fr; }
-  .rightCol { order: -1; }
-  .chartPanel { min-height: 300px; }
+  .splitBody {
+    grid-template-columns: 1fr;
+  }
+  .rightCol {
+    order: -1;
+  }
+  .chartPanel {
+    min-height: 300px;
+  }
 
-  .templateCard { padding: var(--space-1) var(--space-2); }
-  .templateCardName { font-size: 11px; }
+  .templateCard {
+    padding: var(--space-1) var(--space-2);
+  }
+  .templateCardName {
+    font-size: 11px;
+  }
 
-  .sentimentBar { height: 28px; }
-  .sentimentBtn { padding: 0 8px; font-size: 10px; }
+  .sentimentBar {
+    height: 28px;
+  }
+  .sentimentBtn {
+    padding: 0 8px;
+    font-size: 10px;
+  }
 
-  .legInputRow { gap: var(--space-1); }
+  .legInputRow {
+    gap: var(--space-1);
+  }
 }
-

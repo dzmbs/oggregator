@@ -1,23 +1,23 @@
-import type { ChainStats } from "@shared/enriched";
-import type { WsConnectionState } from "@oggregator/protocol";
+import type { ChainStats } from '@shared/enriched';
+import type { WsConnectionState } from '@oggregator/protocol';
 
-import { fmtUsd, fmtUsdCompact, fmtIv, fmtPct, fmtNum } from "@lib/format";
-import type { StatsResponse } from "./queries";
-import styles from "./StatStrip.module.css";
+import { fmtUsd, fmtUsdCompact, fmtIv, fmtPct, fmtNum } from '@lib/format';
+import type { StatsResponse } from './queries';
+import styles from './StatStrip.module.css';
 
 interface StatStripProps {
-  stats:            ChainStats;
-  underlying:       string;
-  dte:              number;
+  stats: ChainStats;
+  underlying: string;
+  dte: number;
   connectionState?: WsConnectionState;
-  marketStats?:     StatsResponse | null;
+  marketStats?: StatsResponse | null;
 }
 
 interface StatCellProps {
-  label:    string;
-  value:    string;
-  sub?:     string;
-  accent?:  boolean;
+  label: string;
+  value: string;
+  sub?: string;
+  accent?: boolean;
   positive?: boolean | null; // true = green, false = red, null/undefined = neutral
 }
 
@@ -28,7 +28,7 @@ function StatCell({ label, value, sub, accent, positive }: StatCellProps) {
       <span
         className={styles.value}
         data-accent={accent}
-        data-positive={positive === true ? "true" : positive === false ? "false" : undefined}
+        data-positive={positive === true ? 'true' : positive === false ? 'false' : undefined}
       >
         {value}
       </span>
@@ -38,22 +38,24 @@ function StatCell({ label, value, sub, accent, positive }: StatCellProps) {
 }
 
 const CONN_DISPLAY: Record<WsConnectionState, { dot: string; label: string }> = {
-  live:         { dot: "var(--color-profit)",          label: "Live" },
-  connecting:   { dot: "var(--text-dim)",              label: "Connecting" },
-  reconnecting: { dot: "var(--color-warning, orange)", label: "Reconnecting" },
-  stale:        { dot: "var(--color-warning, orange)", label: "Stale" },
-  error:        { dot: "var(--color-loss)",            label: "Error" },
-  closed:       { dot: "var(--text-dim)",              label: "Offline" },
+  live: { dot: 'var(--color-profit)', label: 'Live' },
+  connecting: { dot: 'var(--text-dim)', label: 'Connecting' },
+  reconnecting: { dot: 'var(--color-warning, orange)', label: 'Reconnecting' },
+  stale: { dot: 'var(--color-warning, orange)', label: 'Stale' },
+  error: { dot: 'var(--color-loss)', label: 'Error' },
+  closed: { dot: 'var(--text-dim)', label: 'Offline' },
 };
 
-export default function StatStrip({ stats, underlying, dte, connectionState, marketStats }: StatStripProps) {
-  const basisSub = stats.basisPct != null
-    ? fmtPct(stats.basisPct, 3)
-    : undefined;
+export default function StatStrip({
+  stats,
+  underlying,
+  dte,
+  connectionState,
+  marketStats,
+}: StatStripProps) {
+  const basisSub = stats.basisPct != null ? fmtPct(stats.basisPct, 3) : undefined;
 
-  const skewPositive = stats.skew25d != null
-    ? stats.skew25d > 0
-    : null;
+  const skewPositive = stats.skew25d != null ? stats.skew25d > 0 : null;
 
   return (
     <div className={styles.strip}>
@@ -63,21 +65,17 @@ export default function StatStrip({ stats, underlying, dte, connectionState, mar
         sub={stats.indexPriceUsd != null ? `Index ${fmtUsd(stats.indexPriceUsd)}` : undefined}
       />
       <div className={styles.divider} />
-      <StatCell
-        label="ATM IV"
-        value={fmtIv(stats.atmIv)}
-        accent
-      />
+      <StatCell label="ATM IV" value={fmtIv(stats.atmIv)} accent />
       <div className={styles.divider} />
       <StatCell
         label="Put/Call OI"
-        value={stats.putCallOiRatio != null ? fmtNum(stats.putCallOiRatio) : "–"}
+        value={stats.putCallOiRatio != null ? fmtNum(stats.putCallOiRatio) : '–'}
         sub={`${dte}d to expiry`}
       />
       <div className={styles.divider} />
       <StatCell
         label="25Δ Skew"
-        value={stats.skew25d != null ? fmtIv(stats.skew25d) : "–"}
+        value={stats.skew25d != null ? fmtIv(stats.skew25d) : '–'}
         sub="put − call"
         positive={skewPositive}
       />
@@ -100,7 +98,13 @@ export default function StatStrip({ stats, underlying, dte, connectionState, mar
           <StatCell
             label="IV Δ1d"
             value={fmtPct(marketStats.dvol.ivChange1d * 100, 1)}
-            positive={marketStats.dvol.ivChange1d > 0 ? true : marketStats.dvol.ivChange1d < 0 ? false : null}
+            positive={
+              marketStats.dvol.ivChange1d > 0
+                ? true
+                : marketStats.dvol.ivChange1d < 0
+                  ? false
+                  : null
+            }
           />
         </>
       )}

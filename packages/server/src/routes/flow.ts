@@ -48,7 +48,8 @@ export async function flowRoute(app: FastifyInstance) {
     const minNotional = Number.isFinite(rawMinNotional) && rawMinNotional >= 0 ? rawMinNotional : 0;
     const limit = parseBoundedLimit(req.query.limit, 100, 500);
 
-    const trades = flowService.getTrades(underlying)
+    const trades = flowService
+      .getTrades(underlying)
       .map((trade) => enrichLiveTrade(trade))
       .filter((trade) => minNotional <= 0 || (trade.notionalUsd ?? 0) >= minNotional);
 
@@ -119,12 +120,16 @@ export async function flowRoute(app: FastifyInstance) {
       newestTs: summary.newestTs?.toISOString() ?? null,
       venues: summary.venues.flatMap((venue) => {
         const venueId = toVenueId(venue.venue);
-        return venueId ? [{
-          venue: venueId,
-          count: venue.count,
-          premiumUsd: venue.premiumUsd,
-          notionalUsd: venue.notionalUsd,
-        }] : [];
+        return venueId
+          ? [
+              {
+                venue: venueId,
+                count: venue.count,
+                premiumUsd: venue.premiumUsd,
+                notionalUsd: venue.notionalUsd,
+              },
+            ]
+          : [];
       }),
     };
   });
@@ -150,7 +155,8 @@ function mapStoredLiveTrade(row: PersistedTradeRecord): EnrichedTradeEvent | nul
   return {
     venue,
     tradeUid: row.tradeUid,
-    tradeId: getOptionalString(row.raw, 'tradeId') ?? extractTradeIdFromUid(row.tradeUid, row.venue),
+    tradeId:
+      getOptionalString(row.raw, 'tradeId') ?? extractTradeIdFromUid(row.tradeUid, row.venue),
     instrument: row.instrumentName,
     underlying: row.underlying,
     side: row.direction,
@@ -178,7 +184,15 @@ function buildNextCursor(trades: EnrichedTradeEvent[]): TradeHistoryCursor | nul
 }
 
 function buildHistoryQuery(
-  query: { underlying?: string; venues?: string; start?: string; end?: string; beforeTs?: string; beforeUid?: string; limit?: string },
+  query: {
+    underlying?: string;
+    venues?: string;
+    start?: string;
+    end?: string;
+    beforeTs?: string;
+    beforeUid?: string;
+    limit?: string;
+  },
   mode: 'live' | 'institutional',
 ): TradeHistoryQuery {
   const historyQuery: TradeHistoryQuery = {
@@ -221,7 +235,10 @@ function normalizeApiUnderlying(underlying: string): string {
   return normalizeTradeUnderlying(underlying);
 }
 
-function parseCursor(beforeTs?: string, beforeUid?: string): { beforeTs: Date; beforeUid: string } | null {
+function parseCursor(
+  beforeTs?: string,
+  beforeUid?: string,
+): { beforeTs: Date; beforeUid: string } | null {
   if (!beforeTs || !beforeUid) return null;
   const parsed = parseDate(beforeTs);
   if (!parsed) return null;
@@ -268,7 +285,13 @@ function getOptionalBoolean(raw: Record<string, unknown>, key: string): boolean 
 }
 
 function toVenueId(value: string): TradeEvent['venue'] | null {
-  if (value === 'deribit' || value === 'okx' || value === 'bybit' || value === 'binance' || value === 'derive') {
+  if (
+    value === 'deribit' ||
+    value === 'okx' ||
+    value === 'bybit' ||
+    value === 'binance' ||
+    value === 'derive'
+  ) {
     return value;
   }
   return null;

@@ -4,8 +4,8 @@ export interface CanonicalOption {
   base: string;
   quote: string;
   settle: string;
-  expiry: string;       // YYYY-MM-DD
-  expiryCode: string;   // YYMMDD
+  expiry: string; // YYYY-MM-DD
+  expiryCode: string; // YYMMDD
   strike: number;
   right: OptionRight;
 }
@@ -13,9 +13,7 @@ export interface CanonicalOption {
 /** Parse a CCXT unified option symbol into canonical parts */
 export function parseOptionSymbol(symbol: string): CanonicalOption | null {
   // BTC/USD:BTC-250628-60000-C
-  const match = symbol.match(
-    /^(\w+)\/(\w+):(\w+)-(\d{6})-(\d+(?:\.\d+)?)-([CP])$/
-  );
+  const match = symbol.match(/^(\w+)\/(\w+):(\w+)-(\d{6})-(\d+(?:\.\d+)?)-([CP])$/);
   if (!match) return null;
 
   const [, base, quote, settle, expiryCode, strikeStr, rightChar] = match as RegExpMatchArray;

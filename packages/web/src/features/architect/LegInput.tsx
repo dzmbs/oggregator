@@ -1,12 +1,12 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from 'react';
 
-import { useAppStore } from "@stores/app-store";
-import { useChainQuery, useExpiries } from "@features/chain/queries";
-import { DropdownPicker } from "@components/ui";
-import { formatExpiry, dteDays } from "@lib/format";
-import { useStrategyStore } from "./strategy-store";
-import { repriceLeg } from "./reprice";
-import styles from "./Architect.module.css";
+import { useAppStore } from '@stores/app-store';
+import { useChainQuery, useExpiries } from '@features/chain/queries';
+import { DropdownPicker } from '@components/ui';
+import { formatExpiry, dteDays } from '@lib/format';
+import { useStrategyStore } from './strategy-store';
+import { repriceLeg } from './reprice';
+import styles from './Architect.module.css';
 
 interface LegInputProps {
   expiry: string;
@@ -14,15 +14,15 @@ interface LegInputProps {
 }
 
 export default function LegInput({ expiry, onExpiryChange }: LegInputProps) {
-  const underlying   = useAppStore((s) => s.underlying);
+  const underlying = useAppStore((s) => s.underlying);
   const activeVenues = useAppStore((s) => s.activeVenues);
   const { data: expiriesData } = useExpiries(underlying);
   const expiries = expiriesData?.expiries ?? [];
   const addLeg = useStrategyStore((s) => s.addLeg);
-  const [type, setType] = useState<"call" | "put">("call");
-  const [direction, setDirection] = useState<"buy" | "sell">("buy");
-  const [strikeInput, setStrikeInput] = useState("");
-  const [qty, setQty] = useState("1");
+  const [type, setType] = useState<'call' | 'put'>('call');
+  const [direction, setDirection] = useState<'buy' | 'sell'>('buy');
+  const [strikeInput, setStrikeInput] = useState('');
+  const [qty, setQty] = useState('1');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const strikeRef = useRef<HTMLDivElement>(null);
 
@@ -40,8 +40,8 @@ export default function LegInput({ expiry, onExpiryChange }: LegInputProps) {
         setShowSuggestions(false);
       }
     }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
   function handleSelectStrike(strike: number) {
@@ -63,15 +63,29 @@ export default function LegInput({ expiry, onExpiryChange }: LegInputProps) {
     if (!leg) return;
 
     addLeg(leg, underlying);
-    setStrikeInput("");
+    setStrikeInput('');
   }
 
   return (
     <div className={styles.legInput}>
       <div className={styles.legInputRow}>
         <div className={styles.legInputToggle}>
-          <button className={styles.toggleBtn} data-active={direction === "buy"} data-type="buy" onClick={() => setDirection("buy")}>BUY</button>
-          <button className={styles.toggleBtn} data-active={direction === "sell"} data-type="sell" onClick={() => setDirection("sell")}>SELL</button>
+          <button
+            className={styles.toggleBtn}
+            data-active={direction === 'buy'}
+            data-type="buy"
+            onClick={() => setDirection('buy')}
+          >
+            BUY
+          </button>
+          <button
+            className={styles.toggleBtn}
+            data-active={direction === 'sell'}
+            data-type="sell"
+            onClick={() => setDirection('sell')}
+          >
+            SELL
+          </button>
         </div>
 
         <input
@@ -80,7 +94,7 @@ export default function LegInput({ expiry, onExpiryChange }: LegInputProps) {
           className={styles.legInputField}
           placeholder="Qty"
           value={qty}
-          onChange={(e) => setQty(e.target.value.replace(/\D/g, ""))}
+          onChange={(e) => setQty(e.target.value.replace(/\D/g, ''))}
           style={{ width: 42 }}
         />
 
@@ -89,9 +103,12 @@ export default function LegInput({ expiry, onExpiryChange }: LegInputProps) {
             type="text"
             inputMode="numeric"
             className={styles.legInputField}
-            placeholder={atmStrike ? atmStrike.toLocaleString() : "Strike"}
+            placeholder={atmStrike ? atmStrike.toLocaleString() : 'Strike'}
             value={strikeInput}
-            onChange={(e) => { setStrikeInput(e.target.value.replace(/\D/g, "")); setShowSuggestions(true); }}
+            onChange={(e) => {
+              setStrikeInput(e.target.value.replace(/\D/g, ''));
+              setShowSuggestions(true);
+            }}
             onFocus={() => setShowSuggestions(true)}
             style={{ width: 90 }}
           />
@@ -113,18 +130,38 @@ export default function LegInput({ expiry, onExpiryChange }: LegInputProps) {
         </div>
 
         <div className={styles.legInputToggle}>
-          <button className={styles.toggleBtn} data-active={type === "call"} data-type="call" onClick={() => setType("call")}>CALL</button>
-          <button className={styles.toggleBtn} data-active={type === "put"} data-type="put" onClick={() => setType("put")}>PUT</button>
+          <button
+            className={styles.toggleBtn}
+            data-active={type === 'call'}
+            data-type="call"
+            onClick={() => setType('call')}
+          >
+            CALL
+          </button>
+          <button
+            className={styles.toggleBtn}
+            data-active={type === 'put'}
+            data-type="put"
+            onClick={() => setType('put')}
+          >
+            PUT
+          </button>
         </div>
 
         <DropdownPicker
           size="sm"
           value={expiry}
           onChange={onExpiryChange}
-          options={expiries.map((e) => ({ value: e, label: formatExpiry(e), meta: `${dteDays(e)}d` }))}
+          options={expiries.map((e) => ({
+            value: e,
+            label: formatExpiry(e),
+            meta: `${dteDays(e)}d`,
+          }))}
         />
 
-        <button className={styles.addLegBtn} onClick={handleAdd}>+ Add</button>
+        <button className={styles.addLegBtn} onClick={handleAdd}>
+          + Add
+        </button>
       </div>
     </div>
   );

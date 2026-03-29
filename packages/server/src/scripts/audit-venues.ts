@@ -20,10 +20,10 @@ import WebSocket from 'ws';
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
-const SERVER      = 'http://localhost:3100';
+const SERVER = 'http://localhost:3100';
 const BID_ASK_TOL = 0.03;
-const IV_TOL      = 0.02;
-const DELTA_TOL   = 0.05;
+const IV_TOL = 0.02;
+const DELTA_TOL = 0.05;
 
 // Only compare strikes within this fraction of spot — deep OTM has zero liquidity
 // and produces too many noise mismatches (one-sided markets, stale quotes).
@@ -32,52 +32,115 @@ const STRIKE_BAND = 0.12;
 // ── ANSI colours ──────────────────────────────────────────────────────────────
 
 const C = {
-  reset:  '\x1b[0m',
-  bold:   '\x1b[1m',
-  dim:    '\x1b[2m',
-  green:  '\x1b[32m',
+  reset: '\x1b[0m',
+  bold: '\x1b[1m',
+  dim: '\x1b[2m',
+  green: '\x1b[32m',
   yellow: '\x1b[33m',
-  red:    '\x1b[31m',
-  cyan:   '\x1b[36m',
-  white:  '\x1b[37m',
+  red: '\x1b[31m',
+  cyan: '\x1b[36m',
+  white: '\x1b[37m',
 };
 
 // ── Exchange raw types (plain interfaces, no library needed for a dev script) ──
 
-interface OurVenueQuote { bid: number | null; ask: number | null; markIv: number | null; delta: number | null; [k: string]: unknown }
-interface OurSide { venues: Record<string, OurVenueQuote>; bestIv: number | null; bestVenue: string | null }
-interface OurStrike { strike: number; call: OurSide; put: OurSide }
-interface OurChain { underlying: string; expiry: string; stats: { spotIndexUsd: number | null; indexPriceUsd: number | null }; strikes: OurStrike[] }
-interface HealthBody { status: string }
-interface ExpiriesBody { expiries: string[] }
+interface OurVenueQuote {
+  bid: number | null;
+  ask: number | null;
+  markIv: number | null;
+  delta: number | null;
+  [k: string]: unknown;
+}
+interface OurSide {
+  venues: Record<string, OurVenueQuote>;
+  bestIv: number | null;
+  bestVenue: string | null;
+}
+interface OurStrike {
+  strike: number;
+  call: OurSide;
+  put: OurSide;
+}
+interface OurChain {
+  underlying: string;
+  expiry: string;
+  stats: { spotIndexUsd: number | null; indexPriceUsd: number | null };
+  strikes: OurStrike[];
+}
+interface HealthBody {
+  status: string;
+}
+interface ExpiriesBody {
+  expiries: string[];
+}
 
 // Deribit book summary item
-interface DItem { instrument_name: string; bid_price?: number | null; ask_price?: number | null; mark_iv?: number | null; underlying_price?: number | null }
+interface DItem {
+  instrument_name: string;
+  bid_price?: number | null;
+  ask_price?: number | null;
+  mark_iv?: number | null;
+  underlying_price?: number | null;
+}
 // OKX ticker item
-interface OkxTItem { instId: string; bidPx?: string; askPx?: string }
+interface OkxTItem {
+  instId: string;
+  bidPx?: string;
+  askPx?: string;
+}
 // OKX opt-summary item
-interface OkxSItem { instId: string; markVol?: string; deltaBS?: string; fwdPx?: string }
+interface OkxSItem {
+  instId: string;
+  markVol?: string;
+  deltaBS?: string;
+  fwdPx?: string;
+}
 // Bybit ticker item
-interface BybitTItem { symbol: string; bidPrice?: string; askPrice?: string; markPriceIv?: string; delta?: string }
+interface BybitTItem {
+  symbol: string;
+  bidPrice?: string;
+  askPrice?: string;
+  markPriceIv?: string;
+  delta?: string;
+}
 // Binance ticker item
-interface BnTItem { symbol: string; bidPrice?: string; askPrice?: string }
+interface BnTItem {
+  symbol: string;
+  bidPrice?: string;
+  askPrice?: string;
+}
 // Binance mark item
-interface BnMItem { symbol: string; markIV?: string; delta?: string }
+interface BnMItem {
+  symbol: string;
+  markIV?: string;
+  delta?: string;
+}
 // Derive ticker item
-interface DrvItem { b?: string | null; a?: string | null; option_pricing?: { i?: string | null; d?: string | null } | null; [k: string]: unknown }
+interface DrvItem {
+  b?: string | null;
+  a?: string | null;
+  option_pricing?: { i?: string | null; d?: string | null } | null;
+  [k: string]: unknown;
+}
 
 // Runtime cast helpers — this script hits external APIs; we trust enough to cast
 // and let missing/wrong fields surface as null via safeFloat rather than crashes.
-function asArr(v: unknown): unknown[] { return Array.isArray(v) ? v : []; }
-function asObj(v: unknown): Record<string, unknown> { return v != null && typeof v === 'object' && !Array.isArray(v) ? v as Record<string, unknown> : {}; }
+function asArr(v: unknown): unknown[] {
+  return Array.isArray(v) ? v : [];
+}
+function asObj(v: unknown): Record<string, unknown> {
+  return v != null && typeof v === 'object' && !Array.isArray(v)
+    ? (v as Record<string, unknown>)
+    : {};
+}
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface Quote {
-  bid:    number | null;
-  ask:    number | null;
+  bid: number | null;
+  ask: number | null;
   markIv: number | null;
-  delta:  number | null;
+  delta: number | null;
 }
 
 // Key: `${strike}-${'call'|'put'}`
@@ -86,21 +149,21 @@ type ExchangeMap = Map<string, Quote>;
 type Status = 'ok' | 'warn' | 'fail' | 'skip';
 
 interface FieldResult {
-  field:  string;
-  ours:   number | null;
+  field: string;
+  ours: number | null;
   theirs: number | null;
-  pct:    number | null;
+  pct: number | null;
   status: Status;
 }
 
 interface VenueResult {
-  venue:  string;
+  venue: string;
   fields: FieldResult[];
 }
 
 interface StrikeResult {
   strike: number;
-  right:  'call' | 'put';
+  right: 'call' | 'put';
   venues: VenueResult[];
 }
 
@@ -126,7 +189,12 @@ function safeFloat(v: string | null | undefined): number | null {
 }
 
 /** Compare two values with a given tolerance. Returns null diff if either value is 0 or null. */
-function compare(field: string, ours: number | null, theirs: number | null, tol: number): FieldResult {
+function compare(
+  field: string,
+  ours: number | null,
+  theirs: number | null,
+  tol: number,
+): FieldResult {
   if (ours == null || theirs == null || ours === 0 || theirs === 0) {
     return { field, ours, theirs, pct: null, status: 'skip' };
   }
@@ -145,7 +213,12 @@ function compare(field: string, ours: number | null, theirs: number | null, tol:
 }
 
 /** Same as compare but for absolute difference (used for IV and delta). */
-function compareAbs(field: string, ours: number | null, theirs: number | null, tol: number): FieldResult {
+function compareAbs(
+  field: string,
+  ours: number | null,
+  theirs: number | null,
+  tol: number,
+): FieldResult {
   if (ours == null || theirs == null || ours === 0 || theirs === 0) {
     return { field, ours, theirs, pct: null, status: 'skip' };
   }
@@ -171,14 +244,16 @@ async function waitForReady(maxWaitMs = 60_000): Promise<void> {
 
   while (Date.now() < deadline) {
     try {
-      const res  = await fetch(`${SERVER}/api/health`);
+      const res = await fetch(`${SERVER}/api/health`);
       const body = asObj(await res.json()) as unknown as HealthBody;
       if (body.status === 'ok') {
         process.stdout.write(` ${C.green}ready${C.reset}\n`);
         return;
       }
-    } catch { /* backend not up yet */ }
-    await new Promise(r => setTimeout(r, 1_000));
+    } catch {
+      /* backend not up yet */
+    }
+    await new Promise((r) => setTimeout(r, 1_000));
     process.stdout.write('.');
   }
 
@@ -186,14 +261,14 @@ async function waitForReady(maxWaitMs = 60_000): Promise<void> {
 }
 
 async function getNearestExpiry(underlying: string): Promise<string> {
-  const res  = await fetch(`${SERVER}/api/expiries?underlying=${encodeURIComponent(underlying)}`);
+  const res = await fetch(`${SERVER}/api/expiries?underlying=${encodeURIComponent(underlying)}`);
   const body = asObj(await res.json()) as unknown as ExpiriesBody;
   if (!body.expiries?.length) throw new Error(`No expiries found for ${underlying}`);
   return body.expiries[0]!;
 }
 
 async function fetchOurChain(underlying: string, expiry: string): Promise<OurChain> {
-  const res  = await fetch(
+  const res = await fetch(
     `${SERVER}/api/chains?underlying=${underlying}&expiry=${expiry}&venues=deribit,okx,binance,bybit,derive`,
   );
   return asObj(await res.json()) as unknown as OurChain;
@@ -209,9 +284,23 @@ async function fetchOurChain(underlying: string, expiry: string): Promise<OurCha
 function toExpiryToken(expiry: string, format: 'DDMONYY' | 'YYMMDD' | 'YYYYMMDD'): string {
   const [yyyy, mm, dd] = expiry.split('-') as [string, string, string];
   if (format === 'YYYYMMDD') return `${yyyy}${mm}${dd}`;
-  if (format === 'YYMMDD')   return `${yyyy.slice(2)}${mm}${dd}`;
+  if (format === 'YYMMDD') return `${yyyy.slice(2)}${mm}${dd}`;
   // DDMONYY — used by Deribit and Bybit
-  const MONTHS = ['', 'JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+  const MONTHS = [
+    '',
+    'JAN',
+    'FEB',
+    'MAR',
+    'APR',
+    'MAY',
+    'JUN',
+    'JUL',
+    'AUG',
+    'SEP',
+    'OCT',
+    'NOV',
+    'DEC',
+  ];
   return `${dd}${MONTHS[Number(mm)]!}${yyyy.slice(2)}`;
 }
 
@@ -228,30 +317,32 @@ async function fetchDeribit(currency: string, expiry: string): Promise<ExchangeM
       const res = await fetch(
         `https://www.deribit.com/api/v2/public/get_book_summary_by_currency?currency=${cur}&kind=option`,
       );
-      const body   = asObj(await res.json());
+      const body = asObj(await res.json());
       const result = asArr(body['result']);
 
       for (const raw of result) {
         const item = asObj(raw) as unknown as DItem;
         // Skip instruments from other expiries — bulk endpoint returns everything
         if (!item.instrument_name.includes(expiryToken)) continue;
-        const key  = parseSymbolKey(item.instrument_name);
+        const key = parseSymbolKey(item.instrument_name);
         if (!key || map.has(key)) continue;
 
         const underlying = typeof item.underlying_price === 'number' ? item.underlying_price : null;
-        const bidRaw     = typeof item.bid_price === 'number' ? item.bid_price : null;
-        const askRaw     = typeof item.ask_price === 'number' ? item.ask_price : null;
-        const markIvRaw  = typeof item.mark_iv   === 'number' ? item.mark_iv   : null;
+        const bidRaw = typeof item.bid_price === 'number' ? item.bid_price : null;
+        const askRaw = typeof item.ask_price === 'number' ? item.ask_price : null;
+        const markIvRaw = typeof item.mark_iv === 'number' ? item.mark_iv : null;
 
         map.set(key, {
           // Deribit inverse options quote prices in BTC — convert to USD
-          bid:    bidRaw != null && underlying != null ? bidRaw * underlying : null,
-          ask:    askRaw != null && underlying != null ? askRaw * underlying : null,
+          bid: bidRaw != null && underlying != null ? bidRaw * underlying : null,
+          ask: askRaw != null && underlying != null ? askRaw * underlying : null,
           markIv: markIvRaw != null ? markIvRaw / 100 : null, // percentage → fraction
-          delta:  null, // not available in bulk book summary
+          delta: null, // not available in bulk book summary
         });
       }
-    } catch { /* exchange unreachable */ }
+    } catch {
+      /* exchange unreachable */
+    }
   }
 
   return map;
@@ -260,7 +351,7 @@ async function fetchDeribit(currency: string, expiry: string): Promise<ExchangeM
 /** OKX: tickers (bid/ask in BTC) + opt-summary (IV, delta, fwdPx for USD conversion). */
 async function fetchOkx(underlying: string, expiry: string): Promise<ExchangeMap> {
   const map: ExchangeMap = new Map();
-  const instFamily  = `${underlying}-USD`;
+  const instFamily = `${underlying}-USD`;
   const expiryToken = toExpiryToken(expiry, 'YYMMDD'); // e.g. 260327
 
   const [tickerRes, summaryRes] = await Promise.allSettled([
@@ -268,7 +359,10 @@ async function fetchOkx(underlying: string, expiry: string): Promise<ExchangeMap
     fetch(`https://www.okx.com/api/v5/public/opt-summary?uly=${instFamily}&expTime=${expiryToken}`),
   ]);
 
-  const summaryIndex = new Map<string, { markIv: number | null; delta: number | null; fwdPx: number | null }>();
+  const summaryIndex = new Map<
+    string,
+    { markIv: number | null; delta: number | null; fwdPx: number | null }
+  >();
 
   if (summaryRes.status === 'fulfilled') {
     try {
@@ -278,11 +372,13 @@ async function fetchOkx(underlying: string, expiry: string): Promise<ExchangeMap
         if (typeof item.instId !== 'string') continue;
         summaryIndex.set(item.instId, {
           markIv: safeFloat(item.markVol),
-          delta:  safeFloat(item.deltaBS),
-          fwdPx:  safeFloat(item.fwdPx),
+          delta: safeFloat(item.deltaBS),
+          fwdPx: safeFloat(item.fwdPx),
         });
       }
-    } catch { /* parse error */ }
+    } catch {
+      /* parse error */
+    }
   }
 
   if (tickerRes.status === 'fulfilled') {
@@ -298,19 +394,21 @@ async function fetchOkx(underlying: string, expiry: string): Promise<ExchangeMap
         if (!key) continue;
 
         const summary = summaryIndex.get(item.instId);
-        const fwdPx   = summary?.fwdPx ?? null;
-        const bidRaw  = safeFloat(item.bidPx);
-        const askRaw  = safeFloat(item.askPx);
+        const fwdPx = summary?.fwdPx ?? null;
+        const bidRaw = safeFloat(item.bidPx);
+        const askRaw = safeFloat(item.askPx);
 
         map.set(key, {
           // OKX BTC-USD options are inverse: prices in BTC → multiply by fwdPx for USD
-          bid:    bidRaw != null && fwdPx != null ? bidRaw * fwdPx : null,
-          ask:    askRaw != null && fwdPx != null ? askRaw * fwdPx : null,
+          bid: bidRaw != null && fwdPx != null ? bidRaw * fwdPx : null,
+          ask: askRaw != null && fwdPx != null ? askRaw * fwdPx : null,
           markIv: summary?.markIv ?? null,
-          delta:  summary?.delta  ?? null,
+          delta: summary?.delta ?? null,
         });
       }
-    } catch { /* parse error */ }
+    } catch {
+      /* parse error */
+    }
   }
 
   return map;
@@ -336,7 +434,9 @@ async function fetchBinance(expiry: string): Promise<ExchangeMap> {
         if (!item.symbol.includes(expiryToken)) continue; // skip other expiries
         bidAsk.set(item.symbol, { bid: safeFloat(item.bidPrice), ask: safeFloat(item.askPrice) });
       }
-    } catch { /* parse error */ }
+    } catch {
+      /* parse error */
+    }
   }
 
   if (markRes.status === 'fulfilled') {
@@ -351,13 +451,15 @@ async function fetchBinance(expiry: string): Promise<ExchangeMap> {
 
         const prices = bidAsk.get(item.symbol);
         map.set(key, {
-          bid:    prices?.bid ?? null,
-          ask:    prices?.ask ?? null,
+          bid: prices?.bid ?? null,
+          ask: prices?.ask ?? null,
           markIv: safeFloat(item.markIV), // already a fraction
-          delta:  safeFloat(item.delta),
+          delta: safeFloat(item.delta),
         });
       }
-    } catch { /* parse error */ }
+    } catch {
+      /* parse error */
+    }
   }
 
   return map;
@@ -369,7 +471,9 @@ async function fetchBybit(underlying: string, expiry: string): Promise<ExchangeM
   const expiryToken = toExpiryToken(expiry, 'DDMONYY'); // e.g. 27MAR26
 
   try {
-    const res  = await fetch(`https://api.bybit.com/v5/market/tickers?category=option&baseCoin=${underlying}`);
+    const res = await fetch(
+      `https://api.bybit.com/v5/market/tickers?category=option&baseCoin=${underlying}`,
+    );
     const body = asObj(await res.json());
     if (body['retCode'] !== 0) return map;
 
@@ -382,13 +486,15 @@ async function fetchBybit(underlying: string, expiry: string): Promise<ExchangeM
       if (!key) continue;
 
       map.set(key, {
-        bid:    safeFloat(item.bidPrice),
-        ask:    safeFloat(item.askPrice),
+        bid: safeFloat(item.bidPrice),
+        ask: safeFloat(item.askPrice),
         markIv: safeFloat(item.markPriceIv), // already a fraction
-        delta:  safeFloat(item.delta),
+        delta: safeFloat(item.delta),
       });
     }
-  } catch { /* exchange unreachable */ }
+  } catch {
+    /* exchange unreachable */
+  }
 
   return map;
 }
@@ -402,24 +508,31 @@ async function fetchDerive(currency: string, expiry: string): Promise<ExchangeMa
   const map: ExchangeMap = new Map();
 
   return new Promise((resolve) => {
-    const ws      = new WebSocket('wss://api.lyra.finance/ws');
-    let settled   = false;
+    const ws = new WebSocket('wss://api.lyra.finance/ws');
+    let settled = false;
 
     const done = () => {
       if (settled) return;
       settled = true;
-      try { ws.close(); } catch { /* ignore */ }
+      try {
+        ws.close();
+      } catch {
+        /* ignore */
+      }
       resolve(map);
     };
 
     const timeout = setTimeout(done, 20_000);
 
     ws.on('open', () => {
-      ws.send(JSON.stringify({
-        jsonrpc: '2.0', id: 1,
-        method:  'public/get_tickers',
-        params:  { instrument_type: 'option', currency, expiry_date: expiryDate },
-      }));
+      ws.send(
+        JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'public/get_tickers',
+          params: { instrument_type: 'option', currency, expiry_date: expiryDate },
+        }),
+      );
     });
 
     ws.on('message', (raw) => {
@@ -430,24 +543,31 @@ async function fetchDerive(currency: string, expiry: string): Promise<ExchangeMa
         const tickers = asObj(asObj(msg['result'])['tickers']);
         for (const [name, ticker] of Object.entries(tickers)) {
           const item = asObj(ticker) as DrvItem;
-          const key  = parseSymbolKey(name);
+          const key = parseSymbolKey(name);
           if (!key) continue;
 
-          const op = item.option_pricing ? asObj(item.option_pricing) as { i?: string | null; d?: string | null } : null;
+          const op = item.option_pricing
+            ? (asObj(item.option_pricing) as { i?: string | null; d?: string | null })
+            : null;
           map.set(key, {
-            bid:    safeFloat(item.b),   // b = best_bid_price (corrected mapping)
-            ask:    safeFloat(item.a),   // a = best_ask_price
-            markIv: safeFloat(op?.i),   // already a fraction
-            delta:  safeFloat(op?.d),
+            bid: safeFloat(item.b), // b = best_bid_price (corrected mapping)
+            ask: safeFloat(item.a), // a = best_ask_price
+            markIv: safeFloat(op?.i), // already a fraction
+            delta: safeFloat(op?.d),
           });
         }
-      } catch { /* malformed frame */ }
+      } catch {
+        /* malformed frame */
+      }
 
       clearTimeout(timeout);
       done();
     });
 
-    ws.on('error', () => { clearTimeout(timeout); done(); });
+    ws.on('error', () => {
+      clearTimeout(timeout);
+      done();
+    });
   });
 }
 
@@ -455,17 +575,17 @@ async function fetchDerive(currency: string, expiry: string): Promise<ExchangeMa
 
 function compareQuotes(ours: Quote, theirs: Quote): FieldResult[] {
   return [
-    compare(    'bid',   ours.bid,    theirs.bid,    BID_ASK_TOL),
-    compare(    'ask',   ours.ask,    theirs.ask,    BID_ASK_TOL),
-    compareAbs( 'markIv',ours.markIv, theirs.markIv, IV_TOL),
-    compareAbs( 'delta', ours.delta,  theirs.delta,  DELTA_TOL),
+    compare('bid', ours.bid, theirs.bid, BID_ASK_TOL),
+    compare('ask', ours.ask, theirs.ask, BID_ASK_TOL),
+    compareAbs('markIv', ours.markIv, theirs.markIv, IV_TOL),
+    compareAbs('delta', ours.delta, theirs.delta, DELTA_TOL),
   ];
 }
 
 // ── Reporter ──────────────────────────────────────────────────────────────────
 
 const STATUS_ICON: Record<Status, string> = {
-  ok:   `${C.green}✅${C.reset}`,
+  ok: `${C.green}✅${C.reset}`,
   warn: `${C.yellow}⚠️ ${C.reset}`,
   fail: `${C.red}❌${C.reset}`,
   skip: `${C.dim}——${C.reset}`,
@@ -473,22 +593,24 @@ const STATUS_ICON: Record<Status, string> = {
 
 function fmtField(r: FieldResult): string {
   if (r.status === 'skip') {
-    const oursStr   = r.ours   != null ? fmtVal(r.field, r.ours)   : 'null';
+    const oursStr = r.ours != null ? fmtVal(r.field, r.ours) : 'null';
     const theirsStr = r.theirs != null ? fmtVal(r.field, r.theirs) : 'null';
     return `${C.dim}${r.field}: ${oursStr} vs ${theirsStr}${C.reset}`;
   }
 
-  const ours   = fmtVal(r.field, r.ours!);
+  const ours = fmtVal(r.field, r.ours!);
   const theirs = fmtVal(r.field, r.theirs!);
-  const diff   = r.field === 'markIv' || r.field === 'delta'
-    ? `${((r.pct ?? 0) * 100).toFixed(2)}pp`
-    : `${((r.pct ?? 0) * 100).toFixed(1)}%`;
+  const diff =
+    r.field === 'markIv' || r.field === 'delta'
+      ? `${((r.pct ?? 0) * 100).toFixed(2)}pp`
+      : `${((r.pct ?? 0) * 100).toFixed(1)}%`;
 
-  const diffStr = r.status === 'ok'
-    ? `${C.dim}(${diff})${C.reset}`
-    : r.status === 'warn'
-      ? `${C.yellow}(${diff})${C.reset}`
-      : `${C.red}(${diff})${C.reset}`;
+  const diffStr =
+    r.status === 'ok'
+      ? `${C.dim}(${diff})${C.reset}`
+      : r.status === 'warn'
+        ? `${C.yellow}(${diff})${C.reset}`
+        : `${C.red}(${diff})${C.reset}`;
 
   return `${STATUS_ICON[r.status]} ${r.field}: ${ours} vs ${theirs} ${diffStr}`;
 }
@@ -502,10 +624,10 @@ function fmtVal(field: string, v: number): string {
 
 const VENUE_LABEL: Record<string, string> = {
   deribit: `${C.cyan}deribit${C.reset}`,
-  okx:     `${C.white}okx    ${C.reset}`,
+  okx: `${C.white}okx    ${C.reset}`,
   binance: `${C.yellow}binance${C.reset}`,
-  bybit:   `${C.yellow}bybit  ${C.reset}`,
-  derive:  `${C.green}derive ${C.reset}`,
+  bybit: `${C.yellow}bybit  ${C.reset}`,
+  derive: `${C.green}derive ${C.reset}`,
 };
 
 function printStrikeResult(sr: StrikeResult): void {
@@ -514,7 +636,7 @@ function printStrikeResult(sr: StrikeResult): void {
 
   for (const vr of sr.venues) {
     const label = VENUE_LABEL[vr.venue] ?? vr.venue;
-    const nonSkip = vr.fields.filter(f => f.status !== 'skip');
+    const nonSkip = vr.fields.filter((f) => f.status !== 'skip');
 
     if (nonSkip.length === 0) {
       console.log(`    ${label}  ${C.dim}no data from exchange${C.reset}`);
@@ -527,7 +649,7 @@ function printStrikeResult(sr: StrikeResult): void {
 }
 
 interface Tally {
-  ok:   number;
+  ok: number;
   warn: number;
   fail: number;
   skip: number;
@@ -535,7 +657,15 @@ interface Tally {
 
 function printSummary(results: StrikeResult[], elapsed: number): void {
   const byVenue: Record<string, Tally> = {};
-  const failures: { strike: number; right: string; venue: string; field: string; ours: number | null; theirs: number | null; pct: number | null }[] = [];
+  const failures: {
+    strike: number;
+    right: string;
+    venue: string;
+    field: string;
+    ours: number | null;
+    theirs: number | null;
+    pct: number | null;
+  }[] = [];
 
   for (const sr of results) {
     for (const vr of sr.venues) {
@@ -543,7 +673,15 @@ function printSummary(results: StrikeResult[], elapsed: number): void {
       for (const f of vr.fields) {
         byVenue[vr.venue]![f.status]++;
         if (f.status === 'fail') {
-          failures.push({ strike: sr.strike, right: sr.right, venue: vr.venue, field: f.field, ours: f.ours, theirs: f.theirs, pct: f.pct });
+          failures.push({
+            strike: sr.strike,
+            right: sr.right,
+            venue: vr.venue,
+            field: f.field,
+            ours: f.ours,
+            theirs: f.theirs,
+            pct: f.pct,
+          });
         }
       }
     }
@@ -554,7 +692,9 @@ function printSummary(results: StrikeResult[], elapsed: number): void {
   console.log('SUMMARY');
   console.log(`${SEP}${C.reset}`);
 
-  console.log(`\n  ${'Venue'.padEnd(10)} ${'✅ OK'.padStart(6)} ${'⚠️ Warn'.padStart(8)} ${'❌ Fail'.padStart(8)} ${'— Skip'.padStart(8)}`);
+  console.log(
+    `\n  ${'Venue'.padEnd(10)} ${'✅ OK'.padStart(6)} ${'⚠️ Warn'.padStart(8)} ${'❌ Fail'.padStart(8)} ${'— Skip'.padStart(8)}`,
+  );
   console.log(`  ${'─'.repeat(44)}`);
 
   for (const venue of ['deribit', 'okx', 'binance', 'bybit', 'derive']) {
@@ -566,23 +706,32 @@ function printSummary(results: StrikeResult[], elapsed: number): void {
   }
 
   const tallies = Object.values(byVenue);
-  const totOk   = tallies.reduce((s, t) => s + t.ok,   0);
+  const totOk = tallies.reduce((s, t) => s + t.ok, 0);
   const totWarn = tallies.reduce((s, t) => s + t.warn, 0);
   const totFail = tallies.reduce((s, t) => s + t.fail, 0);
   const totSkip = tallies.reduce((s, t) => s + t.skip, 0);
 
-  console.log(`\n  Total: ${C.green}${totOk} ok${C.reset}  ${C.yellow}${totWarn} warn${C.reset}  ${C.red}${totFail} fail${C.reset}  ${C.dim}${totSkip} skipped${C.reset}  ${C.dim}(${elapsed}ms)${C.reset}`);
+  console.log(
+    `\n  Total: ${C.green}${totOk} ok${C.reset}  ${C.yellow}${totWarn} warn${C.reset}  ${C.red}${totFail} fail${C.reset}  ${C.dim}${totSkip} skipped${C.reset}  ${C.dim}(${elapsed}ms)${C.reset}`,
+  );
 
   if (failures.length > 0) {
     console.log(`\n${C.red}${C.bold}  FAILURES:${C.reset}`);
     for (const f of failures) {
-      const oursStr   = f.ours   != null ? fmtVal(f.field, f.ours)   : 'null';
+      const oursStr = f.ours != null ? fmtVal(f.field, f.ours) : 'null';
       const theirsStr = f.theirs != null ? fmtVal(f.field, f.theirs) : 'null';
-      const diff      = f.pct != null ? `${(f.pct * 100).toFixed(1)}${f.field === 'markIv' || f.field === 'delta' ? 'pp' : '%'}` : '?';
-      console.log(`  ${C.red}❌ ${f.venue.padEnd(8)} ${f.right} ${String(f.strike).padStart(7)}  ${f.field}: ours=${oursStr} exchange=${theirsStr} (off by ${diff})${C.reset}`);
+      const diff =
+        f.pct != null
+          ? `${(f.pct * 100).toFixed(1)}${f.field === 'markIv' || f.field === 'delta' ? 'pp' : '%'}`
+          : '?';
+      console.log(
+        `  ${C.red}❌ ${f.venue.padEnd(8)} ${f.right} ${String(f.strike).padStart(7)}  ${f.field}: ours=${oursStr} exchange=${theirsStr} (off by ${diff})${C.reset}`,
+      );
     }
   } else if (totWarn === 0) {
-    console.log(`\n  ${C.green}${C.bold}All checked fields within tolerance. Data looks good.${C.reset}`);
+    console.log(
+      `\n  ${C.green}${C.bold}All checked fields within tolerance. Data looks good.${C.reset}`,
+    );
   }
 
   console.log('');
@@ -592,23 +741,27 @@ function printSummary(results: StrikeResult[], elapsed: number): void {
 
 async function main(): Promise<void> {
   const underlying = process.argv[2] ?? 'BTC';
-  const expiryArg  = process.argv[3];
+  const expiryArg = process.argv[3];
 
   await waitForReady();
 
-  const expiry = expiryArg ?? await getNearestExpiry(underlying);
+  const expiry = expiryArg ?? (await getNearestExpiry(underlying));
   console.log(`\n${C.bold}Auditing: ${underlying}  Expiry: ${expiry}${C.reset}`);
 
   console.log(`${C.dim}Fetching our chain from backend...${C.reset}`);
   const chain = await fetchOurChain(underlying, expiry);
-  const spot  = chain.stats.spotIndexUsd;
+  const spot = chain.stats.spotIndexUsd;
 
   // Focus on liquid strikes near the money
-  const activeStrikes = chain.strikes.filter(s =>
-    spot == null || (s.strike >= spot * (1 - STRIKE_BAND) && s.strike <= spot * (1 + STRIKE_BAND)),
+  const activeStrikes = chain.strikes.filter(
+    (s) =>
+      spot == null ||
+      (s.strike >= spot * (1 - STRIKE_BAND) && s.strike <= spot * (1 + STRIKE_BAND)),
   );
 
-  console.log(`  Spot: ${spot != null ? `$${spot.toLocaleString()}` : 'unknown'}  Strikes in band: ${activeStrikes.length} of ${chain.strikes.length} total`);
+  console.log(
+    `  Spot: ${spot != null ? `$${spot.toLocaleString()}` : 'unknown'}  Strikes in band: ${activeStrikes.length} of ${chain.strikes.length} total`,
+  );
   console.log(`${C.dim}Fetching ground truth from 5 exchanges in parallel...${C.reset}`);
 
   const fetchStart = Date.now();
@@ -622,17 +775,17 @@ async function main(): Promise<void> {
 
   const exchangeData: Record<string, ExchangeMap> = {
     deribit: deribitRes.status === 'fulfilled' ? deribitRes.value : new Map(),
-    okx:     okxRes.status     === 'fulfilled' ? okxRes.value     : new Map(),
+    okx: okxRes.status === 'fulfilled' ? okxRes.value : new Map(),
     binance: binanceRes.status === 'fulfilled' ? binanceRes.value : new Map(),
-    bybit:   bybitRes.status   === 'fulfilled' ? bybitRes.value   : new Map(),
-    derive:  deriveRes.status  === 'fulfilled' ? deriveRes.value  : new Map(),
+    bybit: bybitRes.status === 'fulfilled' ? bybitRes.value : new Map(),
+    derive: deriveRes.status === 'fulfilled' ? deriveRes.value : new Map(),
   };
 
   const fetchMs = Date.now() - fetchStart;
 
   // Report which exchanges failed to respond
   const failed = (['deribit', 'okx', 'binance', 'bybit', 'derive'] as const)
-    .filter(v => (exchangeData[v]?.size ?? 0) === 0)
+    .filter((v) => (exchangeData[v]?.size ?? 0) === 0)
     .join(', ');
   if (failed) console.log(`  ${C.yellow}⚠️  No data returned from: ${failed}${C.reset}`);
 
@@ -652,14 +805,14 @@ async function main(): Promise<void> {
         const ourQuote = ourSide.venues[venue];
         if (!ourQuote) continue; // venue not in our response for this expiry
 
-        const key      = strikeKey(strike.strike, right);
+        const key = strikeKey(strike.strike, right);
         const exchange = exchangeData[venue]?.get(key);
 
         const ours: Quote = {
-          bid:    ourQuote.bid,
-          ask:    ourQuote.ask,
+          bid: ourQuote.bid,
+          ask: ourQuote.ask,
           markIv: ourQuote.markIv,
-          delta:  ourQuote.delta,
+          delta: ourQuote.delta,
         };
 
         const theirs: Quote = exchange ?? { bid: null, ask: null, markIv: null, delta: null };

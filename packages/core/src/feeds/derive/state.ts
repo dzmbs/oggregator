@@ -53,11 +53,7 @@ export function deriveInstrumentDetails(
   };
 }
 
-export function registerDeriveExpiry(
-  state: DeriveState,
-  base: string,
-  expiryRaw: string,
-): void {
+export function registerDeriveExpiry(state: DeriveState, base: string, expiryRaw: string): void {
   const expiries = state.expiryDates.get(base) ?? new Set<string>();
   expiries.add(expiryRaw);
   state.expiryDates.set(base, expiries);
@@ -96,18 +92,19 @@ export function buildDeriveQuote(
     openInterest: safeNum(stats?.oi),
     openInterestUsd: null,
     volume24hUsd: safeNum(stats?.v),
-    greeks: optionPricing != null
-      ? {
-          delta: safeNum(optionPricing.d ?? optionPricing.delta),
-          gamma: safeNum(optionPricing.g ?? optionPricing.gamma),
-          theta: safeNum(optionPricing.t ?? optionPricing.theta),
-          vega: safeNum(optionPricing.v ?? optionPricing.vega),
-          rho: safeNum(optionPricing.r ?? optionPricing.rho),
-          markIv: safeNum(optionPricing.i ?? optionPricing.iv),
-          bidIv: safeNum(optionPricing.bi ?? optionPricing.bid_iv),
-          askIv: safeNum(optionPricing.ai ?? optionPricing.ask_iv),
-        }
-      : { ...EMPTY_GREEKS },
+    greeks:
+      optionPricing != null
+        ? {
+            delta: safeNum(optionPricing.d ?? optionPricing.delta),
+            gamma: safeNum(optionPricing.g ?? optionPricing.gamma),
+            theta: safeNum(optionPricing.t ?? optionPricing.theta),
+            vega: safeNum(optionPricing.v ?? optionPricing.vega),
+            rho: safeNum(optionPricing.r ?? optionPricing.rho),
+            markIv: safeNum(optionPricing.i ?? optionPricing.iv),
+            bidIv: safeNum(optionPricing.bi ?? optionPricing.bid_iv),
+            askIv: safeNum(optionPricing.ai ?? optionPricing.ask_iv),
+          }
+        : { ...EMPTY_GREEKS },
     timestamp: Number(ticker.t ?? ticker.timestamp) || Date.now(),
   };
 }

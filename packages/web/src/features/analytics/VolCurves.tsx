@@ -1,14 +1,23 @@
-import { useRef, useEffect, useMemo, useState } from "react";
-import { createChart, LineSeries, type IChartApi, ColorType } from "lightweight-charts";
+import { useRef, useEffect, useMemo, useState } from 'react';
+import { createChart, LineSeries, type IChartApi, ColorType } from 'lightweight-charts';
 
-import type { EnrichedChainResponse } from "@shared/enriched";
-import { formatExpiry } from "@lib/format";
-import styles from "./AnalyticsView.module.css";
+import type { EnrichedChainResponse } from '@shared/enriched';
+import { formatExpiry } from '@lib/format';
+import styles from './AnalyticsView.module.css';
 
 const COLORS = [
-  "#00E997", "#CB3855", "#50D2C1", "#F0B90B", "#0052FF",
-  "#F7A600", "#25FAAF", "#8B5CF6", "#EC4899", "#6366F1",
-  "#A855F7", "#14B8A6",
+  '#00E997',
+  '#CB3855',
+  '#50D2C1',
+  '#F0B90B',
+  '#0052FF',
+  '#F7A600',
+  '#25FAAF',
+  '#8B5CF6',
+  '#EC4899',
+  '#6366F1',
+  '#A855F7',
+  '#14B8A6',
 ];
 
 interface CurvePoint {
@@ -50,16 +59,17 @@ export default function VolCurves({ chains, spotPrice }: VolCurvesProps) {
   const [hiddenExpiries, setHiddenExpiries] = useState<Set<string>>(new Set());
 
   const curves = useMemo(
-    () => chains
-      .filter((chain) => chain.strikes.length > 5)
-      .map((chain, i) => ({
-        expiry: chain.expiry,
-        label: formatExpiry(chain.expiry),
-        dte: chain.dte,
-        color: COLORS[i % COLORS.length]!,
-        points: extractCurve(chain, spotPrice),
-      }))
-      .filter((curve) => curve.points.length > 3),
+    () =>
+      chains
+        .filter((chain) => chain.strikes.length > 5)
+        .map((chain, i) => ({
+          expiry: chain.expiry,
+          label: formatExpiry(chain.expiry),
+          dte: chain.dte,
+          color: COLORS[i % COLORS.length]!,
+          points: extractCurve(chain, spotPrice),
+        }))
+        .filter((curve) => curve.points.length > 3),
     [chains, spotPrice],
   );
 
@@ -75,23 +85,28 @@ export default function VolCurves({ chains, spotPrice }: VolCurvesProps) {
     const chart = createChart(container, {
       autoSize: true,
       layout: {
-        background: { type: ColorType.Solid, color: "transparent" },
-        textColor: "#555B5E",
+        background: { type: ColorType.Solid, color: 'transparent' },
+        textColor: '#555B5E',
         fontFamily: "'IBM Plex Mono', monospace",
         fontSize: 11,
       },
-      grid: { vertLines: { color: "#1A1A1A" }, horzLines: { color: "#1A1A1A" } },
-      rightPriceScale: { borderColor: "#1F2937", scaleMargins: { top: 0.08, bottom: 0.08 } },
+      grid: { vertLines: { color: '#1A1A1A' }, horzLines: { color: '#1A1A1A' } },
+      rightPriceScale: { borderColor: '#1F2937', scaleMargins: { top: 0.08, bottom: 0.08 } },
       timeScale: {
-        borderColor: "#1F2937",
-        tickMarkFormatter: (v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v),
+        borderColor: '#1F2937',
+        tickMarkFormatter: (v: number) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)),
       },
       crosshair: {
-        horzLine: { color: "#50D2C1", labelBackgroundColor: "#0E3333" },
-        vertLine: { color: "#50D2C1", labelBackgroundColor: "#0E3333", labelVisible: false },
+        horzLine: { color: '#50D2C1', labelBackgroundColor: '#0E3333' },
+        vertLine: { color: '#50D2C1', labelBackgroundColor: '#0E3333', labelVisible: false },
       },
       handleScale: { mouseWheel: true, pinch: true },
-      handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: false },
+      handleScroll: {
+        mouseWheel: true,
+        pressedMouseMove: true,
+        horzTouchDrag: true,
+        vertTouchDrag: false,
+      },
     });
 
     for (const curve of visibleCurves) {
@@ -99,11 +114,16 @@ export default function VolCurves({ chains, spotPrice }: VolCurvesProps) {
         color: curve.color,
         lineWidth: 2,
         title: curve.label,
-        priceFormat: { type: "custom", formatter: (p: number) => `${p.toFixed(1)}%` },
+        priceFormat: { type: 'custom', formatter: (p: number) => `${p.toFixed(1)}%` },
         lastValueVisible: false,
         priceLineVisible: false,
       });
-      series.setData(curve.points.map((point) => ({ time: point.strike as unknown as number, value: point.iv })) as never);
+      series.setData(
+        curve.points.map((point) => ({
+          time: point.strike as unknown as number,
+          value: point.iv,
+        })) as never,
+      );
     }
 
     chart.timeScale().fitContent();

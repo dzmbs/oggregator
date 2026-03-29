@@ -1,53 +1,53 @@
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,700&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,700&display=swap");
 
 :root {
-  --bg-base:      #0A0A0A;
-  --bg-surface:   #111111;
-  --bg-elevated:  #1A1A1A;
-  --bg-hover:     #222222;
-  --bg-active:    #2C2C2C;
-  --bg-input:     #181818;
-  --bg-panel:     #111111;
+  --bg-base: #0a0a0a;
+  --bg-surface: #111111;
+  --bg-elevated: #1a1a1a;
+  --bg-hover: #222222;
+  --bg-active: #2c2c2c;
+  --bg-input: #181818;
+  --bg-panel: #111111;
 
-  --text-primary:   #F6FEFD;
-  --text-secondary: #BEBFC0;
-  --text-tertiary:  #878C8F;
-  --text-dim:       #555B5E;
-  --text-disabled:  #3A3F42;
+  --text-primary: #f6fefd;
+  --text-secondary: #bebfc0;
+  --text-tertiary: #878c8f;
+  --text-dim: #555b5e;
+  --text-disabled: #3a3f42;
 
-  --border-subtle:  #1F2937;
-  --border-default: #2C3338;
-  --border-strong:  #3A4248;
-  --border-focus:   #F8F8FC;
+  --border-subtle: #1f2937;
+  --border-default: #2c3338;
+  --border-strong: #3a4248;
+  --border-focus: #f8f8fc;
 
-  --accent-primary:     #50D2C1;
-  --accent-primary-bg:  #0E3333;
+  --accent-primary: #50d2c1;
+  --accent-primary-bg: #0e3333;
   --accent-primary-dim: rgba(80, 210, 193, 0.12);
 
-  --color-profit:  #00E997;
-  --color-loss:    #CB3855;
-  --color-warning: #FEF9A0;
-  --color-info:    #88B6FF;
-  --color-iv:      #AE9FF9;
+  --color-profit: #00e997;
+  --color-loss: #cb3855;
+  --color-warning: #fef9a0;
+  --color-info: #88b6ff;
+  --color-iv: #ae9ff9;
 
-  --venue-deribit: #0052FF;
-  --venue-okx:     #F6FEFD;
-  --venue-binance: #F0B90B;
-  --venue-bybit:   #F7A600;
-  --venue-derive:  #25FAAF;
+  --venue-deribit: #0052ff;
+  --venue-okx: #f6fefd;
+  --venue-binance: #f0b90b;
+  --venue-bybit: #f7a600;
+  --venue-derive: #25faaf;
 
-  --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  --font-sans: 'IBM Plex Mono', ui-monospace, monospace;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --font-sans: "IBM Plex Mono", ui-monospace, monospace;
 
-  --text-2xs:  12px;
-  --text-xs:   13px;
-  --text-sm:   14px;
+  --text-2xs: 12px;
+  --text-xs: 13px;
+  --text-sm: 14px;
   --text-base: 16px;
-  --text-md:   17px;
-  --text-lg:   19px;
-  --text-xl:   24px;
-  --text-2xl:  28px;
-  --text-3xl:  36px;
+  --text-md: 17px;
+  --text-lg: 19px;
+  --text-xl: 24px;
+  --text-2xl: 28px;
+  --text-3xl: 36px;
 
   --space-1: 4px;
   --space-2: 8px;
@@ -67,10 +67,10 @@
   --transition-base: 200ms ease-out;
 
   /* Safe area insets for notched devices */
-  --safe-top:    env(safe-area-inset-top, 0px);
+  --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
-  --safe-left:   env(safe-area-inset-left, 0px);
-  --safe-right:  env(safe-area-inset-right, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
 
   /* Mobile bottom nav height */
   --mobile-nav-h: 56px;
@@ -82,11 +82,11 @@
 /* ── Mobile overrides ──────────────────────────────────────────── */
 @media (max-width: 768px) {
   :root {
-    --text-xs:   12px;
-    --text-sm:   13px;
+    --text-xs: 12px;
+    --text-sm: 13px;
     --text-base: 14px;
-    --text-lg:   17px;
-    --text-xl:   20px;
-    --space-6:   16px;
+    --text-lg: 17px;
+    --text-xl: 20px;
+    --space-6: 16px;
   }
 }

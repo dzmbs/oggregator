@@ -180,7 +180,9 @@
   font-variant-numeric: tabular-nums;
   border-radius: 3px;
   min-width: 80px;
-  transition: background var(--transition-fast), color var(--transition-fast);
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast);
 }
 
 .cell[data-empty="true"] {
@@ -208,12 +210,7 @@
   width: 160px;
   height: 10px;
   border-radius: 5px;
-  background: linear-gradient(
-    to right,
-    rgb(74, 222, 128),
-    rgb(251, 191, 36),
-    rgb(248, 113, 113)
-  );
+  background: linear-gradient(to right, rgb(74, 222, 128), rgb(251, 191, 36), rgb(248, 113, 113));
 }
 
 .legendMin {
@@ -239,11 +236,17 @@
     gap: var(--space-2);
   }
 
-  .title { font-size: var(--text-base); }
-  .subtitle { font-size: 11px; }
+  .title {
+    font-size: var(--text-base);
+  }
+  .subtitle {
+    font-size: 11px;
+  }
 
   /* Hide asset picker in header — shared toolbar handles it */
-  .titleRow > :nth-child(2) { display: none; }
+  .titleRow > :nth-child(2) {
+    display: none;
+  }
 
   .termStructure {
     flex-direction: row;
@@ -251,18 +254,29 @@
     align-items: center;
   }
 
-  .tsLabel { font-size: 9px; }
-  .tsValue { font-size: var(--text-sm); }
-  .tsDesc  { display: none; }
+  .tsLabel {
+    font-size: 9px;
+  }
+  .tsValue {
+    font-size: var(--text-sm);
+  }
+  .tsDesc {
+    display: none;
+  }
 
   .tableWrap {
     -webkit-overflow-scrolling: touch;
     overflow-x: auto;
   }
 
-  .table { min-width: 500px; }
+  .table {
+    min-width: 500px;
+  }
 
-  .cell { min-width: 60px; font-size: var(--text-xs); }
+  .cell {
+    min-width: 60px;
+    font-size: var(--text-xs);
+  }
 
   .table th,
   .table td {
@@ -276,8 +290,15 @@
     overflow-x: auto;
   }
 
-  .legendBar { width: 80px; flex-shrink: 0; }
-  .legendMin, .legendMax { white-space: nowrap; font-size: 10px; }
+  .legendBar {
+    width: 80px;
+    flex-shrink: 0;
+  }
+  .legendMin,
+  .legendMax {
+    white-space: nowrap;
+    font-size: 10px;
+  }
 
   .body {
     grid-template-columns: 1fr;
