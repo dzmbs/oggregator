@@ -1,5 +1,5 @@
 import WebSocket from 'ws';
-import pino from 'pino';
+import type pino from 'pino';
 import { logger } from '../../utils/logger.js';
 import { backoffDelay } from '../../utils/reconnect.js';
 

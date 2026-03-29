@@ -1,0 +1,19 @@
+{
+  "root": false,
+  "extends": "//",
+  "linter": {
+    "rules": {
+      "a11y": "off",
+      "correctness": {
+        "useExhaustiveDependencies": "off"
+      },
+      "suspicious": {
+        "noArrayIndexKey": "off",
+        "noDuplicateProperties": "off"
+      },
+      "complexity": {
+        "noImportantStyles": "off"
+      }
+    }
+  }
+}

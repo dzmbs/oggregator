@@ -1,5 +1,4 @@
 import type { VenueOptionChain, ComparisonChain, ComparisonRow } from './types.js';
-import type { NormalizedOptionContract } from './types.js';
 
 export function buildComparisonChain(
   underlying: string,

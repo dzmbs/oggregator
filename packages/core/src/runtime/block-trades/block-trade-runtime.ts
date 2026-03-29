@@ -20,7 +20,6 @@ import { createBlockVenueState, mergeBlockVenueState } from './health.js';
 import { BLOCK_TRADE_RUNTIME_BUFFER_SIZE, insertBlockTrades } from './retention.js';
 import type {
   BlockTradeEvent,
-  BlockTradeLeg,
   BlockTradeRuntimeHealth,
   BlockVenuePoller,
   BlockVenueState,

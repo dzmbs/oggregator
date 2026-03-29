@@ -281,7 +281,7 @@ export class DeribitWsAdapter extends SdkBaseAdapter {
 
   protected async subscribeChain(
     underlying: string,
-    expiry: string,
+    _expiry: string,
     instruments: CachedInstrument[],
   ): Promise<void> {
     await this.subscribeWithInterval(underlying, instruments, ACTIVE_TICKER_INTERVAL);

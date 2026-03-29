@@ -1,4 +1,4 @@
-import WebSocket from 'ws';
+import type WebSocket from 'ws';
 import {
   BYBIT_INSTRUMENTS_INFO,
   BYBIT_REST_BASE_URL,

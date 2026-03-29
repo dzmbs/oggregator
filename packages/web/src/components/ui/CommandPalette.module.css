@@ -159,10 +159,6 @@
   background: var(--bg-hover);
 }
 
-.assetRow[data-selected="true"] .assetSymbol {
-  color: var(--accent-primary);
-}
-
 .assetLeft {
   display: flex;
   align-items: center;
@@ -185,6 +181,10 @@
   font-weight: 700;
   color: var(--text-primary);
   text-transform: uppercase;
+}
+
+.assetRow[data-selected="true"] .assetSymbol {
+  color: var(--accent-primary);
 }
 
 .assetSub {

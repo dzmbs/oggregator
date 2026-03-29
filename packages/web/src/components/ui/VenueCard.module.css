@@ -188,9 +188,6 @@
   color: var(--text-dim);
 }
 
-.footerLabel {
-}
-
 .footerSavings {
   color: var(--color-profit);
   font-weight: 700;

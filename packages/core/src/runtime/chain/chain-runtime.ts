@@ -395,9 +395,7 @@ export class ChainRuntime {
     for (const listener of this.listeners) {
       try {
         listener.onEvent(event);
-      } catch {
-        continue;
-      }
+      } catch {}
     }
   }
 }

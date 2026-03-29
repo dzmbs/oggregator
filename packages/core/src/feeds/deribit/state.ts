@@ -1,11 +1,6 @@
 import { EMPTY_GREEKS } from '../../core/types.js';
 import type { CachedInstrument, LiveQuote } from '../shared/sdk-base.js';
-import type {
-  DeribitBookSummary,
-  DeribitInstrument,
-  DeribitMarkPriceItem,
-  DeribitTicker,
-} from './types.js';
+import type { DeribitBookSummary, DeribitMarkPriceItem, DeribitTicker } from './types.js';
 
 export interface DeribitState {
   liveIndexPrices: Map<string, number>;

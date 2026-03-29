@@ -181,9 +181,7 @@ export class VenueSubscriptionCoordinator {
             for (const currentListener of requestEntry.listeners) {
               try {
                 currentListener.onDelta?.(matchedDeltas);
-              } catch {
-                continue;
-              }
+              } catch {}
             }
           }
         },
@@ -195,9 +193,7 @@ export class VenueSubscriptionCoordinator {
             for (const currentListener of requestEntry.listeners) {
               try {
                 currentListener.onStatus?.(status);
-              } catch {
-                continue;
-              }
+              } catch {}
             }
           }
         },

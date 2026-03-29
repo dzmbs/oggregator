@@ -65,7 +65,7 @@ export default function ChainView() {
   const [statsExpanded, setStatsExpanded] = useState(false);
 
   const myIvFloat = myIv !== '' ? parseFloat(myIv) / 100 : null;
-  const myIvValid = myIvFloat != null && !isNaN(myIvFloat) && myIvFloat > 0;
+  const myIvValid = myIvFloat != null && !Number.isNaN(myIvFloat) && myIvFloat > 0;
 
   if (isMobile) {
     return (

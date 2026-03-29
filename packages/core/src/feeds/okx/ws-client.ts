@@ -1,4 +1,4 @@
-import WebSocket from 'ws';
+import type WebSocket from 'ws';
 import {
   OKX_INSTRUMENTS,
   OKX_MARK_PRICE,
