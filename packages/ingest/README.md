@@ -4,8 +4,8 @@ Optional worker that records live and institutional trades into Postgres.
 
 ## What this does
 
-- starts `SpotService`, `FlowService`, and `BlockFlowService`
-- subscribes to live trade events from core services
+- starts `SpotRuntime`, `TradeRuntime`, and `BlockTradeRuntime`
+- subscribes to live trade events from reusable core runtimes
 - normalizes trade money fields through shared core helpers
 - batches writes into the configured `TradeStore`
 

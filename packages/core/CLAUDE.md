@@ -1,6 +1,6 @@
 # @oggregator/core
 
-Feeds, canonical types, normalization, enrichment analytics.
+Feeds, canonical types, reusable live-data runtimes, normalization, and enrichment analytics.
 
 ## Commands
 
@@ -15,9 +15,11 @@ pnpm test:run       # vitest single pass (CI)
 
 ```
 src/
-  feeds/{venue}/    ws-client.ts, types.ts (Zod schemas), index.ts
-  feeds/shared/     BaseAdapter, SdkBaseAdapter, JsonRpcWsClient
+  feeds/{venue}/    ws-client.ts, codec.ts, planner.ts, state.ts, health.ts, types.ts
+  feeds/shared/     BaseAdapter, SdkBaseAdapter, JsonRpcWsClient, TopicWsClient
+  runtime/          chain, spot, trades, block-trades
   core/             canonical types, aggregator, enrichment, registry, symbol
+  services/         dvol only
   types/common.ts   VenueId, OptionRight, DataSource, UnixMs
   utils/logger.ts   pino structured logging
   index.ts          public API (explicit named exports)
@@ -37,7 +39,8 @@ src/
 
 - **Fee estimation with cap** — `estimateFees()` in `sdk-base.ts` uses `min(rate × underlying, cap × optionPrice)`. Cap prevents absurd fees on cheap OTM options (e.g. 12.5% cap: a $5 option pays max $0.625 fee, not $21).
 
-- **Tests are doc-driven** — fixtures copied verbatim from `references/protocol-docs/`. If a test fails, check the docs — the exchange may have changed their API.
+- **Tests are doc-driven** — fixtures copied verbatim from `references/options-docs/`. If a test fails, check the docs — the exchange may have changed their API.
+- **Runtimes are the public product surface** — `ChainRuntime`, `SpotRuntime`, `TradeRuntime`, and `BlockTradeRuntime` are the core APIs downstream consumers should use. Server/web protocol shaping stays outside core.
 
 ## Where things are
 
@@ -49,19 +52,19 @@ src/
 - Expiry parsing: `feeds/shared/sdk-base.ts` → `parseExpiry()`
 - Fee estimation: `feeds/shared/sdk-base.ts` → `estimateFees()`
 - Runtime venue endpoints: `feeds/shared/endpoints.ts`
-- Official API docs: `../../references/protocol-docs/{venue}/`
+- Official API docs: `../../references/options-docs/{venue}/`
 
 ## Adding a venue
 
-1. Save the venue's official API docs under `references/protocol-docs/{venue}/`.
+1. Save the venue's official API docs under `references/options-docs/{venue}/`.
 2. Add `feeds/{venue}/types.ts` first. Zod schemas define the real API contract.
-3. Add `feeds/{venue}/ws-client.ts` using the existing adapter pattern (`BaseAdapter`, `SdkBaseAdapter`, or `JsonRpcWsClient`).
-4. Add `feeds/{venue}/index.ts` with explicit named exports only.
+3. Split venue logic by role: `codec.ts`, `planner.ts`, `state.ts`, `health.ts`, then keep `ws-client.ts` orchestration-only.
+4. Reuse the shared transport that fits the protocol (`TopicWsClient`, `JsonRpcWsClient`, or polling) instead of building a venue-local transport loop.
 5. Export the venue from `src/index.ts` and add it to `types/common.ts`.
-6. Add doc-backed tests in `feeds/{venue}/types.test.ts` before trusting live payloads.
+6. Add doc-backed tests in `feeds/{venue}/types.test.ts` and focused planner/health/state tests before trusting live payloads.
 7. Register the adapter in `packages/server/src/adapters.ts`.
 
-Each new venue adapter must implement instrument discovery, live subscriptions, unsubscribe/cleanup, and canonical symbol/expiry normalization before the server sees it.
+Each new venue adapter must implement instrument discovery, live subscriptions, unsubscribe/cleanup, canonical symbol/expiry normalization, and runtime-safe delta emission before the server sees it.
 
 ## Critical: server runs from dist/, not src/
 
@@ -87,7 +90,7 @@ pnpm --filter @oggregator/core build   # tsc → dist/
 - **Binance two WS paths**: `/market` for mark price, `/public` for trades. Cannot combine on one connection.
 - **OKX tickers need per-instId**: `instFamily` parameter errors for the tickers channel (60018). Must subscribe per instrument. `opt-summary` does support `instFamily` for bulk.
 - **OKX markPx missing**: `opt-summary` has no `markPx` field. Mark price stays null. Bid/ask/IV/greeks all work.
-- **OKX oiUsd is not notional**: `/public/open-interest` returns `oiUsd = oi × $1` (contract count in dollars), not `oiCcy × spot`. Do not use it. Enrichment computes notional from `oiCcy × underlyingPrice`.
+- **OKX oiUsd is not notional**: `/public/open-interest` returns a face/count-style USD field, not market notional. Do not use it for analytics. Core normalizes OI to contract count and derives USD OI from contract metadata plus underlying price.
 - **OKX vol24h is contracts, not base currency**: Multiply by `ctMult` (0.01 for BTC, 0.1 for ETH) to get base currency before storing as `volume24h`. Enrichment then multiplies by `underlyingPrice` for USD.
 - **Derive sends numeric fields as strings**: schema them that way and coerce downstream with the shared helpers.
 - **Derive `get_all_instruments` is incomplete**: it caps out and misses the full venue set. Fetch per currency instead.

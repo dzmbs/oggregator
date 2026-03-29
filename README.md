@@ -48,7 +48,7 @@ Open [localhost:5173](http://localhost:5173). Data starts flowing within ~10 sec
 
 ```bash
 pnpm typecheck    # tsc --noEmit across all packages
-pnpm test         # 293 tests across all workspaces
+pnpm test         # vitest single pass across all workspaces
 pnpm precommit    # typecheck + test (run before every commit)
 pnpm build        # production build (server + web)
 ```
@@ -65,9 +65,9 @@ packages/
   ingest/     Optional worker that records live + institutional trades into Postgres
 ```
 
-Live data path: **Exchange WS/REST → Core Adapter → Normalizer → Enrichment → Server → Web Dashboard**
+Live data path: **Exchange WS/REST → Core venue adapter → Core runtime → Server delivery → Web dashboard**
 
-Chain transport path: **Exchange deltas → server quote store → coalesced `WS /ws/chain` snapshots → browser query cache**
+Chain transport path: **Exchange deltas → `ChainRuntime` projection → `WS /ws/chain` snapshot+delta stream → browser query cache**
 
 ## API
 
@@ -84,7 +84,7 @@ Chain transport path: **Exchange deltas → server quote store → coalesced `WS
 | `GET /api/ready` | Readiness for deploy health checks |
 | `GET /api/flow?underlying=BTC` | Recent options trades across venues |
 | `GET /api/block-flow?underlying=BTC` | Institutional RFQ / block trades |
-| `WS /ws/chain` | Real-time chain snapshot push to the browser |
+| `WS /ws/chain` | Real-time chain snapshot + delta stream to the browser |
 
 ## Dashboard
 
@@ -108,7 +108,7 @@ pnpm build
 pnpm start        # NODE_ENV=production, serves API + static SPA
 ```
 
-Optional durable flow storage uses a separate worker + Postgres:
+Optional durable flow storage uses a separate ingest consumer + Postgres:
 
 ```bash
 pnpm db:migrate   # run once with DATABASE_URL set
@@ -117,7 +117,7 @@ pnpm dev:ingest   # local worker
 
 Production shape:
 - main app: `Dockerfile`
-- ingest worker: `Dockerfile.ingest`
+- ingest consumer: `Dockerfile.ingest`
 - Postgres: private/internal only
 
 **Coolify**:

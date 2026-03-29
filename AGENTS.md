@@ -25,4 +25,6 @@ references/         Official API docs per venue
 
 When touching venue adapters or adding a new venue, read `packages/core/CLAUDE.md` first. It contains the venue-onboarding checklist and exchange-specific gotchas that used to live in `agent_docs/`.
 
+Structural changes to core/server/ingest should preserve the runtime-first architecture: `@oggregator/core` owns reusable live-data runtimes, while server, ingest, bots, and external apps are consumers.
+
 Zod at I/O boundaries. No `any`. No vendor SDKs. Pino logging. IV stored as fractions (0–1+). `pnpm precommit` must pass.

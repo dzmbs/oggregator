@@ -1,19 +1,21 @@
 # @oggregator/core
 
-Venue adapters, canonical types, normalization, and enrichment analytics for 5 crypto options exchanges.
+Venue adapters, canonical types, reusable live-data runtimes, and enrichment analytics for 5 crypto options exchanges.
 
 ## What this does
 
-Connects to Deribit, OKX, Binance, Bybit, and Derive via WebSocket, normalizes every option quote into a canonical `NormalizedQuote` type, and enriches cross-venue data with analytics (ATM IV, skew, GEX, IV surface, put/call ratios).
+Connects to Deribit, OKX, Binance, Bybit, and Derive via WebSocket, normalizes venue data into canonical core types, exposes shared domain runtimes (`ChainRuntime`, `SpotRuntime`, `TradeRuntime`, `BlockTradeRuntime`), and enriches cross-venue chains with analytics such as ATM IV, skew, GEX, IV surface, and put/call ratios.
 
 ## Structure
 
 ```
 src/
-  feeds/{venue}/    ws-client, Zod schemas, normalizer, adapter
-  feeds/shared/     BaseAdapter, JSON-RPC client, SDK helpers
+  feeds/{venue}/    ws-client, codec, planner, state, health
+  feeds/shared/     BaseAdapter, JSON-RPC client, topic/socket transports
+  runtime/          chain, spot, trades, block-trades
   core/             canonical types, aggregator, enrichment, registry
-  services/         flow, block-flow, dvol, spot, shared trade persistence helpers
+  services/         dvol only
+  trade-persistence.ts shared trade money and instrument helpers
   types/common.ts   VenueId, OptionRight, UnixMs (branded types)
   utils/logger.ts   pino structured logging
 ```
@@ -30,10 +32,34 @@ src/
 ```bash
 pnpm typecheck    # tsc --noEmit
 pnpm build        # tsc → dist/
-pnpm test:run     # vitest (240 tests)
+pnpm test:run     # vitest single pass
 ```
 
 ## Runtime notes
 
-- `FlowService` and `BlockFlowService` expose live trade subscriptions for downstream consumers like the ingest worker
-- `services/trade-persistence.ts` centralizes instrument parsing and venue-specific premium/notional math shared by server routes and persistence code
+- `ChainRuntime`, `SpotRuntime`, `TradeRuntime`, and `BlockTradeRuntime` are the primary public API for downstream consumers
+- Runtimes own shared live state, buffering/retention, and health so server, ingest, bots, and external apps consume the same canonical data product
+- legacy service wrappers were removed; runtimes are the only live-data surface
+- `trade-persistence.ts` centralizes instrument parsing and venue-specific premium/notional math shared by server routes and persistence code
+
+## Example: external trade consumer
+
+```ts
+import { TradeRuntime } from '@oggregator/core';
+
+const runtime = new TradeRuntime();
+
+runtime.subscribe((trade) => {
+  if (trade.underlying === 'BTC' && trade.price > 1_000) {
+    console.log('large trade', trade.venue, trade.instrument, trade.price, trade.timestamp);
+  }
+});
+
+await runtime.start(['BTC', 'ETH']);
+
+process.on('SIGINT', () => {
+  runtime.dispose();
+});
+```
+
+That is the intended non-server integration shape for ingest workers, analytics jobs, bots, and internal automation.
