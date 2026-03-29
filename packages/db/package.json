@@ -10,6 +10,7 @@
   },
   "scripts": {
     "build": "tsc",
+    "lint": "biome lint .",
     "typecheck": "tsc --noEmit",
     "migrate": "node dist/migrate.js",
     "seed:sample": "node dist/seed-sample.js"

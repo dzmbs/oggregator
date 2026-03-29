@@ -7,6 +7,7 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
+    "lint": "biome lint .",
     "typecheck": "pnpm --filter @oggregator/core build && pnpm --filter @oggregator/db build && tsc --noEmit",
     "test": "vitest",
     "test:run": "pnpm --filter @oggregator/core build && vitest run"

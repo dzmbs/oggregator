@@ -12,7 +12,11 @@
     "db:migrate": "pnpm --filter @oggregator/db migrate",
     "db:seed:sample": "pnpm --filter @oggregator/db build && pnpm --filter @oggregator/db seed:sample",
     "start": "NODE_ENV=production node packages/server/dist/index.js",
-    "lint": "pnpm -r lint",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "lint": "biome lint .",
+    "lint:fix": "biome lint --write .",
+    "check": "biome check .",
     "typecheck": "pnpm -r --filter @oggregator/protocol build && pnpm -r typecheck",
     "test": "pnpm -r --filter @oggregator/core --filter @oggregator/protocol build && pnpm -r test:run",
     "precommit": "pnpm typecheck && pnpm test"
@@ -20,5 +24,8 @@
   "engines": {
     "node": ">=20"
   },
-  "packageManager": "pnpm@10.5.2"
+  "packageManager": "pnpm@10.5.2",
+  "devDependencies": {
+    "@biomejs/biome": "^2.3.11"
+  }
 }
