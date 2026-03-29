@@ -276,5 +276,9 @@ function toVenueId(value: string): TradeEvent['venue'] | null {
 
 function extractTradeIdFromUid(tradeUid: string, venue: string): string | null {
   const prefix = `${venue}:`;
-  return tradeUid.startsWith(prefix) ? tradeUid.slice(prefix.length) : null;
+  if (!tradeUid.startsWith(prefix)) return null;
+
+  const value = tradeUid.slice(prefix.length);
+  const parts = value.split(':');
+  return parts[parts.length - 1] ?? null;
 }

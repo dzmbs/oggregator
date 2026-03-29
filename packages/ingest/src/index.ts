@@ -1,8 +1,8 @@
 import { config as loadEnv } from 'dotenv';
 import {
-  BlockFlowService,
-  SpotService,
-  FlowService,
+  BlockTradeRuntime,
+  SpotRuntime,
+  TradeRuntime,
   buildBlockTradeUid,
   buildLiveTradeUid,
   computeBlockTradeAmounts,
@@ -46,48 +46,72 @@ async function main(): Promise<void> {
     log.warn('DATABASE_URL not set, ingest worker is running without persistence');
   }
 
-  const spotService = new SpotService();
-  const flowService = new FlowService();
-  const blockFlowService = new BlockFlowService();
+  const spotRuntime = new SpotRuntime();
+  const tradeRuntime = new TradeRuntime();
+  const blockTradeRuntime = new BlockTradeRuntime();
   const writer = new BufferedTradeWriter(tradeStore);
   const ops = new IngestOpsTracker();
 
-  flowService.subscribe((trade: TradeEvent) => {
+  tradeRuntime.subscribe((trade: TradeEvent) => {
     ops.recordTrade('live', trade.venue, trade.timestamp);
-    writer.push(mapLiveTrade(trade, spotService));
+    writer.push(mapLiveTrade(trade, spotRuntime));
   });
 
-  blockFlowService.subscribe((trade: BlockTradeEvent) => {
+  blockTradeRuntime.subscribe((trade: BlockTradeEvent) => {
     ops.recordTrade('institutional', trade.venue, trade.timestamp);
-    writer.push(mapInstitutionalTrade(trade, spotService));
+    writer.push(mapInstitutionalTrade(trade, spotRuntime));
   });
 
-  await Promise.all([
-    spotService.start([...SPOT_SYMBOLS]),
-    flowService.start([...UNDERLYINGS]),
-    blockFlowService.start(),
+  const [spotStart, tradeStart, blockTradeStart] = await Promise.allSettled([
+    spotRuntime.start([...SPOT_SYMBOLS]),
+    tradeRuntime.start([...UNDERLYINGS]),
+    blockTradeRuntime.start(),
   ]);
+
+  if (spotStart.status === 'rejected') {
+    log.warn({ err: String(spotStart.reason) }, 'spot runtime failed to start');
+  }
+  if (tradeStart.status === 'rejected') {
+    log.warn({ err: String(tradeStart.reason) }, 'trade runtime failed to start');
+  }
+  if (blockTradeStart.status === 'rejected') {
+    log.warn({ err: String(blockTradeStart.reason) }, 'block trade runtime failed to start');
+  }
+
+  if (spotStart.status === 'rejected' && tradeStart.status === 'rejected' && blockTradeStart.status === 'rejected') {
+    throw new Error('all ingest runtimes failed to start');
+  }
 
   const opsTimer = setInterval(() => {
     log.info({
       memory: getProcessMemorySnapshot(),
       writer: writer.getStats(),
-      flow: flowService.getHealth(),
-      blockFlow: blockFlowService.getHealth(),
+      trades: tradeRuntime.getHealth(),
+      blockTrades: blockTradeRuntime.getHealth(),
       ingest: ops.snapshot(),
     }, 'ingest ops snapshot');
   }, OPS_LOG_INTERVAL_MS);
 
+  let shutdownPromise: Promise<void> | null = null;
+
   const shutdown = async () => {
-    log.info('shutting down ingest worker');
-    clearInterval(opsTimer);
-    writer.dispose();
-    await writer.flush();
-    flowService.dispose();
-    blockFlowService.dispose();
-    spotService.dispose();
-    await tradeStore.dispose();
-    process.exit(0);
+    if (shutdownPromise != null) {
+      await shutdownPromise;
+      return;
+    }
+
+    shutdownPromise = (async () => {
+      log.info('shutting down ingest worker');
+      clearInterval(opsTimer);
+      writer.dispose();
+      await writer.flushAll();
+      tradeRuntime.dispose();
+      blockTradeRuntime.dispose();
+      spotRuntime.dispose();
+      await tradeStore.dispose();
+    })();
+
+    await shutdownPromise;
   };
 
   process.on('SIGINT', () => { void shutdown(); });
@@ -152,6 +176,16 @@ class BufferedTradeWriter {
     }
   }
 
+  async flushAll(): Promise<void> {
+    while (this.queue.length > 0) {
+      const queuedBeforeFlush = this.queue.length;
+      await this.flush();
+      if (this.queue.length >= queuedBeforeFlush) {
+        break;
+      }
+    }
+  }
+
   getStats() {
     return {
       queued: this.queue.length,
@@ -210,7 +244,7 @@ function getProcessMemorySnapshot() {
   };
 }
 
-function mapLiveTrade(trade: TradeEvent, spotService: SpotService): PersistedTradeRecord {
+function mapLiveTrade(trade: TradeEvent, spotService: SpotRuntime): PersistedTradeRecord {
   const instrument = parseTradeInstrument(trade.instrument);
   const referencePriceUsd = trade.indexPrice ?? getSpotPriceUsd(spotService, trade.underlying);
   const amounts = computeLiveTradeAmounts(trade, referencePriceUsd);
@@ -253,7 +287,7 @@ function mapLiveTrade(trade: TradeEvent, spotService: SpotService): PersistedTra
   };
 }
 
-function mapInstitutionalTrade(trade: BlockTradeEvent, spotService: SpotService): PersistedTradeRecord {
+function mapInstitutionalTrade(trade: BlockTradeEvent, spotService: SpotRuntime): PersistedTradeRecord {
   const referencePriceUsd = trade.indexPrice ?? getSpotPriceUsd(spotService, trade.underlying);
   const amounts = computeBlockTradeAmounts(trade, referencePriceUsd);
   const firstInstrument = parseTradeInstrument(trade.legs[0]?.instrument ?? trade.underlying);
@@ -302,12 +336,12 @@ function mapInstitutionalTrade(trade: BlockTradeEvent, spotService: SpotService)
   };
 }
 
-function getSpotPriceUsd(spotService: SpotService, underlying: string): number | null {
+function getSpotPriceUsd(spotService: SpotRuntime, underlying: string): number | null {
   const snapshot = spotService.getSnapshot(underlying.toUpperCase());
   return snapshot?.lastPrice ?? null;
 }
 
 void main().catch((error) => {
   log.fatal({ err: String(error) }, 'ingest worker failed');
-  process.exit(1);
+  process.exitCode = 1;
 });

@@ -18,15 +18,21 @@ vi.mock('@oggregator/core', async (importOriginal) => {
       getSnapshot() { return null; }
       getAllSnapshots() { return []; }
     },
-    SpotService: class {
+    SpotRuntime: class {
       start() { return startResolves.spot ? Promise.resolve() : Promise.reject(new Error('spot boom')); }
       dispose() {}
       getSnapshot() { return null; }
     },
-    FlowService: class {
+    TradeRuntime: class {
       start() { return startResolves.flow ? Promise.resolve() : Promise.reject(new Error('flow boom')); }
       dispose() {}
       getTrades() { return []; }
+    },
+    BlockTradeRuntime: class {
+      start() { return Promise.resolve(); }
+      dispose() {}
+      getTrades() { return []; }
+      getHealth() { return []; }
     },
   };
 });

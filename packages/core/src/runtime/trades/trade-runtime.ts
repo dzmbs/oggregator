@@ -2,82 +2,38 @@ import WebSocket from 'ws';
 import { z } from 'zod';
 import {
   BINANCE_OPTIONS_WS_URL,
+  BYBIT_RECENT_TRADE,
   BYBIT_REST_BASE_URL,
   BYBIT_WS_URL,
   DERIBIT_REST_BASE_URL,
   DERIBIT_WS_URL,
   DERIVE_WS_URL,
+  OKX_INSTRUMENT_FAMILY_TRADES,
   OKX_REST_BASE_URL,
   OKX_WS_URL,
-} from '../feeds/shared/endpoints.js';
-import { feedLogger } from '../utils/logger.js';
-import { backoffDelay } from '../utils/reconnect.js';
-import type { VenueId } from '../types/common.js';
-import { computeLiveTradeAmounts } from './trade-persistence.js';
+} from '../../feeds/shared/endpoints.js';
+import { feedLogger } from '../../utils/logger.js';
+import { backoffDelay } from '../../utils/reconnect.js';
+import type { VenueId } from '../../types/common.js';
+import { createTradeStreamState, mergeTradeStreamState } from './health.js';
+import { filterTradesByMinNotional, pushTradeEvents } from './retention.js';
+import type { TradeEvent, TradeRuntimeHealth, TradeStreamState, VenueStream } from './types.js';
 
-const log = feedLogger('flow');
+const log = feedLogger('trade-runtime');
 
-export interface TradeEvent {
-  venue: VenueId;
-  tradeId: string | null;
-  instrument: string;
-  underlying: string;
-  side: 'buy' | 'sell';
-  price: number;
-  size: number;
-  iv: number | null;
-  markPrice: number | null;
-  indexPrice: number | null;
-  isBlock: boolean;
-  timestamp: number;
-}
-
-interface VenueStream {
-  venue: VenueId;
-  url: string;
-  connect: (ws: WebSocket, underlying: string) => void;
-  parse: (msg: unknown, underlying: string) => TradeEvent[];
-  seed?: (underlying: string) => Promise<TradeEvent[]>;
-  startKeepalive?: (ws: WebSocket) => ReturnType<typeof setInterval>;
-}
-
-export interface FlowStreamHealth {
-  venue: VenueId;
-  underlying: string;
-  connected: boolean;
-  lastMessageAt: number | null;
-  lastTradeAt: number | null;
-  lastStatusAt: number | null;
-  reconnects: number;
-  errors: number;
-  seedTrades: number;
-  bufferedTrades: number;
-}
-
-interface FlowStreamState {
-  connected: boolean;
-  lastMessageAt: number | null;
-  lastTradeAt: number | null;
-  lastStatusAt: number | null;
-  reconnects: number;
-  errors: number;
-  seedTrades: number;
-}
-
-const BUFFER_SIZE = 500;
 
 /**
  * Subscribes to bulk option trade streams across all 5 venues.
  * Maintains a ring buffer of the last N trades per underlying.
  */
-export class FlowService {
+export class TradeRuntime {
   private buffers = new Map<string, TradeEvent[]>();
   private connections = new Map<string, WebSocket>();
   private keepaliveTimers = new Map<string, ReturnType<typeof setInterval>>();
   private reconnectTimers = new Map<string, ReturnType<typeof setTimeout>>();
   private subscribedUnderlyingsByConnection = new Map<string, Set<string>>();
   private listeners = new Set<(trade: TradeEvent) => void>();
-  private streamState = new Map<string, FlowStreamState>();
+  private streamState = new Map<string, TradeStreamState>();
   private shouldReconnect = true;
 
   async start(underlyings: string[] = ['BTC', 'ETH']): Promise<void> {
@@ -85,15 +41,7 @@ export class FlowService {
     for (const underlying of underlyings) {
       this.buffers.set(underlying, []);
       for (const stream of VENUE_STREAMS) {
-        this.streamState.set(this.streamKey(stream.venue, underlying), {
-          connected: false,
-          lastMessageAt: null,
-          lastTradeAt: null,
-          lastStatusAt: null,
-          reconnects: 0,
-          errors: 0,
-          seedTrades: 0,
-        });
+        this.streamState.set(this.streamKey(stream.venue, underlying), createTradeStreamState());
 
         if (stream.venue === 'deribit' && getDeribitTradeCurrency(underlying) == null) {
           continue;
@@ -141,11 +89,7 @@ export class FlowService {
 
   getTrades(underlying: string, minNotional = 0): TradeEvent[] {
     const buffer = this.buffers.get(underlying) ?? [];
-    if (minNotional <= 0) return buffer;
-    return buffer.filter((trade) => {
-      const amounts = computeLiveTradeAmounts(trade, trade.indexPrice);
-      return (amounts.notionalUsd ?? 0) >= minNotional;
-    });
+    return filterTradesByMinNotional(buffer, minNotional);
   }
 
   subscribe(listener: (trade: TradeEvent) => void): () => void {
@@ -155,7 +99,7 @@ export class FlowService {
     };
   }
 
-  getHealth(): FlowStreamHealth[] {
+  getHealth(): TradeRuntimeHealth[] {
     return VENUE_STREAMS.flatMap((stream) =>
       Array.from(this.buffers.keys()).map((underlying) => {
         const currentState = this.streamState.get(this.streamKey(stream.venue, underlying));
@@ -170,7 +114,7 @@ export class FlowService {
           errors: currentState?.errors ?? 0,
           seedTrades: currentState?.seedTrades ?? 0,
           bufferedTrades: this.buffers.get(underlying)?.filter((trade) => trade.venue === stream.venue).length ?? 0,
-        } satisfies FlowStreamHealth;
+        } satisfies TradeRuntimeHealth;
       }),
     );
   }
@@ -284,14 +228,14 @@ export class FlowService {
     return subscribedUnderlyings ? [...subscribedUnderlyings] : [underlying];
   }
 
-  private updateStreamState(venue: VenueId, underlying: string, patch: Partial<FlowStreamState>): void {
+  private updateStreamState(venue: VenueId, underlying: string, patch: Partial<TradeStreamState>): void {
     const key = this.streamKey(venue, underlying);
     const current = this.streamState.get(key);
     if (!current) return;
-    this.streamState.set(key, { ...current, ...patch });
+    this.streamState.set(key, mergeTradeStreamState(current, patch));
   }
 
-  private updateStreamStates(venue: VenueId, underlyings: string[], patch: Partial<FlowStreamState>): void {
+  private updateStreamStates(venue: VenueId, underlyings: string[], patch: Partial<TradeStreamState>): void {
     for (const underlying of underlyings) {
       this.updateStreamState(venue, underlying, patch);
     }
@@ -300,14 +244,14 @@ export class FlowService {
   private pushTrades(underlying: string, trades: TradeEvent[]): void {
     const buffer = this.buffers.get(underlying);
     if (!buffer) return;
-    buffer.push(...trades);
-    buffer.sort((a, b) => a.timestamp - b.timestamp);
-    if (buffer.length > BUFFER_SIZE) {
-      buffer.splice(0, buffer.length - BUFFER_SIZE);
-    }
+    pushTradeEvents(buffer, trades);
     for (const trade of trades) {
       for (const listener of this.listeners) {
-        listener(trade);
+        try {
+          listener(trade);
+        } catch (error) {
+          log.warn({ err: String(error), venue: trade.venue, underlying }, 'trade listener failed');
+        }
       }
     }
   }
@@ -438,6 +382,49 @@ function deribitTradeToEvent(raw: z.infer<typeof DeribitTradeSchema>, underlying
   };
 }
 
+const deribitSeedCache = new Map<string, Promise<TradeEvent[]>>();
+
+function fetchDeribitTradesByCurrency(currency: string): Promise<TradeEvent[]> {
+  const existing = deribitSeedCache.get(currency);
+  if (existing) return existing;
+
+  const promise = deribitRpcSeed(currency);
+  deribitSeedCache.set(currency, promise);
+  return promise;
+}
+
+function deribitRpcSeed(currency: string): Promise<TradeEvent[]> {
+  return new Promise<TradeEvent[]>((resolve) => {
+    const ws = new WebSocket(DERIBIT_WS_URL);
+
+    ws.on('open', () => {
+      ws.send(JSON.stringify({
+        jsonrpc: '2.0', id: 1,
+        method: 'public/get_last_trades_by_currency',
+        params: { currency, kind: 'option', count: 50 },
+      }));
+    });
+
+    ws.on('message', (raw: WebSocket.RawData) => {
+      const msg = JSON.parse(raw.toString()) as Record<string, unknown>;
+      if (msg['id'] !== 1) return;
+
+      ws.close();
+      const trades = (msg['result'] as Record<string, unknown> | undefined)?.['trades'];
+      if (!Array.isArray(trades)) { resolve([]); return; }
+
+      resolve(trades.flatMap((t) => {
+        const p = DeribitTradeSchema.safeParse(t);
+        if (!p.success) return [];
+        return [deribitTradeToEvent(p.data, getDeribitUnderlyingFromInstrument(p.data.instrument_name) ?? currency)];
+      }));
+    });
+
+    ws.on('error', () => { ws.close(); resolve([]); });
+    setTimeout(() => { ws.close(); resolve([]); }, 10_000);
+  });
+}
+
 const VENUE_STREAMS: VenueStream[] = [
   {
     venue: 'deribit',
@@ -476,37 +463,8 @@ const VENUE_STREAMS: VenueStream[] = [
       const tradeCurrency = getDeribitTradeCurrency(underlying);
       if (!tradeCurrency) return [];
 
-      const ws = new WebSocket(DERIBIT_WS_URL);
-      return new Promise<TradeEvent[]>((resolve) => {
-        ws.on('open', () => {
-          ws.send(JSON.stringify({ jsonrpc: '2.0', id: 1,
-            method: 'public/get_last_trades_by_currency',
-            params: { currency: tradeCurrency, kind: 'option', count: 50 },
-          }));
-        });
-        ws.on('message', (raw) => {
-          const msg = JSON.parse(raw.toString()) as Record<string, unknown>;
-          if (msg['id'] !== 1) return;
-          const result = msg['result'] as Record<string, unknown> | undefined;
-          const trades = result?.['trades'] as Array<Record<string, unknown>> | undefined;
-          ws.close();
-          if (!trades) { resolve([]); return; }
-          const events: TradeEvent[] = [];
-          for (const t of trades) {
-            const p = DeribitTradeSchema.safeParse(t);
-            if (!p.success || !isDeribitTradeForUnderlying(p.data.instrument_name, underlying)) continue;
-            events.push(
-              deribitTradeToEvent(
-                p.data,
-                getDeribitUnderlyingFromInstrument(p.data.instrument_name) ?? normalizeTradeUnderlying(underlying),
-              ),
-            );
-          }
-          resolve(events);
-        });
-        ws.on('error', () => { ws.close(); resolve([]); });
-        setTimeout(() => { ws.close(); resolve([]); }, 10000);
-      });
+      const allTrades = await fetchDeribitTradesByCurrency(tradeCurrency);
+      return allTrades.filter(t => isDeribitTradeForUnderlying(t.instrument, underlying));
     },
   },
   {
@@ -544,7 +502,7 @@ const VENUE_STREAMS: VenueStream[] = [
     async seed(underlying) {
       try {
         const res = await fetch(
-          `${OKX_REST_BASE_URL}/api/v5/market/option/instrument-family-trades?instFamily=${underlying}-USD`,
+          `${OKX_REST_BASE_URL}${OKX_INSTRUMENT_FAMILY_TRADES}?instFamily=${underlying}-USD`,
           { signal: AbortSignal.timeout(10_000) },
         );
         const data = await res.json() as Record<string, unknown>;
@@ -612,7 +570,7 @@ const VENUE_STREAMS: VenueStream[] = [
     },
     async seed(underlying) {
       try {
-        const res = await fetch(`${BYBIT_REST_BASE_URL}/v5/market/recent-trade?category=option&baseCoin=${underlying}&limit=50`, { signal: AbortSignal.timeout(10_000) });
+        const res = await fetch(`${BYBIT_REST_BASE_URL}${BYBIT_RECENT_TRADE}?category=option&baseCoin=${underlying}&limit=50`, { signal: AbortSignal.timeout(10_000) });
         const data = await res.json() as Record<string, unknown>;
         const result = data['result'] as Record<string, unknown> | undefined;
         const list = result?.['list'] as Array<Record<string, unknown>> | undefined;

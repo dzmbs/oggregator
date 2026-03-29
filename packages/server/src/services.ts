@@ -1,11 +1,11 @@
 import type { FastifyBaseLogger } from 'fastify';
-import { DvolService, SpotService, FlowService, BlockFlowService } from '@oggregator/core';
+import { DvolService, SpotRuntime, TradeRuntime, BlockTradeRuntime } from '@oggregator/core';
 import { NoopTradeStore, PostgresTradeStore, type TradeStore } from '@oggregator/db';
 
 export const dvolService = new DvolService();
-export const spotService = new SpotService();
-export const flowService = new FlowService();
-export const blockFlowService = new BlockFlowService();
+export const spotService = new SpotRuntime();
+export const flowService = new TradeRuntime();
+export const blockFlowService = new BlockTradeRuntime();
 export const tradeStore: TradeStore = process.env['DATABASE_URL']
   ? PostgresTradeStore.fromConnectionString(process.env['DATABASE_URL'])
   : new NoopTradeStore();
