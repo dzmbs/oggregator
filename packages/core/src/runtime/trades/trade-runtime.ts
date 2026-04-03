@@ -11,9 +11,9 @@ import {
   OKX_REST_BASE_URL,
   OKX_WS_URL,
 } from '../../feeds/shared/endpoints.js';
+import type { VenueId } from '../../types/common.js';
 import { feedLogger } from '../../utils/logger.js';
 import { backoffDelay } from '../../utils/reconnect.js';
-import type { VenueId } from '../../types/common.js';
 import { createTradeStreamState, mergeTradeStreamState } from './health.js';
 import { filterTradesByMinNotional, pushTradeEvents } from './retention.js';
 import type { TradeEvent, TradeRuntimeHealth, TradeStreamState, VenueStream } from './types.js';
@@ -129,9 +129,11 @@ export class TradeRuntime {
     const subscribedUnderlyings = this.getConnectionUnderlyings(stream, underlying);
     const ws = new WebSocket(stream.url);
     let didOpen = false;
+    let openedAt = 0;
 
     ws.on('open', () => {
       didOpen = true;
+      openedAt = Date.now();
       this.updateStreamStates(stream.venue, subscribedUnderlyings, {
         connected: true,
         lastStatusAt: Date.now(),
@@ -168,7 +170,19 @@ export class TradeRuntime {
       }
     });
 
-    ws.on('close', () => {
+    ws.on('close', (code: number, reason: Buffer) => {
+      const reasonStr = reason.length > 0 ? reason.toString() : undefined;
+      const uptimeMs = openedAt > 0 ? Date.now() - openedAt : undefined;
+      log.warn(
+        {
+          venue: stream.venue,
+          underlying: subscribedUnderlyings.join(','),
+          closeCode: code,
+          closeReason: reasonStr,
+          uptimeMs,
+        },
+        'trade stream closed',
+      );
       this.connections.delete(key);
       this.updateStreamStates(stream.venue, subscribedUnderlyings, {
         connected: false,

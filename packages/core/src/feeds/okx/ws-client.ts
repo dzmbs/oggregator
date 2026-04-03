@@ -1,4 +1,6 @@
 import type WebSocket from 'ws';
+import type { VenueId } from '../../types/common.js';
+import { feedLogger } from '../../utils/logger.js';
 import {
   OKX_INSTRUMENTS,
   OKX_MARK_PRICE,
@@ -8,10 +10,8 @@ import {
   OKX_TICKERS,
   OKX_WS_URL,
 } from '../shared/endpoints.js';
-import { SdkBaseAdapter, type CachedInstrument, type LiveQuote } from '../shared/sdk-base.js';
+import { type CachedInstrument, type LiveQuote, SdkBaseAdapter } from '../shared/sdk-base.js';
 import { TopicWsClient } from '../shared/topic-ws-client.js';
-import type { VenueId } from '../../types/common.js';
-import { feedLogger } from '../../utils/logger.js';
 import {
   parseOkxInstrument,
   parseOkxMarkPrice,
@@ -66,6 +66,29 @@ const REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 // OKX option families with active contracts (confirmed live 2026-03-28).
 // BTC-USDC / ETH-USDC return code 51000 — no options listed there.
 const INST_FAMILIES = ['BTC-USD', 'ETH-USD'] as const;
+
+// OKX enforces a 64KB WebSocket frame limit. Keep batches under 60KB for safety.
+const MAX_SUBSCRIBE_BATCH_BYTES = 60_000;
+
+function batchArgs(args: object[]): object[][] {
+  const batches: object[][] = [];
+  let batch: object[] = [];
+  let batchBytes = 0;
+
+  for (const arg of args) {
+    const size = JSON.stringify(arg).length;
+    if (batchBytes + size > MAX_SUBSCRIBE_BATCH_BYTES && batch.length > 0) {
+      batches.push(batch);
+      batch = [];
+      batchBytes = 0;
+    }
+    batch.push(arg);
+    batchBytes += size;
+  }
+
+  if (batch.length > 0) batches.push(batch);
+  return batches;
+}
 
 /**
  * OKX options adapter using raw WebSocket + fetch.
@@ -346,7 +369,9 @@ export class OkxWsAdapter extends SdkBaseAdapter {
         },
         getReplayMessages: () => {
           const args = buildOkxReplayArgs(this.subscriptions);
-          return args.length > 0 ? [{ op: 'subscribe', args }] : [];
+          if (args.length === 0) return [];
+          // Split into ≤60KB messages to stay under OKX's 64KB frame limit.
+          return this.batchReplayArgs(args);
         },
         onMessage: (raw) => {
           this.handleRawMessage(raw);
@@ -551,21 +576,13 @@ export class OkxWsAdapter extends SdkBaseAdapter {
     args: object[],
     op: 'subscribe' | 'unsubscribe' = 'subscribe',
   ): void {
-    let batch: object[] = [];
-    let batchBytes = 0;
-
-    for (const arg of args) {
-      const size = JSON.stringify(arg).length;
-      if (batchBytes + size > 60_000 && batch.length > 0) {
-        this.sendJson({ op, args: batch });
-        batch = [];
-        batchBytes = 0;
-      }
-      batch.push(arg);
-      batchBytes += size;
+    for (const batch of batchArgs(args)) {
+      this.sendJson({ op, args: batch });
     }
+  }
 
-    if (batch.length > 0) this.sendJson({ op, args: batch });
+  private batchReplayArgs(args: object[]): Array<Record<string, unknown>> {
+    return batchArgs(args).map((batch) => ({ op: 'subscribe', args: batch }));
   }
 
   private async fetchOkxApi(path: string, params: Record<string, string>): Promise<unknown[]> {

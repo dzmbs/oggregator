@@ -1,5 +1,5 @@
-import WebSocket from 'ws';
 import type pino from 'pino';
+import WebSocket from 'ws';
 import { logger } from '../../utils/logger.js';
 import { backoffDelay } from '../../utils/reconnect.js';
 
@@ -46,6 +46,7 @@ export class JsonRpcWsClient {
   private reconnectAttempts = 0;
   private subscribedChannels = new Set<string>();
   private heartbeatToken = 0;
+  private connectedAt = 0;
   private log: pino.Logger;
 
   constructor(
@@ -75,6 +76,7 @@ export class JsonRpcWsClient {
       this.ws = new WebSocket(this.url);
 
       this.ws.on('open', () => {
+        this.connectedAt = Date.now();
         this.log.info({ url: this.url }, 'ws connected');
         this.reconnectAttempts = 0;
         this.startHeartbeat();
@@ -91,8 +93,18 @@ export class JsonRpcWsClient {
         }
       });
 
-      this.ws.on('close', () => {
-        this.log.warn('ws closed');
+      this.ws.on('close', (code: number, reason: Buffer) => {
+        const reasonStr = reason.length > 0 ? reason.toString() : undefined;
+        const uptimeMs = this.connectedAt > 0 ? Date.now() - this.connectedAt : undefined;
+        this.log.warn(
+          {
+            closeCode: code,
+            closeReason: reasonStr,
+            uptimeMs,
+            channels: this.subscribedChannels.size,
+          },
+          'ws closed',
+        );
         this.cleanup();
         this.options.onStatusChange?.('reconnecting');
         if (this.shouldReconnect) this.scheduleReconnect();
@@ -297,7 +309,11 @@ export class JsonRpcWsClient {
     const batchSize = this.options.resubscribeBatchSize ?? DEFAULT_RESUBSCRIBE_BATCH_SIZE;
     const delayMs = this.options.resubscribeBatchDelayMs ?? DEFAULT_RESUBSCRIBE_BATCH_DELAY_MS;
     const channels = [...this.subscribedChannels.values()];
-    this.log.info({ count: channels.length }, 're-subscribing to channels');
+    const batches = Math.ceil(channels.length / batchSize);
+    this.log.info(
+      { count: channels.length, batches, batchSize, delayMs },
+      're-subscribing to channels',
+    );
 
     for (let i = 0; i < channels.length; i += batchSize) {
       const batch = channels.slice(i, i + batchSize);

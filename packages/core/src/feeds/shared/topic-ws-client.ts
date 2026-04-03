@@ -1,5 +1,5 @@
-import WebSocket from 'ws';
 import type pino from 'pino';
+import WebSocket from 'ws';
 import { logger } from '../../utils/logger.js';
 import { backoffDelay } from '../../utils/reconnect.js';
 
@@ -27,6 +27,7 @@ export class TopicWsClient {
   private pingTimer: ReturnType<typeof setInterval> | null = null;
   private shouldReconnect = true;
   private reconnectAttempts = 0;
+  private connectedAt = 0;
   private readonly log: pino.Logger;
 
   constructor(
@@ -57,6 +58,7 @@ export class TopicWsClient {
       this.options.onSocket?.(this.ws);
 
       this.ws.on('open', () => {
+        this.connectedAt = Date.now();
         this.log.info({ url: this.url }, 'ws connected');
         this.reconnectAttempts = 0;
         this.startPing();
@@ -72,8 +74,10 @@ export class TopicWsClient {
         this.options.onMessage?.(raw);
       });
 
-      this.ws.on('close', () => {
-        this.log.warn('ws closed');
+      this.ws.on('close', (code: number, reason: Buffer) => {
+        const reasonStr = reason.length > 0 ? reason.toString() : undefined;
+        const uptimeMs = this.connectedAt > 0 ? Date.now() - this.connectedAt : undefined;
+        this.log.warn({ closeCode: code, closeReason: reasonStr, uptimeMs }, 'ws closed');
         this.cleanup();
         this.options.onClose?.();
         this.options.onStatusChange?.('reconnecting');

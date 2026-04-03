@@ -12,10 +12,10 @@ import {
   OKX_REST_BASE_URL,
   OKX_RFQ_PUBLIC_TRADES,
 } from '../../feeds/shared/endpoints.js';
+import { computeBlockTradeAmounts } from '../../trade-persistence.js';
+import type { VenueId } from '../../types/common.js';
 import { feedLogger } from '../../utils/logger.js';
 import { backoffDelay } from '../../utils/reconnect.js';
-import type { VenueId } from '../../types/common.js';
-import { computeBlockTradeAmounts } from '../../trade-persistence.js';
 import { createBlockVenueState, mergeBlockVenueState } from './health.js';
 import { BLOCK_TRADE_RUNTIME_BUFFER_SIZE, insertBlockTrades } from './retention.js';
 import type {
@@ -349,9 +349,11 @@ function deribitBlockStream(): BlockVenueStream {
     if (!shouldReconnect) return;
     ws = new WebSocket(DERIBIT_WS_URL);
     let didOpen = false;
+    let openedAt = 0;
 
     ws.on('open', () => {
       didOpen = true;
+      openedAt = Date.now();
       handlers?.onConnected();
       log.info({ venue: 'deribit' }, 'block trade WS connected');
       ws!.send(
@@ -387,7 +389,13 @@ function deribitBlockStream(): BlockVenueStream {
       }
     });
 
-    ws.on('close', () => {
+    ws.on('close', (code: number, reason: Buffer) => {
+      const reasonStr = reason.length > 0 ? reason.toString() : undefined;
+      const uptimeMs = openedAt > 0 ? Date.now() - openedAt : undefined;
+      log.warn(
+        { venue: 'deribit', closeCode: code, closeReason: reasonStr, uptimeMs },
+        'block trade WS closed',
+      );
       handlers?.onDisconnected();
       if (shouldReconnect) {
         handlers?.onReconnect();
@@ -540,9 +548,11 @@ function bybitBlockStream(): BlockVenueStream {
     if (!shouldReconnect) return;
     ws = new WebSocket(BYBIT_RFQ_WS_URL);
     let didOpen = false;
+    let openedAt = 0;
 
     ws.on('open', () => {
       didOpen = true;
+      openedAt = Date.now();
       handlers?.onConnected();
       log.info({ venue: 'bybit' }, 'block trade WS connected');
       ws!.send(JSON.stringify({ op: 'subscribe', args: ['rfq.open.public.trades'] }));
@@ -571,7 +581,13 @@ function bybitBlockStream(): BlockVenueStream {
       }
     });
 
-    ws.on('close', () => {
+    ws.on('close', (code: number, reason: Buffer) => {
+      const reasonStr = reason.length > 0 ? reason.toString() : undefined;
+      const uptimeMs = openedAt > 0 ? Date.now() - openedAt : undefined;
+      log.warn(
+        { venue: 'bybit', closeCode: code, closeReason: reasonStr, uptimeMs },
+        'block trade WS closed',
+      );
       handlers?.onDisconnected();
       if (keepaliveTimer) {
         clearInterval(keepaliveTimer);
