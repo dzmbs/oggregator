@@ -16,7 +16,8 @@ pnpm typecheck    # tsc --noEmit
 src/
   features/
     chain/          Main view: cross-venue option chain with stats, expiry tabs
-    surface/        IV surface heatmap (expiry × delta grid)
+    surface/        Volatility tab: 3D surface, smile, ATM term structure, realized vs implied
+    dvol/           DVOL chart + history queries (data from Deribit)
     gex/            Gamma exposure bar chart per strike
     architect/      Builder view: templates, custom legs, payoff chart, venue comparison
     flow/           Live flow + institutions mode

@@ -28,6 +28,8 @@ src/
     flow.ts          GET /api/flow?underlying=BTC
     block-flow.ts    GET /api/block-flow?underlying=BTC
     surface.ts       GET /api/surface?underlying=BTC
+    dvol-history.ts  GET /api/dvol-history?currency=BTC
+    stats.ts         GET /api/stats?underlying=BTC
 ```
 
 ## Non-obvious decisions
