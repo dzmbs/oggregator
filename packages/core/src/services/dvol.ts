@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { DERIBIT_WS_URL } from '../feeds/shared/endpoints.js';
+import { DERIBIT_WS_URL, DERIBIT_REST_BASE_URL } from '../feeds/shared/endpoints.js';
 import { JsonRpcWsClient } from '../feeds/shared/jsonrpc-client.js';
 import { feedLogger } from '../utils/logger.js';
 
@@ -28,11 +28,64 @@ export interface DvolSnapshot {
 const CandleSchema = z.tuple([z.number(), z.number(), z.number(), z.number(), z.number()]);
 const CandlesResultSchema = z.object({ data: z.array(CandleSchema) });
 
+// TradingView chart data: { status, ticks, open, high, low, close, volume, cost }
+const TvChartSchema = z.object({
+  status: z.string(),
+  ticks:  z.array(z.number()),
+  close:  z.array(z.number()),
+  // We only need ticks + close for RV; accept but ignore the rest
+  open:   z.array(z.number()).optional(),
+  high:   z.array(z.number()).optional(),
+  low:    z.array(z.number()).optional(),
+  volume: z.array(z.number()).optional(),
+  cost:   z.array(z.number()).optional(),
+}).passthrough();
+
 // Live push: { index_name: "btc_usd", volatility: 53.48 }
 const DvolPushSchema = z.object({
   index_name: z.string(),
   volatility: z.number(),
 });
+
+const RV_WINDOW = 30; // 30-day rolling window to match DVOL's 30-day ATM IV
+
+/** Compute rolling realized vol from daily closes. Returns percentage values. */
+function computeRealizedVol(
+  timestamps: number[],
+  closes: number[],
+  window: number,
+): HvPoint[] {
+  if (closes.length < window + 1) return [];
+
+  // Precompute daily log returns
+  const logReturns: number[] = [];
+  for (let i = 1; i < closes.length; i++) {
+    logReturns.push(Math.log(closes[i]! / closes[i - 1]!));
+  }
+
+  const points: HvPoint[] = [];
+  const sqrtAnnual = Math.sqrt(365);
+
+  for (let i = window - 1; i < logReturns.length; i++) {
+    // Mean of returns in window
+    let sum = 0;
+    for (let j = i - window + 1; j <= i; j++) sum += logReturns[j]!;
+    const mean = sum / window;
+
+    // Variance (sample)
+    let varSum = 0;
+    for (let j = i - window + 1; j <= i; j++) {
+      const diff = logReturns[j]! - mean;
+      varSum += diff * diff;
+    }
+    const stddev = Math.sqrt(varSum / (window - 1));
+    const rv = stddev * sqrtAnnual * 100; // annualize and convert to percentage
+
+    points.push({ timestamp: timestamps[i + 1]!, value: rv });
+  }
+
+  return points;
+}
 
 // ── Service ───────────────────────────────────────────────────
 
@@ -74,16 +127,17 @@ export class DvolService {
 
     await this.rpc.connect();
 
-    await Promise.all(currencies.map(c => Promise.all([
-      this.fetchHistory(c),
-      this.fetchHv(c),
-    ])));
+    await Promise.all(currencies.map(c => this.fetchHistory(c)));
 
     const channels = currencies.map(c => `deribit_volatility_index.${c.toLowerCase()}_usd`);
     await this.rpc.subscribe(channels);
     log.info({ currencies, channels: channels.length }, 'subscribed to DVOL');
 
     this.scheduleHistoryRefresh();
+
+    // Fetch index candles for self-computed RV in the background — not on the critical path
+    Promise.allSettled(currencies.map(c => this.fetchIndexCandles(c)))
+      .catch(() => {});
   }
 
   getSnapshot(currency: string): DvolSnapshot | null {
@@ -99,7 +153,7 @@ export class DvolService {
     return this.candleHistory.get(currency) ?? [];
   }
 
-  /** Hourly realized volatility snapshots (percentage values). */
+  /** Rolling 30-day realized volatility computed from daily index prices (percentage values). */
   getHv(currency: string): HvPoint[] {
     return this.hvHistory.get(currency) ?? [];
   }
@@ -150,29 +204,38 @@ export class DvolService {
     }, 'DVOL history loaded');
   }
 
-  private async fetchHv(currency: string): Promise<void> {
+  private async fetchIndexCandles(currency: string): Promise<void> {
     try {
-      const raw = await this.rpc!.call('public/get_historical_volatility', { currency });
+      const oneYearAgo = Date.now() - 365 * 24 * 60 * 60 * 1000;
+      const instrumentName = `${currency}-PERPETUAL`;
+      const params = new URLSearchParams({
+        instrument_name: instrumentName,
+        start_timestamp: String(oneYearAgo),
+        end_timestamp: String(Date.now()),
+        resolution: '1D',
+      });
 
-      if (!Array.isArray(raw)) {
-        log.warn({ currency }, 'unexpected HV response shape');
+      const url = `${DERIBIT_REST_BASE_URL}/api/v2/public/get_tradingview_chart_data?${params}`;
+      const res = await fetch(url);
+      if (!res.ok) {
+        log.warn({ currency, status: res.status }, 'index candle REST fetch failed');
         return;
       }
 
-      const points: HvPoint[] = [];
-      for (const item of raw) {
-        if (!Array.isArray(item) || item.length < 2) continue;
-        const ts  = Number(item[0]);
-        const val = Number(item[1]);
-        if (Number.isFinite(ts) && Number.isFinite(val)) {
-          points.push({ timestamp: ts, value: val });
-        }
+      const json = await res.json() as { result?: unknown };
+      const parsed = TvChartSchema.safeParse(json.result);
+      if (!parsed.success || parsed.data.ticks.length === 0) {
+        log.warn({ currency }, 'no index candles returned');
+        return;
       }
 
+      const { ticks, close } = parsed.data;
+      const points = computeRealizedVol(ticks, close, RV_WINDOW);
+
       this.hvHistory.set(currency, points);
-      log.info({ currency, count: points.length }, 'HV history loaded');
+      log.info({ currency, candles: ticks.length, hvPoints: points.length }, 'RV computed from index candles');
     } catch (err: unknown) {
-      log.warn({ currency, err: String(err) }, 'HV fetch failed');
+      log.warn({ currency, err: String(err) }, 'index candle fetch failed');
     }
   }
 

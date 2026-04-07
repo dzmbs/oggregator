@@ -1,0 +1,85 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  overflow: visible;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.title {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* ── Legend ────────────────────────────────────────────── */
+
+.legend {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+.legendSwatch {
+  width: 14px;
+  height: 3px;
+  border-radius: 1.5px;
+}
+
+.legendLabel {
+  position: relative;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-dim);
+  margin-right: var(--space-3);
+  cursor: default;
+}
+
+.legendLabel[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: normal;
+  width: max-content;
+  max-width: 280px;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: var(--bg-elevated, #1e1e2e);
+  border: 1px solid var(--border-dim, #333);
+  border-radius: 4px;
+  padding: 4px 8px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 100;
+}
+
+.legendLabel[data-tooltip]:hover::after {
+  opacity: 1;
+}
+
+.inlineLogo {
+  width: 11px;
+  height: 11px;
+  border-radius: 2px;
+  object-fit: contain;
+  vertical-align: -1px;
+  margin-right: 1px;
+}
+
+/* ── Chart ────────────────────────────────────────────── */
+
+.chartArea {
+  overflow: visible;
+}
