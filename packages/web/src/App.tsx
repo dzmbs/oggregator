@@ -14,7 +14,7 @@ import styles from './App.module.css';
 const TABS = [
   { id: 'chain', label: 'Chain' },
   { id: 'architect', label: 'Builder' },
-  { id: 'surface', label: 'Surface' },
+  { id: 'surface', label: 'Volatility' },
   { id: 'flow', label: 'Flow', badge: 'LIVE' },
   { id: 'analytics', label: 'Analytics' },
   { id: 'gex', label: 'GEX' },
