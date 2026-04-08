@@ -1,2 +1,2 @@
 export { default as ChainView } from './ChainView';
-export { useUnderlyings } from './queries';
+export { useUnderlyings, useExpiries } from './queries';

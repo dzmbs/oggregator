@@ -1,249 +1,210 @@
-import { useRef, useEffect, useState, useCallback } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import {
   createChart,
   LineSeries,
-  LineStyle,
-  type IChartApi,
-  type ISeriesApi,
   ColorType,
 } from 'lightweight-charts';
 
-import { useAppStore } from '@stores/app-store';
-import { useChainQuery, useExpiries } from '@features/chain/queries';
-import { Spinner, DropdownPicker } from '@components/ui';
+import type { EnrichedChainResponse } from '@shared/enriched';
+import { useUnderlyings, useExpiries } from '@features/chain';
+import { DropdownPicker } from '@components/ui';
+import { getTokenLogo } from '@lib/token-meta';
+import { VENUE_IDS, VENUE_LIST } from '@lib/venue-meta';
 import { formatExpiry, dteDays } from '@lib/format';
+import { extractSmile, deltaTickLabel, type XAxisMode } from './smile-utils';
+import { useAllExpiriesSmile } from './queries';
 import styles from './VolSmile.module.css';
 
-type SmileMode = 'both' | 'call' | 'put';
+const EXPIRY_COLORS = [
+  '#00E997', '#CB3855', '#50D2C1', '#F0B90B', '#0052FF',
+  '#F7A600', '#25FAAF', '#8B5CF6', '#EC4899', '#6366F1',
+  '#A855F7', '#14B8A6',
+];
 
-const ALL_VENUES = ['deribit', 'okx', 'bybit', 'binance', 'derive'];
+const CHART_OPTIONS = {
+  autoSize: true,
+  layout: {
+    background: { type: ColorType.Solid as const, color: 'transparent' },
+    textColor: '#555B5E',
+    fontFamily: "'IBM Plex Mono', monospace",
+    fontSize: 11,
+  },
+  grid: { vertLines: { color: '#1A1A1A' }, horzLines: { color: '#1A1A1A' } },
+  rightPriceScale: { borderColor: '#1F2937', scaleMargins: { top: 0.08, bottom: 0.08 } },
+  crosshair: {
+    horzLine: { color: '#50D2C1', labelBackgroundColor: '#0E3333' },
+    vertLine: { color: '#50D2C1', labelBackgroundColor: '#0E3333', labelVisible: false },
+  },
+  handleScale: { mouseWheel: true, pinch: true },
+  handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: false },
+} as const;
 
-interface SmilePoint {
-  strike: number;
-  iv: number;
-}
+const IV_FORMAT = { type: 'custom' as const, formatter: (p: number) => `${p.toFixed(1)}%` };
 
-function averageIv(
-  venues: Record<string, { markIv?: number | null } | undefined>,
-  activeVenues: string[],
-): number | null {
-  let sum = 0;
-  let count = 0;
-
-  for (const [venueId, quote] of Object.entries(venues)) {
-    if (!activeVenues.includes(venueId) || quote?.markIv == null) continue;
-    sum += quote.markIv;
-    count += 1;
-  }
-
-  return count > 0 ? sum / count : null;
-}
-
-function extractSmile(
-  strikes: Array<{
-    strike: number;
-    call: { venues: Record<string, { markIv?: number | null } | undefined> };
-    put: { venues: Record<string, { markIv?: number | null } | undefined> };
-  }>,
-  activeVenues: string[],
-  spotPrice: number | null,
-): { calls: SmilePoint[]; puts: SmilePoint[] } {
-  const calls: SmilePoint[] = [];
-  const puts: SmilePoint[] = [];
-
-  for (const s of strikes) {
-    const callIv = averageIv(s.call.venues, activeVenues);
-    const putIv = averageIv(s.put.venues, activeVenues);
-
-    if (callIv != null) calls.push({ strike: s.strike, iv: callIv * 100 });
-    if (putIv != null) puts.push({ strike: s.strike, iv: putIv * 100 });
-  }
-
-  const band = spotPrice ? spotPrice * 0.3 : Infinity;
-  const inBand = (p: SmilePoint) => !spotPrice || Math.abs(p.strike - spotPrice) <= band;
-
-  return {
-    calls: calls.filter(inBand).sort((a, b) => a.strike - b.strike),
-    puts: puts.filter(inBand).sort((a, b) => a.strike - b.strike),
-  };
-}
-
-export default function VolSmile() {
-  const underlying = useAppStore((s) => s.underlying);
-  const activeVenues = useAppStore((s) => s.activeVenues);
-  const expiry = useAppStore((s) => s.expiry);
-  const { data: expiriesData } = useExpiries(underlying);
-  const expiries = expiriesData?.expiries ?? [];
-
-  const defaultExpiry =
-    expiry && expiries.includes(expiry)
-      ? expiry
-      : expiries.length > 1
-        ? expiries[1]!
-        : (expiries[0] ?? '');
-
-  const [localExpiry, setLocalExpiry] = useState('');
-  const smileExpiry = localExpiry && expiries.includes(localExpiry) ? localExpiry : defaultExpiry;
-
-  const handleExpiryChange = useCallback((value: string) => {
-    setLocalExpiry(value);
-  }, []);
-
-  const { data: chain } = useChainQuery(underlying, smileExpiry, ALL_VENUES);
-  const [mode, setMode] = useState<SmileMode>('both');
-
-  const chartRef = useRef<HTMLDivElement>(null);
-  const chartApi = useRef<IChartApi | null>(null);
-  const callSeries = useRef<ISeriesApi<'Line'> | null>(null);
-  const putSeries = useRef<ISeriesApi<'Line'> | null>(null);
+function useVolSmileChart(
+  containerRef: React.RefObject<HTMLDivElement | null>,
+  chains: EnrichedChainResponse[],
+  hiddenExpiries: Set<string>,
+  selectedVenue: string,
+  xAxisMode: XAxisMode,
+  expiries: string[],
+) {
+  const hiddenKey = [...hiddenExpiries].sort().join(',');
 
   useEffect(() => {
-    const container = chartRef.current;
-    if (!container) return;
+    const container = containerRef.current;
+    if (!container || chains.length === 0) return;
+
+    const colors = new Map(expiries.map((e, i) => [e, EXPIRY_COLORS[i % EXPIRY_COLORS.length]!]));
+    const tickFmt = xAxisMode === 'delta'
+      ? (v: number) => deltaTickLabel(v)
+      : (v: number) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v));
 
     const chart = createChart(container, {
-      autoSize: true,
-      layout: {
-        background: { type: ColorType.Solid, color: '#0A0A0A' },
-        textColor: '#555B5E',
-        fontFamily: "'IBM Plex Mono', monospace",
-        fontSize: 11,
-      },
-      grid: {
-        vertLines: { color: '#1A1A1A' },
-        horzLines: { color: '#1A1A1A' },
-      },
-      rightPriceScale: {
-        borderColor: '#1F2937',
-        scaleMargins: { top: 0.08, bottom: 0.08 },
-      },
-      timeScale: {
-        borderColor: '#1F2937',
-        tickMarkFormatter: (v: number) => v.toLocaleString(),
-      },
-      crosshair: {
-        horzLine: { color: '#50D2C1', labelBackgroundColor: '#0E3333' },
-        vertLine: { color: '#50D2C1', labelBackgroundColor: '#0E3333', labelVisible: false },
-      },
-      handleScale: { mouseWheel: true, pinch: true },
-      handleScroll: {
-        mouseWheel: true,
-        pressedMouseMove: true,
-        horzTouchDrag: true,
-        vertTouchDrag: false,
-      },
+      ...CHART_OPTIONS,
+      timeScale: { borderColor: '#1F2937', tickMarkFormatter: tickFmt },
     });
 
-    const priceFmt = { type: 'custom' as const, formatter: (p: number) => `${p.toFixed(1)}%` };
+    const activeVenues = selectedVenue === 'average' ? VENUE_IDS : [selectedVenue];
 
-    const ps = chart.addSeries(LineSeries, {
-      color: '#CB3855',
-      lineWidth: 2,
-      lineStyle: LineStyle.Dashed,
-      title: 'Put IV',
-      priceFormat: priceFmt,
+    for (const chain of chains) {
+      if (hiddenExpiries.has(chain.expiry)) continue;
+      const spot = chain.stats.spotIndexUsd;
+      const points = extractSmile(chain.strikes, activeVenues, spot, xAxisMode);
+      if (points.length < 3) continue;
+
+      const series = chart.addSeries(LineSeries, {
+        color: colors.get(chain.expiry) ?? '#555B5E',
+        lineWidth: 2,
+        priceFormat: IV_FORMAT,
+        lastValueVisible: false,
+        priceLineVisible: false,
+      });
+      series.setData(points.map((p) => ({ time: p.strike as unknown as number, value: p.iv })) as never);
+    }
+
+    chart.timeScale().fitContent();
+    return () => { chart.remove(); };
+  }, [containerRef, chains, hiddenKey, selectedVenue, xAxisMode, expiries]);
+}
+
+interface Props {
+  defaultUnderlying?: string;
+}
+
+export default function VolSmile({ defaultUnderlying = 'BTC' }: Props) {
+  const [localUnderlying, setLocalUnderlying] = useState(defaultUnderlying);
+  const [hiddenExpiries, setHiddenExpiries] = useState<Set<string>>(new Set());
+  const [xAxisMode, setXAxisMode] = useState<XAxisMode>('strike');
+  const [selectedVenue, setSelectedVenue] = useState('deribit');
+
+  const { data: underlyingsData } = useUnderlyings();
+  const underlyings = underlyingsData?.underlyings ?? [];
+  const { data: expiriesData } = useExpiries(localUnderlying);
+  const expiries = expiriesData?.expiries ?? [];
+
+  const { data: chains } = useAllExpiriesSmile(localUnderlying, true);
+
+  const expiryColors = new Map(expiries.map((e, i) => [e, EXPIRY_COLORS[i % EXPIRY_COLORS.length]!]));
+
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useVolSmileChart(containerRef, chains ?? [], hiddenExpiries, selectedVenue, xAxisMode, expiries);
+
+  const toggleExpiry = (exp: string) => {
+    setHiddenExpiries((prev) => {
+      const next = new Set(prev);
+      if (next.has(exp)) next.delete(exp);
+      else next.add(exp);
+      return next;
     });
+  };
 
-    const cs = chart.addSeries(LineSeries, {
-      color: '#00E997',
-      lineWidth: 2,
-      lineStyle: LineStyle.Solid,
-      title: 'Call IV',
-      priceFormat: priceFmt,
-    });
+  const toggleAll = () => {
+    if (hiddenExpiries.size === 0) {
+      setHiddenExpiries(new Set(expiries));
+    } else {
+      setHiddenExpiries(new Set());
+    }
+  };
 
-    chartApi.current = chart;
-    callSeries.current = cs;
-    putSeries.current = ps;
+  const logo = getTokenLogo(localUnderlying);
 
-    return () => {
-      chart.remove();
-      chartApi.current = null;
-      callSeries.current = null;
-      putSeries.current = null;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!callSeries.current || !putSeries.current || !chain) return;
-
-    const spot = chain.stats.spotIndexUsd;
-    const { calls, puts } = extractSmile(chain.strikes, activeVenues, spot);
-
-    const toData = (points: SmilePoint[]) =>
-      points.map((p) => ({ time: p.strike as unknown as number, value: p.iv })) as never;
-
-    const showCall = mode === 'both' || mode === 'call';
-    const showPut = mode === 'both' || mode === 'put';
-
-    callSeries.current.setData(showCall ? toData(calls) : []);
-    putSeries.current.setData(showPut ? toData(puts) : []);
-
-    // Put is dashed when both visible so call line stays readable on overlap
-    putSeries.current.applyOptions({
-      lineStyle: mode === 'put' ? LineStyle.Solid : LineStyle.Dashed,
-    });
-
-    chartApi.current?.timeScale().fitContent();
-  }, [chain, activeVenues, mode]);
-
-  if (!chain) {
-    return (
-      <div className={styles.wrap}>
-        <Spinner size="md" label="Loading smile…" />
-      </div>
-    );
-  }
+  const venueOptions = [
+    { value: 'average', label: 'Average' },
+    ...VENUE_LIST.map((v) => ({ value: v.id, label: v.label })),
+  ];
 
   return (
     <div className={styles.wrap}>
       <div className={styles.header}>
         <span className={styles.title}>Vol Smile</span>
-
         <DropdownPicker
           size="sm"
-          value={smileExpiry}
-          onChange={handleExpiryChange}
-          options={expiries.map((e) => ({
-            value: e,
-            label: formatExpiry(e),
-            meta: `${dteDays(e)}d`,
-          }))}
+          value={localUnderlying}
+          onChange={(v: string) => { setLocalUnderlying(v); setHiddenExpiries(new Set()); }}
+          icon={logo ? <img src={logo} alt="" className={styles.tokenLogo} /> : undefined}
+          options={underlyings.map((u) => ({ value: u, label: u }))}
         />
-
-        <div className={styles.modePicker}>
-          {(['both', 'call', 'put'] as const).map((m) => (
-            <button
-              key={m}
-              className={styles.modeBtn}
-              data-active={m === mode}
-              data-type={m}
-              onClick={() => setMode(m)}
-            >
-              {m === 'both' ? 'Both' : m === 'call' ? 'Call' : 'Put'}
-            </button>
-          ))}
+        <DropdownPicker
+          size="sm"
+          value={selectedVenue}
+          onChange={setSelectedVenue}
+          options={venueOptions}
+        />
+        <div className={styles.xAxisToggle}>
+          <button
+            type="button"
+            className={styles.toggleBtn}
+            data-active={xAxisMode === 'delta' || undefined}
+            onClick={() => setXAxisMode('delta')}
+          >
+            Delta
+          </button>
+          <button
+            type="button"
+            className={styles.toggleBtn}
+            data-active={xAxisMode === 'strike' || undefined}
+            onClick={() => setXAxisMode('strike')}
+          >
+            Strike
+          </button>
         </div>
       </div>
-      <div className={styles.legend}>
-        {(mode === 'both' || mode === 'call') && (
-          <span className={styles.legendItem}>
-            <span className={styles.legendLine} data-type="call" /> Call IV
-          </span>
-        )}
-        {(mode === 'both' || mode === 'put') && (
-          <span className={styles.legendItem}>
-            <span
-              className={styles.legendLine}
-              data-type="put"
-              data-dashed={mode === 'both' || undefined}
-            />{' '}
-            Put IV
-          </span>
-        )}
-      </div>
-      <div className={styles.chartArea}>
-        <div className={styles.chartWrap} ref={chartRef} />
+
+      <div className={styles.body}>
+        <div className={styles.sidebar}>
+          <button
+            type="button"
+            className={styles.expiryBtn}
+            data-active={hiddenExpiries.size === 0 || undefined}
+            onClick={toggleAll}
+          >
+            <span className={styles.expiryLine} style={{ background: '#888' }} />
+            <span className={styles.expiryLabel}>All</span>
+          </button>
+          {expiries.map((exp) => {
+            const active = !hiddenExpiries.has(exp);
+            const color = expiryColors.get(exp) ?? '#555B5E';
+            const dte = dteDays(exp);
+            return (
+              <button
+                key={exp}
+                type="button"
+                className={styles.expiryBtn}
+                data-active={active || undefined}
+                onClick={() => toggleExpiry(exp)}
+              >
+                <span className={styles.expiryLine} style={{ background: color }} />
+                <span className={styles.expiryLabel}>{formatExpiry(exp)}</span>
+                <span className={styles.expiryDte}>{dte}d</span>
+              </button>
+            );
+          })}
+        </div>
+        <div className={styles.chartArea}>
+          <div className={styles.chartWrap} ref={containerRef} />
+        </div>
       </div>
     </div>
   );
