@@ -1,0 +1,104 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  height: 100%;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-shrink: 0;
+}
+
+.title {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.tokenLogo {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+}
+
+/* ── Venue toggles ─────────────────────────────── */
+
+.venues {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.venueToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: opacity var(--transition-fast);
+}
+
+.checkbox {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  cursor: pointer;
+  border: 1.5px solid var(--border-subtle);
+  border-radius: 3px;
+  background: var(--bg-base);
+  position: relative;
+  flex-shrink: 0;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.checkbox:checked {
+  background: var(--color-accent, #50D2C1);
+  border-color: var(--color-accent, #50D2C1);
+}
+
+.checkbox:checked::after {
+  content: '';
+  position: absolute;
+  left: 3.5px;
+  top: 1px;
+  width: 4px;
+  height: 7px;
+  border: solid #0A0A0A;
+  border-width: 0 1.5px 1.5px 0;
+  transform: rotate(45deg);
+}
+
+.venueSwatch {
+  width: 10px;
+  height: 3px;
+  border-radius: 1px;
+  flex-shrink: 0;
+}
+
+.venueLogo {
+  width: 14px;
+  height: 14px;
+  object-fit: contain;
+}
+
+/* ── Chart area ────────────────────────────────── */
+
+.chartArea {
+  flex: 1;
+  min-height: 250px;
+  position: relative;
+}
+
+.chartWrap {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}

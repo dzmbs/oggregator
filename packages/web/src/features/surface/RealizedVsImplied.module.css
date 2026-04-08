@@ -1,0 +1,65 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  height: 100%;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.title {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.tokenLogo {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+}
+
+/* ── Legend ─────────────────────────────────────── */
+
+.legend {
+  display: flex;
+  gap: var(--space-4);
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.legendSwatch {
+  width: 14px;
+  height: 3px;
+  border-radius: 1px;
+  flex-shrink: 0;
+}
+
+/* ── Chart area ────────────────────────────────── */
+
+.chartArea {
+  flex: 1;
+  min-height: 250px;
+  position: relative;
+}
+
+.chartWrap {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
