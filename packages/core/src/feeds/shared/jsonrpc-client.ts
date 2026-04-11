@@ -17,6 +17,11 @@ const DEFAULT_RESUBSCRIBE_BATCH_SIZE = 200;
 const DEFAULT_RESUBSCRIBE_BATCH_DELAY_MS = 350;
 const SEC_TO_MS = 1_000;
 
+// Deribit closes the connection if the `public/test` response lags behind the
+// heartbeat deadline. Log whenever our response is even close to that boundary
+// so we can distinguish outbound-buffer congestion from other failure modes.
+const SLOW_TEST_RESPONSE_THRESHOLD_MS = 100;
+
 interface JsonRpcPendingRequest {
   resolve: (value: unknown) => void;
   reject: (error: Error) => void;
@@ -163,7 +168,7 @@ export class JsonRpcWsClient {
     this.subscriptionHandler = handler;
   }
 
-  async subscribe(channels: string[]): Promise<void> {
+  async subscribe(channels: string[], source = 'unknown'): Promise<void> {
     const method = this.options.subscribeMethod ?? 'public/subscribe';
     const added: string[] = [];
 
@@ -172,6 +177,16 @@ export class JsonRpcWsClient {
       this.subscribedChannels.add(channel);
       added.push(channel);
     }
+
+    this.log.info(
+      {
+        source,
+        requested: channels.length,
+        added: added.length,
+        totalChannels: this.subscribedChannels.size,
+      },
+      'subscribe',
+    );
 
     try {
       await this.call(method, { channels });
@@ -229,6 +244,8 @@ export class JsonRpcWsClient {
 
     // Heartbeat test_request — must respond with public/test
     if (msg.method === 'heartbeat' && msg.params?.type === 'test_request') {
+      const receivedAt = Date.now();
+      const bufferedBefore = this.ws?.bufferedAmount ?? 0;
       this.ws?.send(
         JSON.stringify({
           jsonrpc: '2.0',
@@ -237,6 +254,13 @@ export class JsonRpcWsClient {
           params: {},
         }),
       );
+      const elapsedMs = Date.now() - receivedAt;
+      if (elapsedMs >= SLOW_TEST_RESPONSE_THRESHOLD_MS || bufferedBefore > 0) {
+        this.log.warn(
+          { elapsedMs, bufferedBefore, channels: this.subscribedChannels.size },
+          'slow test_request response',
+        );
+      }
       return;
     }
 

@@ -51,6 +51,17 @@ const EAGER_TICKER_INTERVAL = 'agg2';
 const ACTIVE_TICKER_INTERVAL = '100ms';
 const HEALTH_CHECK_INTERVAL_MS = 60 * 1000;
 
+// At 08:00 UTC daily, Deribit bulk-lists/expires instruments, emitting hundreds
+// of `instrument.state` notifications in a burst. Firing a separate
+// `public/get_instrument` + `public/subscribe` per event saturates Deribit's
+// per-IP rate limit on unauthenticated connections and triggers `over_limit`
+// disconnects. We coalesce events arriving within this window into one flush
+// that batches fetches (bounded concurrency) and routes opens through a single
+// `subscribeWithInterval` call per underlying.
+const INSTRUMENT_STATE_COALESCE_MS = 1_000;
+const INSTRUMENT_STATE_FETCH_CONCURRENCY = 8;
+const INSTRUMENT_STATE_FETCH_CHUNK_DELAY_MS = 250;
+
 /** Regex for Deribit instrument names, supporting decimal strikes (e.g. 420d5 → 420.5). */
 const INSTRUMENT_RE = /^(\w+)-(\w+)-(\d+(?:d\d+)?)-([CP])$/;
 
@@ -81,6 +92,8 @@ export class DeribitWsAdapter extends SdkBaseAdapter {
 
   private rpc!: JsonRpcWsClient;
   private healthTimer: ReturnType<typeof setInterval> | null = null;
+  private instrumentStateQueue: unknown[] = [];
+  private instrumentStateFlushTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly state = createDeribitState();
   private readonly subscriptions = createDeribitSubscriptionState();
   private readonly health = createDeribitHealthState();
@@ -127,7 +140,7 @@ export class DeribitWsAdapter extends SdkBaseAdapter {
       } else if (channel.startsWith('ticker.')) {
         this.handleTicker(channel, data);
       } else if (channel.startsWith('instrument.state.')) {
-        void this.handleInstrumentState(data);
+        this.enqueueInstrumentState(data);
       } else if (channel === 'platform_state') {
         this.handlePlatformState(data);
       }
@@ -161,7 +174,7 @@ export class DeribitWsAdapter extends SdkBaseAdapter {
 
     // Subscribe to lifecycle and platform health events so listings and
     // maintenance/lock state stay current without polling.
-    await this.rpc.subscribe(['instrument.state.option.any', 'platform_state']);
+    await this.rpc.subscribe(['instrument.state.option.any', 'platform_state'], 'lifecycle');
 
     const currencies = [...new Set(instruments.map((i) => i.settle))];
     await this.fetchBulkSummaries(currencies);
@@ -284,13 +297,14 @@ export class DeribitWsAdapter extends SdkBaseAdapter {
     _expiry: string,
     instruments: CachedInstrument[],
   ): Promise<void> {
-    await this.subscribeWithInterval(underlying, instruments, ACTIVE_TICKER_INTERVAL);
+    await this.subscribeWithInterval(underlying, instruments, ACTIVE_TICKER_INTERVAL, 'chain');
   }
 
   private async subscribeWithInterval(
     underlying: string,
     instruments: CachedInstrument[],
     interval: string,
+    source = 'eager',
   ): Promise<void> {
     const plan = buildDeribitSubscriptionPlan(
       this.subscriptions,
@@ -310,9 +324,9 @@ export class DeribitWsAdapter extends SdkBaseAdapter {
     }
 
     if (plan.bulkChannels.length > 0) {
-      await this.rpc.subscribe(plan.bulkChannels);
+      await this.rpc.subscribe(plan.bulkChannels, `bulk-${source}`);
       log.info(
-        { count: plan.bulkChannels.length, underlying },
+        { count: plan.bulkChannels.length, underlying, source },
         'subscribed to bulk index channels',
       );
     }
@@ -322,9 +336,9 @@ export class DeribitWsAdapter extends SdkBaseAdapter {
     }
 
     if (plan.tickerChannels.length > 0) {
-      await this.subscribeBatched(plan.tickerChannels);
+      await this.subscribeBatched(plan.tickerChannels, `ticker-${source}`);
       log.info(
-        { count: plan.tickerChannels.length, underlying, interval },
+        { count: plan.tickerChannels.length, underlying, interval, source },
         'subscribed to ticker channels',
       );
     }
@@ -335,10 +349,10 @@ export class DeribitWsAdapter extends SdkBaseAdapter {
    * a {@link SUBSCRIBE_BATCH_DELAY_MS} delay between calls to stay within
    * Deribit's sustained rate limit of ~3.3 subscribe calls/sec.
    */
-  private async subscribeBatched(channels: string[]): Promise<void> {
+  private async subscribeBatched(channels: string[], source: string): Promise<void> {
     for (let i = 0; i < channels.length; i += SUBSCRIBE_BATCH_SIZE) {
       const batch = channels.slice(i, i + SUBSCRIBE_BATCH_SIZE);
-      await this.rpc.subscribe(batch);
+      await this.rpc.subscribe(batch, source);
       if (i + SUBSCRIBE_BATCH_SIZE < channels.length) {
         await new Promise<void>((resolve) => setTimeout(resolve, SUBSCRIBE_BATCH_DELAY_MS));
       }
@@ -408,44 +422,130 @@ export class DeribitWsAdapter extends SdkBaseAdapter {
 
   // ─── WS message handlers ─────────────────────────────────────
 
-  /**
-   * `instrument.state.option.any` — lifecycle notifications for options.
-   *
-   * On `state: "open"`: fetch full instrument spec, add to all maps, subscribe ticker.
-   * On terminal states (`delivered`, `archivized`): remove from maps to avoid stale data.
-   */
-  private async handleInstrumentState(data: unknown): Promise<void> {
-    const parsed = parseDeribitInstrumentState(data);
-    if (parsed == null) return;
+  // `instrument.state.option.any` — lifecycle notifications for options.
+  //
+  // Raw events are buffered for INSTRUMENT_STATE_COALESCE_MS, then flushed as
+  // one batch. At the 08:00 UTC expiry window Deribit emits hundreds of events
+  // per second; handling them serially would fire a get_instrument + subscribe
+  // RPC per event and instantly trip the per-IP rate limit. The batched flush
+  // fetches details with bounded concurrency, registers all new instruments at
+  // once, and routes opens through a single subscribeWithInterval per underlying
+  // so subscribeBatched controls subscribe cadence.
+  private enqueueInstrumentState(data: unknown): void {
+    this.instrumentStateQueue.push(data);
+    if (this.instrumentStateFlushTimer != null) return;
 
-    const { state, instrument_name } = parsed;
+    this.instrumentStateFlushTimer = setTimeout(() => {
+      this.instrumentStateFlushTimer = null;
+      void this.flushInstrumentStateQueue();
+    }, INSTRUMENT_STATE_COALESCE_MS);
+  }
 
-    if (state === 'open') {
-      // Skip if already known (can fire on reconnect for existing instruments).
-      if (this.instrumentMap.has(instrument_name)) return;
+  private async flushInstrumentStateQueue(): Promise<void> {
+    const batch = this.instrumentStateQueue.splice(0);
+    if (batch.length === 0) return;
 
-      try {
-        const raw: unknown = await this.rpc.call('public/get_instrument', { instrument_name });
-        const inst = this.parseInstrument(raw);
-        if (!inst) return;
+    const newInstrumentNames: string[] = [];
+    const expiredNames: string[] = [];
 
-        registerDeribitInstrument(
-          this.state,
-          this.instruments,
-          this.instrumentMap,
-          this.symbolIndex,
-          deribitIndexNameFor(inst.base),
-          inst,
-        );
+    for (const data of batch) {
+      const parsed = parseDeribitInstrumentState(data);
+      if (parsed == null) continue;
 
-        await this.subscribeWithInterval(inst.base, [inst], EAGER_TICKER_INTERVAL);
-        log.info({ instrument_name }, 'added new instrument from instrument.state');
-      } catch (err: unknown) {
-        log.warn({ instrument_name, err: String(err) }, 'failed to fetch new instrument details');
+      if (parsed.state === 'open') {
+        // Skip if already known (notification can re-fire on reconnect).
+        if (this.instrumentMap.has(parsed.instrument_name)) continue;
+        newInstrumentNames.push(parsed.instrument_name);
+      } else if (parsed.state === 'delivered' || parsed.state === 'archivized') {
+        expiredNames.push(parsed.instrument_name);
       }
-    } else if (state === 'delivered' || state === 'archivized') {
+    }
+
+    if (newInstrumentNames.length > 0) {
+      await this.ingestNewInstruments(newInstrumentNames);
+    }
+    if (expiredNames.length > 0) {
+      await this.ingestExpiredInstruments(expiredNames);
+    }
+  }
+
+  private async ingestNewInstruments(instrumentNames: string[]): Promise<void> {
+    const fetched: CachedInstrument[] = [];
+
+    for (let i = 0; i < instrumentNames.length; i += INSTRUMENT_STATE_FETCH_CONCURRENCY) {
+      const slice = instrumentNames.slice(i, i + INSTRUMENT_STATE_FETCH_CONCURRENCY);
+      const results = await Promise.all(
+        slice.map(async (instrument_name): Promise<CachedInstrument | null> => {
+          try {
+            const raw: unknown = await this.rpc.call('public/get_instrument', { instrument_name });
+            return this.parseInstrument(raw);
+          } catch (err: unknown) {
+            log.warn(
+              { instrument_name, err: String(err) },
+              'failed to fetch new instrument details',
+            );
+            return null;
+          }
+        }),
+      );
+      for (const inst of results) {
+        if (inst != null) fetched.push(inst);
+      }
+      if (i + INSTRUMENT_STATE_FETCH_CONCURRENCY < instrumentNames.length) {
+        await new Promise<void>((resolve) =>
+          setTimeout(resolve, INSTRUMENT_STATE_FETCH_CHUNK_DELAY_MS),
+        );
+      }
+    }
+
+    if (fetched.length === 0) return;
+
+    for (const inst of fetched) {
+      registerDeribitInstrument(
+        this.state,
+        this.instruments,
+        this.instrumentMap,
+        this.symbolIndex,
+        deribitIndexNameFor(inst.base),
+        inst,
+      );
+    }
+
+    const byUnderlying = new Map<string, CachedInstrument[]>();
+    for (const inst of fetched) {
+      const list = byUnderlying.get(inst.base) ?? [];
+      list.push(inst);
+      byUnderlying.set(inst.base, list);
+    }
+
+    for (const [underlying, list] of byUnderlying) {
+      try {
+        await this.subscribeWithInterval(
+          underlying,
+          list,
+          EAGER_TICKER_INTERVAL,
+          'instrument-state',
+        );
+      } catch (err: unknown) {
+        log.warn(
+          { underlying, count: list.length, err: String(err) },
+          'failed to subscribe new instruments',
+        );
+      }
+    }
+
+    log.info(
+      { count: fetched.length, requested: instrumentNames.length },
+      'added new instruments from instrument.state',
+    );
+  }
+
+  private async ingestExpiredInstruments(instrumentNames: string[]): Promise<void> {
+    const channelsToUnsubscribe: string[] = [];
+
+    for (const instrument_name of instrumentNames) {
       const inst = this.instrumentMap.get(instrument_name);
-      if (!inst) return;
+      if (inst == null) continue;
 
       removeDeribitInstrument(
         this.state,
@@ -458,12 +558,21 @@ export class DeribitWsAdapter extends SdkBaseAdapter {
       );
 
       const channel = releaseDeribitTickerSubscription(this.subscriptions, instrument_name);
-      if (channel != null) {
-        await this.rpc.unsubscribe([channel]);
-      }
-
-      log.info({ instrument_name, state }, 'removed expired instrument from instrument.state');
+      if (channel != null) channelsToUnsubscribe.push(channel);
     }
+
+    if (channelsToUnsubscribe.length > 0) {
+      try {
+        await this.rpc.unsubscribe(channelsToUnsubscribe);
+      } catch (err: unknown) {
+        log.warn(
+          { count: channelsToUnsubscribe.length, err: String(err) },
+          'failed to unsubscribe expired instrument channels',
+        );
+      }
+    }
+
+    log.info({ count: instrumentNames.length }, 'removed expired instruments from instrument.state');
   }
 
   private emitPlatformHealth(): void {
@@ -575,6 +684,11 @@ export class DeribitWsAdapter extends SdkBaseAdapter {
       clearInterval(this.healthTimer);
       this.healthTimer = null;
     }
+    if (this.instrumentStateFlushTimer != null) {
+      clearTimeout(this.instrumentStateFlushTimer);
+      this.instrumentStateFlushTimer = null;
+    }
+    this.instrumentStateQueue.length = 0;
     await this.unsubscribeAll();
     await this.rpc?.disconnect();
   }

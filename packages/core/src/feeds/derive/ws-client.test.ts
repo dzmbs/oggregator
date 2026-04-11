@@ -9,7 +9,7 @@ afterEach(() => {
 type DeriveWsAdapterInternals = {
   rpc: {
     call: (method: string, params: Record<string, unknown>) => Promise<unknown>;
-    subscribe: (batch: string[]) => Promise<void>;
+    subscribe: (batch: string[], source?: string) => Promise<void>;
   };
   parseInstrument: (item: unknown) => CachedInstrument | null;
   refreshInstruments: () => Promise<void>;
@@ -54,7 +54,10 @@ describe('DeriveWsAdapter', () => {
 
     await internals.refreshInstruments();
 
-    expect(subscribe).toHaveBeenCalledWith(['ticker_slim.BTC-20260327-70000-C.1000']);
+    expect(subscribe).toHaveBeenCalledWith(
+      ['ticker_slim.BTC-20260327-70000-C.1000'],
+      'ticker-refresh',
+    );
     expect(internals.subscriptions.subscribedTickers.has('BTC-20260327-70000-C')).toBe(true);
   });
 });

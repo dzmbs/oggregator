@@ -242,7 +242,7 @@ export class DeriveWsAdapter extends SdkBaseAdapter {
     const plan = buildDeriveSubscriptionPlan(this.subscriptions, instruments);
 
     if (plan.channels.length > 0) {
-      await subscribeDeriveBatches(plan.channels, (batch) => this.rpc.subscribe(batch));
+      await subscribeDeriveBatches(plan.channels, (batch) => this.rpc.subscribe(batch, 'ticker'));
       log.info({ count: plan.channels.length, underlying }, 'subscribed to ticker channels');
     }
   }
@@ -342,7 +342,9 @@ export class DeriveWsAdapter extends SdkBaseAdapter {
       const plan = buildDeriveSubscriptionPlan(this.subscriptions, grouped);
       if (plan.channels.length === 0) continue;
 
-      await subscribeDeriveBatches(plan.channels, (batch) => this.rpc.subscribe(batch));
+      await subscribeDeriveBatches(plan.channels, (batch) =>
+        this.rpc.subscribe(batch, 'ticker-refresh'),
+      );
       log.info(
         { count: plan.channels.length, underlying, expiry },
         'subscribed refreshed ticker channels',

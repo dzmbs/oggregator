@@ -77,7 +77,7 @@ export class DvolService {
     await Promise.all(currencies.map((c) => Promise.all([this.fetchHistory(c), this.fetchHv(c)])));
 
     const channels = currencies.map((c) => `deribit_volatility_index.${c.toLowerCase()}_usd`);
-    await this.rpc.subscribe(channels);
+    await this.rpc.subscribe(channels, 'dvol');
     log.info({ currencies, channels: channels.length }, 'subscribed to DVOL');
 
     this.scheduleHistoryRefresh();
