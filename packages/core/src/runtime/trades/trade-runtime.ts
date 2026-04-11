@@ -12,6 +12,7 @@ import {
   OKX_WS_URL,
 } from '../../feeds/shared/endpoints.js';
 import type { VenueId } from '../../types/common.js';
+import { startEventLoopLagMonitor } from '../../utils/event-loop-lag.js';
 import { feedLogger } from '../../utils/logger.js';
 import { backoffDelay } from '../../utils/reconnect.js';
 import { createTradeStreamState, mergeTradeStreamState } from './health.js';
@@ -19,6 +20,12 @@ import { filterTradesByMinNotional, pushTradeEvents } from './retention.js';
 import type { TradeEvent, TradeRuntimeHealth, TradeStreamState, VenueStream } from './types.js';
 
 const log = feedLogger('trade-runtime');
+
+// Watchdog fires level:50 and force-closes a connection whose lastMessageAt
+// hasn't advanced within this window. With keepalives sending inbound pongs
+// every 20-180s per venue, a 5-minute gap is unambiguous zombie state.
+const STALENESS_THRESHOLD_MS = 5 * 60 * 1000;
+const WATCHDOG_INTERVAL_MS = 30 * 1000;
 
 /**
  * Subscribes to bulk option trade streams across all 5 venues.
@@ -33,6 +40,8 @@ export class TradeRuntime {
   private listeners = new Set<(trade: TradeEvent) => void>();
   private streamState = new Map<string, TradeStreamState>();
   private shouldReconnect = true;
+  private watchdogTimer: ReturnType<typeof setInterval> | null = null;
+  private stopEventLoopMonitor: (() => void) | null = null;
 
   async start(underlyings: string[] = ['BTC', 'ETH']): Promise<void> {
     // Open live WS connections first so callers can serve /flow without waiting for REST seeds.
@@ -52,6 +61,54 @@ export class TradeRuntime {
 
     // Seed recent trades in the background. Slow REST venues must not delay live flow availability.
     void Promise.allSettled(underlyings.map((u) => this.seedFromRest(u)));
+
+    this.watchdogTimer = setInterval(() => this.checkStreamLiveness(), WATCHDOG_INTERVAL_MS);
+    this.stopEventLoopMonitor = startEventLoopLagMonitor();
+  }
+
+  // Detects half-open TCP connections that report `connected:true` locally but
+  // haven't received any inbound frames recently. Forces a terminate so the
+  // existing close→reconnect path rebuilds the subscription from scratch.
+  // Emits level:50 — the first error-level signal this runtime produces for
+  // this failure mode, so any log aggregator will pick it up.
+  private checkStreamLiveness(): void {
+    if (!this.shouldReconnect) return;
+    const now = Date.now();
+
+    for (const [connectionKey, ws] of this.connections) {
+      const subscribedUnderlyings = this.subscribedUnderlyingsByConnection.get(connectionKey);
+      if (subscribedUnderlyings == null || subscribedUnderlyings.size === 0) continue;
+
+      const colonIdx = connectionKey.indexOf(':');
+      if (colonIdx < 0) continue;
+      const venue = connectionKey.slice(0, colonIdx) as VenueId;
+
+      let worstStaleMs = 0;
+      let worstUnderlying: string | null = null;
+      for (const underlying of subscribedUnderlyings) {
+        const state = this.streamState.get(this.streamKey(venue, underlying));
+        if (state == null || !state.connected || state.lastMessageAt == null) continue;
+        const staleMs = now - state.lastMessageAt;
+        if (staleMs > worstStaleMs) {
+          worstStaleMs = staleMs;
+          worstUnderlying = underlying;
+        }
+      }
+
+      if (worstStaleMs >= STALENESS_THRESHOLD_MS && worstUnderlying != null) {
+        log.error(
+          {
+            venue,
+            underlying: worstUnderlying,
+            connectionKey,
+            staleMs: worstStaleMs,
+            thresholdMs: STALENESS_THRESHOLD_MS,
+          },
+          'trade stream stale, forcing reconnect',
+        );
+        ws.terminate();
+      }
+    }
   }
 
   private async seedFromRest(underlying: string): Promise<void> {
@@ -294,6 +351,14 @@ export class TradeRuntime {
 
   dispose(): void {
     this.shouldReconnect = false;
+    if (this.watchdogTimer != null) {
+      clearInterval(this.watchdogTimer);
+      this.watchdogTimer = null;
+    }
+    if (this.stopEventLoopMonitor != null) {
+      this.stopEventLoopMonitor();
+      this.stopEventLoopMonitor = null;
+    }
     for (const timer of this.reconnectTimers.values()) clearTimeout(timer);
     this.reconnectTimers.clear();
     for (const timer of this.keepaliveTimers.values()) clearInterval(timer);
@@ -508,6 +573,19 @@ const VENUE_STREAMS: VenueStream[] = [
   {
     venue: 'deribit',
     url: DERIBIT_WS_URL,
+    // Deribit closes idle sockets silently when the app-level heartbeat isn't
+    // configured on this connection. `public/test` is a free no-op RPC; we
+    // send it every 25s so the server keeps pushing trades and, critically,
+    // we see an inbound response that refreshes `lastMessageAt` for the watchdog.
+    startKeepalive(ws) {
+      return setInterval(() => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(
+            JSON.stringify({ jsonrpc: '2.0', id: 0, method: 'public/test', params: {} }),
+          );
+        }
+      }, 25_000);
+    },
     connect(ws, underlying) {
       const tradeCurrency = getDeribitTradeCurrency(underlying);
       if (!tradeCurrency) return;
@@ -735,6 +813,15 @@ const VENUE_STREAMS: VenueStream[] = [
     // No seed: Binance's only public trade history endpoint (GET /eapi/v1/trades)
     // requires a specific symbol — there is no bulk "all trades for underlying"
     // equivalent without auth. Users see no history until a live trade arrives.
+    //
+    // Binance server pings every 5 min and disconnects on missed pong after 15 min
+    // (per websocket-market-streams.md). Sending our own ping every 3 min keeps
+    // NAT/proxy entries alive and forces an inbound pong that refreshes lastMessageAt.
+    startKeepalive(ws) {
+      return setInterval(() => {
+        if (ws.readyState === WebSocket.OPEN) ws.ping();
+      }, 180_000);
+    },
     connect(ws, underlying) {
       ws.send(
         JSON.stringify({
@@ -772,6 +859,13 @@ const VENUE_STREAMS: VenueStream[] = [
   {
     venue: 'derive',
     url: DERIVE_WS_URL,
+    // Derive has no app-level heartbeat per core/CLAUDE.md — rely on WS ping/pong.
+    // 20s cadence matches OKX/Bybit and keeps the socket warm against half-open TCP.
+    startKeepalive(ws) {
+      return setInterval(() => {
+        if (ws.readyState === WebSocket.OPEN) ws.ping();
+      }, 20_000);
+    },
     connect(ws, underlying) {
       ws.send(
         JSON.stringify({
