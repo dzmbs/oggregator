@@ -12,7 +12,11 @@ import { deltaTickLabel } from './smile-utils';
 import { useSurface } from './queries';
 import styles from './VolSurface3D.module.css';
 
+type TenorMode = 'listed' | 'cmm';
+
 // Drop expiries thinner than this — sparse rows render as spikes/holes.
+// Only applied to the listed/raw mode; smoothed and CMM rows are dense by
+// construction.
 const MIN_NON_NULL_PER_ROW = 3;
 
 const SURFACE_TIP_BODY = (
@@ -32,11 +36,17 @@ const SURFACE_TIP_BODY = (
       </li>
       <li>
         <strong>Z &amp; color</strong>: IV in %. Blue = low, white = mid, orange = high.
-        Color gaps = missing venue quotes.
+        Where listed strikes are sparse, the surface is filled by an SVI fit
+        (Gatheral 2004) per expiry, with linear interpolation as fallback.
       </li>
       <li>
         <strong>Venue picker</strong>: single-venue vs cross-venue Average.
         Average smooths venue quirks; single venue exposes microstructure.
+      </li>
+      <li>
+        <strong>Tenor mode</strong>: Listed = each row is a real expiry.
+        Constant Maturity = canonical 7/14/30/60/90/180/365d tenors,
+        interpolated in total variance between bracketing listed expiries.
       </li>
     </ul>
   </>
@@ -50,11 +60,12 @@ interface SurfaceGrid {
   text: string[][];
 }
 
-function buildSurfaceGrid(data: IvSurfaceResponse): SurfaceGrid | null {
+function buildListedGrid(data: IvSurfaceResponse): SurfaceGrid | null {
   const x = data.surfaceFineDeltas;
   if (!x || x.length === 0) return null;
 
-  const sorted = data.surfaceFine
+  const source = data.surfaceFineSmoothed?.length ? data.surfaceFineSmoothed : data.surfaceFine;
+  const sorted = source
     .filter((r) => r.dte > 0)
     .slice()
     .sort((a, b) => a.dte - b.dte);
@@ -69,17 +80,46 @@ function buildSurfaceGrid(data: IvSurfaceResponse): SurfaceGrid | null {
   const z: (number | null)[][] = [];
   const text: string[][] = [];
 
+  const useFallbackThreshold = source === data.surfaceFine;
+
   for (const row of sorted) {
-    // Backend stores IV as fraction; chart renders percentage.
     const ivPct = row.ivs.map((v) => (v != null ? v * 100 : null));
-    const filled = ivPct.filter((v) => v != null).length;
-    if (filled < MIN_NON_NULL_PER_ROW) continue;
+    if (useFallbackThreshold) {
+      const filled = ivPct.filter((v) => v != null).length;
+      if (filled < MIN_NON_NULL_PER_ROW) continue;
+    }
 
     const label = formatExpiry(row.expiry);
     y.push(y.length);
     yLabels.push(label);
     z.push(ivPct);
     text.push(x.map(() => `${label} (${row.dte}d)`));
+  }
+
+  if (z.length === 0) return null;
+  return { x, y, z, yLabels, text };
+}
+
+function buildCmmGrid(data: IvSurfaceResponse): SurfaceGrid | null {
+  const x = data.surfaceFineDeltas;
+  if (!x || x.length === 0) return null;
+  const rows = data.surfaceFineCmm ?? [];
+  if (rows.length === 0) return null;
+
+  const sorted = rows.slice().sort((a, b) => a.tenorDays - b.tenorDays);
+
+  const y: number[] = [];
+  const yLabels: string[] = [];
+  const z: (number | null)[][] = [];
+  const text: string[][] = [];
+
+  for (const row of sorted) {
+    const ivPct = row.ivs.map((v) => (v != null ? v * 100 : null));
+    const label = `${row.tenorDays}d`;
+    y.push(y.length);
+    yLabels.push(label);
+    z.push(ivPct);
+    text.push(x.map(() => `${label} CMM`));
   }
 
   if (z.length === 0) return null;
@@ -93,6 +133,7 @@ interface Props {
 export default function VolSurface3D({ defaultUnderlying = 'BTC' }: Props) {
   const [localUnderlying, setLocalUnderlying] = useState(defaultUnderlying);
   const [selectedVenue, setSelectedVenue] = useState('average');
+  const [tenorMode, setTenorMode] = useState<TenorMode>('listed');
 
   const { data: underlyingsData } = useUnderlyings();
   const underlyings = underlyingsData?.underlyings ?? [];
@@ -100,7 +141,10 @@ export default function VolSurface3D({ defaultUnderlying = 'BTC' }: Props) {
   const venues = selectedVenue === 'average' ? VENUE_IDS : [selectedVenue];
   const { data, isLoading } = useSurface(localUnderlying, venues);
 
-  const grid = useMemo(() => (data ? buildSurfaceGrid(data) : null), [data]);
+  const grid = useMemo(() => {
+    if (!data) return null;
+    return tenorMode === 'cmm' ? buildCmmGrid(data) : buildListedGrid(data);
+  }, [data, tenorMode]);
 
   if (isLoading || !data) {
     return (
@@ -119,6 +163,11 @@ export default function VolSurface3D({ defaultUnderlying = 'BTC' }: Props) {
   const venueOptions = [
     { value: 'average', label: 'Average' },
     ...VENUE_LIST.map((v) => ({ value: v.id, label: v.label })),
+  ];
+
+  const tenorOptions: { value: TenorMode; label: string }[] = [
+    { value: 'listed', label: 'Listed' },
+    { value: 'cmm', label: 'Constant Maturity' },
   ];
 
   const tickLabels = grid.x.map(deltaTickLabel);
@@ -205,6 +254,12 @@ export default function VolSurface3D({ defaultUnderlying = 'BTC' }: Props) {
           value={selectedVenue}
           onChange={setSelectedVenue}
           options={venueOptions}
+        />
+        <DropdownPicker
+          size="sm"
+          value={tenorMode}
+          onChange={(v) => setTenorMode(v as TenorMode)}
+          options={tenorOptions}
         />
       </div>
       <div className={styles.chartArea}>

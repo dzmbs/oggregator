@@ -57,6 +57,15 @@ export {
 export { buildIvSurfaceGrid } from './core/surface-grid.js';
 export type { SurfaceGridEntry, BuildSurfaceGridOptions } from './core/surface-grid.js';
 
+export {
+  computeCmmIvSurface,
+  fillRowLinear,
+  fitRowFromStrikesSvi,
+  smoothFineSurfaceRow,
+  DEFAULT_CMM_TENORS,
+  type CmmIvSurfaceRow,
+} from './core/iv-surface-smoothing.js';
+
 export type {
   EnrichedChainResponse,
   EnrichedStrike,

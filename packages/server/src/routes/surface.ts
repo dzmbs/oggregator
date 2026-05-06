@@ -1,9 +1,11 @@
 import type { FastifyBaseLogger, FastifyInstance } from 'fastify';
 import {
   buildIvSurfaceGrid,
+  computeCmmIvSurface,
   computeTermStructure,
   getAllAdapters,
   realizedVol,
+  type CmmIvSurfaceRow,
   type IvSurfaceRow,
   type IvSurfaceFineRow,
   type TermStructure,
@@ -39,6 +41,7 @@ export async function surfaceRoute(app: FastifyInstance) {
 
     const surface: IvSurfaceRow[] = new Array(entries.length);
     const surfaceFine: IvSurfaceFineRow[] = new Array(entries.length);
+    const surfaceFineSmoothed: IvSurfaceFineRow[] = new Array(entries.length);
     const venueAtm: Record<string, Array<{ expiry: string; dte: number; atm: number | null }>> = {};
     for (const venueId of requestedVenues) {
       venueAtm[venueId] = [];
@@ -48,6 +51,7 @@ export async function surfaceRoute(app: FastifyInstance) {
       const entry = entries[i]!;
       surface[i] = entry.surfaceRow;
       surfaceFine[i] = entry.surfaceFineRow;
+      surfaceFineSmoothed[i] = entry.surfaceFineSmoothedRow;
       for (const venueId of requestedVenues) {
         const callIv = entry.atmStrike?.call.venues[venueId]?.markIv ?? null;
         const putIv = entry.atmStrike?.put.venues[venueId]?.markIv ?? null;
@@ -58,6 +62,7 @@ export async function surfaceRoute(app: FastifyInstance) {
     }
 
     const termStructure: TermStructure = computeTermStructure(surface);
+    const surfaceFineCmm: CmmIvSurfaceRow[] = computeCmmIvSurface(surfaceFineSmoothed);
     const { atmIv30d, rv30d, vrp30d } = await computeVrpContext(underlying, req.log);
 
     reply.header('Cache-Control', 'public, max-age=0, s-maxage=1, stale-while-revalidate=2');
@@ -66,6 +71,8 @@ export async function surfaceRoute(app: FastifyInstance) {
       underlying,
       surface,
       surfaceFine,
+      surfaceFineSmoothed,
+      surfaceFineCmm,
       surfaceFineDeltas: FINE_DELTA_GRID,
       termStructure,
       venueAtm,

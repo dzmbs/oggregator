@@ -33,6 +33,13 @@ export interface IvSurfaceFineRow {
   ivs: (number | null)[];
 }
 
+// Constant-maturity row produced by total-variance interpolation between
+// listed expiries. tenorDays is one of the canonical CMM buckets.
+export interface CmmIvSurfaceRow {
+  tenorDays: number;
+  ivs: (number | null)[];
+}
+
 // Per-strike smile point — mirrors core/enrichment.ts SmilePoint.
 // Used by the Alpha analyzer and any surface-curve visualization.
 export interface SmilePoint {
@@ -62,6 +69,13 @@ export interface IvSurfaceResponse {
   underlying: string;
   surface: IvSurfaceRow[];
   surfaceFine: IvSurfaceFineRow[];
+  // SVI-fitted (or linearly-filled) variant of surfaceFine. Same shape, same
+  // delta alignment — populated where the fit succeeds, falling back to
+  // linear interpolation across the row otherwise.
+  surfaceFineSmoothed: IvSurfaceFineRow[];
+  // Constant-maturity grid: one row per canonical tenor (7/14/30/60/90/180/
+  // 365d) within the listed-expiry range. Interpolated in total variance.
+  surfaceFineCmm: CmmIvSurfaceRow[];
   // Delta tick values aligned 1:1 with each row's ivs[] (typically 0.05–0.95
   // step 0.05). Frontend should render against these instead of hard-coding.
   surfaceFineDeltas: number[];

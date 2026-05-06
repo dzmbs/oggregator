@@ -11,13 +11,17 @@ import {
   type IvSurfaceRow,
   type IvSurfaceFineRow,
 } from './enrichment.js';
+import { smoothFineSurfaceRow } from './iv-surface-smoothing.js';
 import type { ChainRequest, VenueOptionChain } from './types.js';
+
+const DAYS_IN_YEAR = 365;
 
 export interface SurfaceGridEntry {
   expiry: string;
   dte: number;
   surfaceRow: IvSurfaceRow;
   surfaceFineRow: IvSurfaceFineRow;
+  surfaceFineSmoothedRow: IvSurfaceFineRow;
   atmStrike: EnrichedStrike | null;
   strikes: EnrichedStrike[];
   // Per-expiry basis as a percentage of spot. Surfaced here so consumers that
@@ -78,6 +82,13 @@ export async function buildIvSurfaceGrid({
     const dte = computeDte(expiry);
     const surfaceRow = computeIvSurface(expiry, dte, enriched.strikes, refPrice);
     const surfaceFineRow = computeIvSurfaceFine(expiry, dte, enriched.strikes);
+    const T = dte > 0 ? dte / DAYS_IN_YEAR : 0;
+    const surfaceFineSmoothedRow = smoothFineSurfaceRow(
+      surfaceFineRow,
+      enriched.strikes,
+      refPrice,
+      T,
+    );
 
     let atmStrike: EnrichedStrike | null = null;
     if (refPrice != null && enriched.strikes.length > 0) {
@@ -96,6 +107,7 @@ export async function buildIvSurfaceGrid({
       dte,
       surfaceRow,
       surfaceFineRow,
+      surfaceFineSmoothedRow,
       atmStrike,
       strikes: enriched.strikes,
       basisPct: stats.basisPct,
