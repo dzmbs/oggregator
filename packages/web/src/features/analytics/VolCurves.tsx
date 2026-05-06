@@ -25,10 +25,16 @@ interface CurvePoint {
 const ATM_BLEND_HALF_WIDTH = 0.025;
 const MIN_IV = 0.05;
 const MAX_IV = 5;
+const ENTRY_STRIKE_COUNT = 7;
 
+// Sequential single-hue palette: light cyan (near-dated) → deep navy (long-dated).
+// Avoids rainbow while keeping enough contrast to differentiate tenors at a glance.
 function tenorColor(idx: number, total: number): string {
-  const hue = total <= 1 ? 160 : Math.round(10 + (270 * idx) / (total - 1));
-  return `hsl(${hue}, 70%, 60%)`;
+  const t = total <= 1 ? 0 : idx / (total - 1);
+  const hue = 180 + Math.round(t * 40);
+  const saturation = 55 + Math.round(t * 10);
+  const lightness = 72 - Math.round(t * 32);
+  return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
 }
 
 function withAlpha(hslColor: string, alpha: number): string {
@@ -68,40 +74,57 @@ function liquidAvgIv(side: EnrichedSide): number | null {
   return liquidAvg(side, 'markIv');
 }
 
-interface AtmEntryIv {
-  atmStrike: number;
+interface StrikeEntryIv {
+  strike: number;
   bidIv: number | null;
   askIv: number | null;
 }
 
-function atmEntryIvs(
+function entryIvsAroundAtm(
   strikes: readonly EnrichedStrike[],
   ref: number | null,
-): AtmEntryIv | null {
-  if (ref == null || strikes.length === 0) return null;
-  let nearest: EnrichedStrike | null = null;
+): StrikeEntryIv[] {
+  if (ref == null || strikes.length === 0) return [];
+  const sorted = [...strikes].sort((a, b) => a.strike - b.strike);
+  let atmIdx = 0;
   let bestDiff = Infinity;
-  for (const s of strikes) {
-    const diff = Math.abs(s.strike - ref);
+  for (let i = 0; i < sorted.length; i++) {
+    const diff = Math.abs(sorted[i]!.strike - ref);
     if (diff < bestDiff) {
       bestDiff = diff;
-      nearest = s;
+      atmIdx = i;
     }
   }
-  if (!nearest) return null;
-  const bidIv = blendOtm(
-    nearest.strike,
-    ref,
-    liquidAvg(nearest.call, 'bidIv'),
-    liquidAvg(nearest.put, 'bidIv'),
-  );
-  const askIv = blendOtm(
-    nearest.strike,
-    ref,
-    liquidAvg(nearest.call, 'askIv'),
-    liquidAvg(nearest.put, 'askIv'),
-  );
-  return { atmStrike: nearest.strike, bidIv, askIv };
+  const half = Math.floor(ENTRY_STRIKE_COUNT / 2);
+  let lo = atmIdx - half;
+  let hi = lo + ENTRY_STRIKE_COUNT;
+  if (lo < 0) {
+    hi = Math.min(sorted.length, hi - lo);
+    lo = 0;
+  }
+  if (hi > sorted.length) {
+    lo = Math.max(0, lo - (hi - sorted.length));
+    hi = sorted.length;
+  }
+  const out: StrikeEntryIv[] = [];
+  for (let i = lo; i < hi; i++) {
+    const s = sorted[i]!;
+    const bidIv = blendOtm(
+      s.strike,
+      ref,
+      liquidAvg(s.call, 'bidIv'),
+      liquidAvg(s.put, 'bidIv'),
+    );
+    const askIv = blendOtm(
+      s.strike,
+      ref,
+      liquidAvg(s.call, 'askIv'),
+      liquidAvg(s.put, 'askIv'),
+    );
+    if (bidIv == null && askIv == null) continue;
+    out.push({ strike: s.strike, bidIv, askIv });
+  }
+  return out;
 }
 
 function blendOtm(
@@ -190,14 +213,16 @@ export default function VolCurves({ chains, spotPrice }: VolCurvesProps) {
   const [hiddenExpiries, setHiddenExpiries] = useState<Set<string>>(new Set());
   const [spotX, setSpotX] = useState<number | null>(null);
   const [hoveredExpiry, setHoveredExpiry] = useState<string | null>(null);
-  const [hoverDots, setHoverDots] = useState<{
-    color: string;
-    atmX: number;
-    bidY: number | null;
-    askY: number | null;
-    bidIvPct: number | null;
-    askIvPct: number | null;
-  } | null>(null);
+  const [hoverDots, setHoverDots] = useState<
+    Array<{
+      strike: number;
+      x: number;
+      bidY: number | null;
+      askY: number | null;
+      bidIvPct: number | null;
+      askIvPct: number | null;
+    }>
+  >([]);
 
   const indexSpot = useMemo(
     () => chains.find((c) => c.stats.indexPriceUsd != null)?.stats.indexPriceUsd ?? spotPrice,
@@ -227,11 +252,11 @@ export default function VolCurves({ chains, spotPrice }: VolCurvesProps) {
   );
 
   const entryByExpiry = useMemo(() => {
-    const map = new Map<string, AtmEntryIv>();
+    const map = new Map<string, StrikeEntryIv[]>();
     for (const chain of chains) {
       const ref = chain.stats.forwardPriceUsd ?? indexSpot ?? null;
-      const entry = atmEntryIvs(chain.strikes, ref);
-      if (entry) map.set(chain.expiry, entry);
+      const entries = entryIvsAroundAtm(chain.strikes, ref);
+      if (entries.length > 0) map.set(chain.expiry, entries);
     }
     return map;
   }, [chains, indexSpot]);
@@ -327,37 +352,44 @@ export default function VolCurves({ chains, spotPrice }: VolCurvesProps) {
   useEffect(() => {
     const api = chartApi.current;
     if (!api || !hoveredExpiry) {
-      setHoverDots(null);
+      setHoverDots([]);
       return;
     }
-    const curve = visibleCurves.find((c) => c.expiry === hoveredExpiry);
-    const entry = entryByExpiry.get(hoveredExpiry);
+    const entries = entryByExpiry.get(hoveredExpiry);
     const series = seriesRefs.current.get(hoveredExpiry);
-    if (!curve || !entry || !series) {
-      setHoverDots(null);
+    if (!entries || !series) {
+      setHoverDots([]);
       return;
     }
 
     const update = () => {
-      const x = api.timeScale().timeToCoordinate(entry.atmStrike as never);
-      if (typeof x !== 'number' || !Number.isFinite(x)) {
-        setHoverDots(null);
-        return;
+      const next: Array<{
+        strike: number;
+        x: number;
+        bidY: number | null;
+        askY: number | null;
+        bidIvPct: number | null;
+        askIvPct: number | null;
+      }> = [];
+      for (const entry of entries) {
+        const x = api.timeScale().timeToCoordinate(entry.strike as never);
+        if (typeof x !== 'number' || !Number.isFinite(x)) continue;
+        const bidPct = entry.bidIv != null ? entry.bidIv * 100 : null;
+        const askPct = entry.askIv != null ? entry.askIv * 100 : null;
+        const bidYRaw = bidPct != null ? series.priceToCoordinate(bidPct) : null;
+        const askYRaw = askPct != null ? series.priceToCoordinate(askPct) : null;
+        next.push({
+          strike: entry.strike,
+          x,
+          bidY:
+            typeof bidYRaw === 'number' && Number.isFinite(bidYRaw) ? bidYRaw : null,
+          askY:
+            typeof askYRaw === 'number' && Number.isFinite(askYRaw) ? askYRaw : null,
+          bidIvPct: bidPct,
+          askIvPct: askPct,
+        });
       }
-      const bidPct = entry.bidIv != null ? entry.bidIv * 100 : null;
-      const askPct = entry.askIv != null ? entry.askIv * 100 : null;
-      const bidYRaw = bidPct != null ? series.priceToCoordinate(bidPct) : null;
-      const askYRaw = askPct != null ? series.priceToCoordinate(askPct) : null;
-      setHoverDots({
-        color: curve.color,
-        atmX: x,
-        bidY:
-          typeof bidYRaw === 'number' && Number.isFinite(bidYRaw) ? bidYRaw : null,
-        askY:
-          typeof askYRaw === 'number' && Number.isFinite(askYRaw) ? askYRaw : null,
-        bidIvPct: bidPct,
-        askIvPct: askPct,
-      });
+      setHoverDots(next);
     };
 
     update();
@@ -373,7 +405,7 @@ export default function VolCurves({ chains, spotPrice }: VolCurvesProps) {
       ts.unsubscribeVisibleLogicalRangeChange(update);
       ts.unsubscribeSizeChange(update);
     };
-  }, [hoveredExpiry, entryByExpiry, visibleCurves]);
+  }, [hoveredExpiry, entryByExpiry]);
 
   const handleHover = (expiry: string | null) => {
     setHoveredExpiry(expiry);
@@ -444,9 +476,9 @@ export default function VolCurves({ chains, spotPrice }: VolCurvesProps) {
                 (downside fear), normal in BTC/ETH.
               </li>
               <li>
-                <strong>Color = tenor</strong>: warm = near-dated, cool =
-                long-dated. Near above far = backwardation (event risk priced
-                in).
+                <strong>Color = tenor</strong>: light cyan = near-dated, deep
+                navy = long-dated. Near above far = backwardation (event risk
+                priced in).
               </li>
             </ul>
             <p style={{ marginTop: 6 }}>
@@ -466,12 +498,13 @@ export default function VolCurves({ chains, spotPrice }: VolCurvesProps) {
             </p>
             <p style={{ marginTop: 6 }}>
               <strong>Interaction:</strong> hover a legend chip to highlight one
-              expiry (others fade, soft fill appears below the line). Two dots
-              also appear at that expiry&apos;s ATM strike — <strong>hollow</strong>{' '}
-              = OTM-blended <strong>bid IV</strong>, <strong>filled</strong> ={' '}
-              <strong>ask IV</strong>. They refresh live with each WS snapshot,
-              so you can watch your real entry IV move. Click a chip to hide /
-              show that expiry.
+              expiry (others fade, soft fill appears below the line). Entry-IV
+              dots appear at the 7 strikes around that expiry&apos;s ATM —{' '}
+              <strong style={{ color: 'var(--color-profit)' }}>green</strong> =
+              OTM-blended <strong>bid IV</strong>,{' '}
+              <strong style={{ color: 'var(--color-loss)' }}>red</strong> ={' '}
+              <strong>ask IV</strong>. They refresh live with each WS snapshot.
+              Click a chip to hide / show that expiry.
             </p>
           </InfoTip>
         </span>
@@ -513,31 +546,26 @@ export default function VolCurves({ chains, spotPrice }: VolCurvesProps) {
               aria-hidden="true"
             />
           )}
-          {hoverDots != null && hoverDots.bidY != null && hoverDots.bidIvPct != null && (
-            <div
-              className={styles.curveEntryDotBid}
-              style={{
-                left: `${hoverDots.atmX}px`,
-                top: `${hoverDots.bidY}px`,
-                borderColor: hoverDots.color,
-              }}
-              aria-hidden="true"
-              title={`ATM bid IV ${hoverDots.bidIvPct.toFixed(1)}%`}
-            />
-          )}
-          {hoverDots != null && hoverDots.askY != null && hoverDots.askIvPct != null && (
-            <div
-              className={styles.curveEntryDotAsk}
-              style={{
-                left: `${hoverDots.atmX}px`,
-                top: `${hoverDots.askY}px`,
-                background: hoverDots.color,
-                borderColor: hoverDots.color,
-              }}
-              aria-hidden="true"
-              title={`ATM ask IV ${hoverDots.askIvPct.toFixed(1)}%`}
-            />
-          )}
+          {hoverDots.map((dot) => (
+            <span key={dot.strike}>
+              {dot.bidY != null && dot.bidIvPct != null && (
+                <span
+                  className={styles.curveEntryDotBid}
+                  style={{ left: `${dot.x}px`, top: `${dot.bidY}px` }}
+                  aria-hidden="true"
+                  title={`Strike ${dot.strike} · bid IV ${dot.bidIvPct.toFixed(1)}%`}
+                />
+              )}
+              {dot.askY != null && dot.askIvPct != null && (
+                <span
+                  className={styles.curveEntryDotAsk}
+                  style={{ left: `${dot.x}px`, top: `${dot.askY}px` }}
+                  aria-hidden="true"
+                  title={`Strike ${dot.strike} · ask IV ${dot.askIvPct.toFixed(1)}%`}
+                />
+              )}
+            </span>
+          ))}
         </div>
       </div>
     </div>
