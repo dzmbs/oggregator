@@ -20,6 +20,10 @@ export interface SurfaceGridEntry {
   surfaceFineRow: IvSurfaceFineRow;
   atmStrike: EnrichedStrike | null;
   strikes: EnrichedStrike[];
+  // Per-expiry basis as a percentage of spot. Surfaced here so consumers that
+  // already iterate the grid (e.g. RegimeService for 30d-CMM basis) don't
+  // need to re-call computeChainStats.
+  basisPct: number | null;
 }
 
 export interface BuildSurfaceGridOptions {
@@ -94,6 +98,7 @@ export async function buildIvSurfaceGrid({
       surfaceFineRow,
       atmStrike,
       strikes: enriched.strikes,
+      basisPct: stats.basisPct,
     });
   }
 

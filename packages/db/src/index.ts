@@ -14,6 +14,14 @@ export {
   NoopIvHistoryStore,
   PostgresIvHistoryStore,
 } from './iv-history-store.js';
+export type {
+  PersistedRegimeModel,
+  PersistedRegimeObservation,
+  RegimeLabel,
+  RegimeObservationLoadQuery,
+  RegimeStore,
+} from './regime-store.js';
+export { NoopRegimeStore, PostgresRegimeStore } from './regime-store.js';
 
 export type {
   PaperUserRow,
