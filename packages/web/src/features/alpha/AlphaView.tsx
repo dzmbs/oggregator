@@ -14,6 +14,7 @@ import SignalCard from './SignalCard';
 import VenueRouterTable from './VenueRouterTable';
 import VolSmileInset from './VolSmileInset';
 import VrpChip from './VrpChip';
+import { computeSviRichness } from './sviRichness';
 import { useVerticalSpreadAnalysis } from './useVerticalSpreadAnalysis';
 import styles from './AlphaView.module.css';
 
@@ -114,6 +115,11 @@ export default function AlphaView() {
     realWorld,
   });
 
+  const richness = useMemo(
+    () => computeSviRichness(analysis.smile, analysis.T),
+    [analysis.smile, analysis.T],
+  );
+
   const executableNet = useMemo(() => {
     const sn = analysis.analysis?.short.best?.netAfterFees;
     const ln = analysis.analysis?.long.best?.netAfterFees;
@@ -181,6 +187,8 @@ export default function AlphaView() {
         smile={analysis.smile}
         shortStrike={shortStrike}
         longStrike={longStrike}
+        richness={richness}
+        T={analysis.T}
       />
     </>
   );

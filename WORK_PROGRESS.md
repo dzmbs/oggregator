@@ -23,9 +23,37 @@ Upgrade Alpha page math: real-world probability, VRP edge, EV gating, SVI surfac
 - [x] Step 1 — `realWorldPop()` in blackScholes  (TDD ✓)
 - [x] Step 2 — `realizedVol()` in core  (TDD ✓)
 - [x] Step 3 — VRP in surface response  (server-enriched, VrpChip rendered)
-- [x] Step 4 — EV gate in SignalCard  (TDD ✓, 195 tests)
-- [ ] Step 5 — SVI fit per expiry  ← IN PROGRESS
-- [ ] Step 6 — SVI residuals + z-score richness
+- [x] Step 4 — EV gate in SignalCard  (TDD ✓)
+- [x] Step 5 — SVI fit per expiry  (Zeliade quasi-explicit + Nelder-Mead 2D ✓)
+- [x] Step 6 — SVI residuals + z-score richness  (overlay rendered in VolSmileInset ✓)
+
+## Final test counts
+
+- core: 43 files / 449 tests ✓
+- web: 20 files / 201 tests ✓
+- trading: 7 / 50 ✓
+- server: 10 / 44 ✓
+- **Total 744 tests passing**, all packages typecheck clean, web bundle builds clean.
+
+## Files added/changed (all on `feat/alpha-ev-vrp-svi`)
+
+- `packages/core/src/services/realized-vol.ts` + test
+- `packages/core/src/services/svi-fit.ts` + test
+- `packages/core/src/index.ts` (exports)
+- `packages/server/src/routes/surface.ts` (VRP wiring)
+- `packages/web/src/lib/analytics/blackScholes.ts` (`realWorldPop`)
+- `packages/web/src/lib/analytics/blackScholes.test.ts` (5 new tests)
+- `packages/web/src/lib/analytics/verticalSpread.ts` (EV gate, real-world POP path)
+- `packages/web/src/lib/analytics/verticalSpread.test.ts` (3 new tests)
+- `packages/web/src/lib/analytics/svi.ts` + test (web mirror)
+- `packages/web/src/shared-types/enriched.ts` (`atmIv30d`, `rv30d`, `vrp30d`)
+- `packages/web/src/features/alpha/sviRichness.ts` + test
+- `packages/web/src/features/alpha/VrpChip.tsx` + module.css
+- `packages/web/src/features/alpha/SignalCard.tsx` (EV/ROC display)
+- `packages/web/src/features/alpha/VolSmileInset.tsx` (SVI overlay + colored dots)
+- `packages/web/src/features/alpha/AlphaView.tsx` (orchestration)
+- `packages/web/src/features/alpha/AlphaView.module.css` (`.contextStrip`)
+- `packages/web/src/features/alpha/useVerticalSpreadAnalysis.ts` (`realWorld` arg)
 
 ## Step 5 design notes
 
