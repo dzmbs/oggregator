@@ -3,6 +3,7 @@ import {
   buildIvSurfaceGrid,
   computeTermStructure,
   getAllAdapters,
+  realizedVol,
   type IvSurfaceRow,
   type IvSurfaceFineRow,
   type TermStructure,
@@ -10,6 +11,15 @@ import {
   VENUE_IDS,
   FINE_DELTA_GRID,
 } from '@oggregator/core';
+import {
+  isIvHistoryReady,
+  isSpotCandlesReady,
+  ivHistoryService,
+  spotCandleService,
+} from '../services.js';
+
+const SECONDS_PER_DAY = 86_400;
+const DAYS_IN_YEAR = 365;
 
 export async function surfaceRoute(app: FastifyInstance) {
   app.get<{
@@ -48,9 +58,8 @@ export async function surfaceRoute(app: FastifyInstance) {
     }
 
     const termStructure: TermStructure = computeTermStructure(surface);
+    const { atmIv30d, rv30d, vrp30d } = await computeVrpContext(underlying);
 
-    // Surface is deterministic per chain tick; allow a 1s shared cache so
-    // bursts of clients hit a proxy cache instead of recomputing.
     reply.header('Cache-Control', 'public, max-age=0, s-maxage=1, stale-while-revalidate=2');
 
     return {
@@ -60,6 +69,44 @@ export async function surfaceRoute(app: FastifyInstance) {
       surfaceFineDeltas: FINE_DELTA_GRID,
       termStructure,
       venueAtm,
+      atmIv30d,
+      rv30d,
+      vrp30d,
     };
   });
+}
+
+interface VrpContext {
+  atmIv30d: number | null;
+  rv30d: number | null;
+  vrp30d: number | null;
+}
+
+async function computeVrpContext(underlying: string): Promise<VrpContext> {
+  const atmIv30d = readAtm30dIv(underlying);
+  const rv30d = await readRv30d(underlying);
+  const vrp30d = atmIv30d != null && rv30d != null ? atmIv30d - rv30d : null;
+  return { atmIv30d, rv30d, vrp30d };
+}
+
+function readAtm30dIv(underlying: string): number | null {
+  if (!isIvHistoryReady()) return null;
+  try {
+    const result = ivHistoryService.query(underlying, 30);
+    return result.tenors['30d'].current.atmIv;
+  } catch {
+    return null;
+  }
+}
+
+async function readRv30d(underlying: string): Promise<number | null> {
+  if (!isSpotCandlesReady()) return null;
+  if (underlying !== 'BTC' && underlying !== 'ETH') return null;
+  try {
+    const candles = await spotCandleService.getCandles(underlying, SECONDS_PER_DAY, 31);
+    const closes = candles.map((c) => c.close);
+    return realizedVol(closes, DAYS_IN_YEAR);
+  } catch {
+    return null;
+  }
 }

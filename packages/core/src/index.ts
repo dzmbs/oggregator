@@ -118,6 +118,7 @@ export {
   type SpotCandleCurrency,
   type SpotCandleResolutionSec,
 } from './services/spot-candles.js';
+export { realizedVol } from './services/realized-vol.js';
 export {
   IvHistoryService,
   type IvHistoryDeps,

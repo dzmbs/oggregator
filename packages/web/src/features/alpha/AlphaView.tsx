@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { useAppStore } from '@stores/app-store';
 import { ExpiryBar, useChainQuery, useExpiries } from '@features/chain';
+import { useSurface } from '@features/surface/queries';
 import { useChainWs } from '@hooks/useChainWs';
 import { useOpenPalette } from '@components/layout';
 import { useIsMobile } from '@hooks/useIsMobile';
@@ -12,6 +13,7 @@ import SpreadBuilderPanel from './SpreadBuilderPanel';
 import SignalCard from './SignalCard';
 import VenueRouterTable from './VenueRouterTable';
 import VolSmileInset from './VolSmileInset';
+import VrpChip from './VrpChip';
 import { useVerticalSpreadAnalysis } from './useVerticalSpreadAnalysis';
 import styles from './AlphaView.module.css';
 
@@ -26,6 +28,7 @@ export default function AlphaView() {
   const { data: expiriesData } = useExpiries(underlying);
   const expiries = expiriesData?.expiries ?? [];
   const { data: chain, isLoading, error } = useChainQuery(underlying, expiry, activeVenues);
+  const { data: surface } = useSurface(underlying, activeVenues);
   const { connectionState, staleMs, failedVenues } = useChainWs({
     underlying,
     expiry,
@@ -94,12 +97,21 @@ export default function AlphaView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sortedStrikes, atmStrike, kind, shortStrike, longStrike]);
 
+  // Real-world POP wiring: when surface RV is available, the gate switches
+  // from risk-neutral N(d₂) to physical-measure POP. Drift is 0 (no view) by
+  // default — a future directional-view toggle would set μ here.
+  const realWorld = useMemo(
+    () => (surface?.rv30d != null ? { drift: 0, sigmaRV: surface.rv30d } : undefined),
+    [surface?.rv30d],
+  );
+
   const analysis = useVerticalSpreadAnalysis({
     chain,
     kind,
     shortStrike,
     longStrike,
     venues: activeVenues,
+    realWorld,
   });
 
   const executableNet = useMemo(() => {
@@ -186,6 +198,14 @@ export default function AlphaView() {
           onChangeAsset={openPalette}
         />
       )}
+
+      <div className={styles.contextStrip}>
+        <VrpChip
+          atmIv30d={surface?.atmIv30d ?? null}
+          rv30d={surface?.rv30d ?? null}
+          vrp30d={surface?.vrp30d ?? null}
+        />
+      </div>
 
       {chain && chain.strikes.length === 0 && (
         <EmptyState

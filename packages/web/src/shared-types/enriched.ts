@@ -67,6 +67,13 @@ export interface IvSurfaceResponse {
   surfaceFineDeltas: number[];
   termStructure: TermStructure;
   venueAtm: Record<string, VenueAtmPoint[]>;
+  // Constant-maturity 30d ATM IV (fraction). Source: IvHistoryService.
+  atmIv30d: number | null;
+  // Trailing 30d close-to-close annualized RV (fraction). Source: spot candles.
+  rv30d: number | null;
+  // VRP30d = atmIv30d − rv30d. Positive → IV pricing above realized → option
+  // sellers are paid for tail risk. Negative → IV cheap vs realized → caution.
+  vrp30d: number | null;
 }
 
 // IV history — constant-maturity ATM IV, 25Δ RR, 25Δ butterfly.

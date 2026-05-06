@@ -115,6 +115,30 @@ export function rho(args: GreeksArgs): number {
   return right === 'call' ? base * normCdf(d2) : -base * normCdf(-d2);
 }
 
+export type ProfitDirection = 'above' | 'below';
+
+// Real-world (P-measure) probability that the underlying lands in the profit
+// zone of a vertical credit spread at expiry. Same N(d₂) shape as risk-neutral
+// pricing but uses physical drift μ and realized vol σ_RV instead of r and IV.
+//
+// direction = 'above' when profit requires S_T > breakeven (put credit spread)
+// direction = 'below' when profit requires S_T < breakeven (call credit spread)
+//
+// Returns NaN for non-positive σ, T, spot, or breakeven so the caller can
+// detect missing inputs and fall back to a different probability source.
+export function realWorldPop(
+  direction: ProfitDirection,
+  spot: number,
+  breakeven: number,
+  T: number,
+  mu: number,
+  sigmaRV: number,
+): number {
+  if (T <= 0 || sigmaRV <= 0 || spot <= 0 || breakeven <= 0) return NaN;
+  const d2 = (Math.log(spot / breakeven) + (mu - 0.5 * sigmaRV * sigmaRV) * T) / (sigmaRV * Math.sqrt(T));
+  return direction === 'above' ? normCdf(d2) : normCdf(-d2);
+}
+
 export interface ImpliedVolArgs {
   marketPrice: number;
   spot: number;

@@ -385,6 +385,141 @@ describe('routeVerticalSpread — strikeByKey parity', () => {
   });
 });
 
+describe('routeVerticalSpread — EV / ROC fields', () => {
+  const spot = 100;
+  const T = 0.25;
+  const r = 0.05;
+  const shortStrike = 95;
+  const longStrike = 105;
+  const iv = 0.55;
+
+  const strikes: EnrichedStrike[] = [
+    {
+      strike: shortStrike,
+      call: {
+        bestIv: iv,
+        bestVenue: 'deribit',
+        venues: {
+          deribit: quote({
+            bid: blackScholesCall(spot, shortStrike, T, r, iv),
+            ask: blackScholesCall(spot, shortStrike, T, r, iv + 0.01),
+            bidIv: iv,
+            askIv: iv + 0.01,
+            markIv: iv,
+            estimatedFees: { maker: 0, taker: 0.05 },
+          }),
+        },
+      },
+      put: { bestIv: null, bestVenue: null, venues: {} },
+    },
+    {
+      strike: longStrike,
+      call: {
+        bestIv: iv,
+        bestVenue: 'deribit',
+        venues: {
+          deribit: quote({
+            bid: blackScholesCall(spot, longStrike, T, r, iv - 0.01),
+            ask: blackScholesCall(spot, longStrike, T, r, iv),
+            bidIv: iv - 0.01,
+            askIv: iv,
+            markIv: iv,
+            estimatedFees: { maker: 0, taker: 0.05 },
+          }),
+        },
+      },
+      put: { bestIv: null, bestVenue: null, venues: {} },
+    },
+  ];
+
+  it('populates expectedValue and roc on the combined signal', () => {
+    const result = routeVerticalSpread({ kind: 'call-credit', shortStrike, longStrike, strikes, spot, T, r });
+    const sig = result.combinedSignal!;
+    // EV = pop * credit - (1 - pop) * maxLoss
+    const expected = sig.successProbability * sig.netCredit - (1 - sig.successProbability) * sig.maxLoss;
+    expect(sig.expectedValue).toBeCloseTo(expected, 8);
+    expect(sig.roc).toBeCloseTo(sig.expectedValue / sig.maxLoss, 8);
+  });
+
+  it('uses real-world POP when realWorld is supplied (drift/sigmaRV)', () => {
+    const baseline = routeVerticalSpread({ kind: 'call-credit', shortStrike, longStrike, strikes, spot, T, r });
+    const withRv = routeVerticalSpread({
+      kind: 'call-credit',
+      shortStrike,
+      longStrike,
+      strikes,
+      spot,
+      T,
+      r,
+      // RV well below IV → real-world POP should be HIGHER than risk-neutral.
+      realWorld: { drift: 0, sigmaRV: 0.30 },
+    });
+    expect(withRv.combinedSignal!.probabilityMethod).toBe('real-world');
+    expect(baseline.combinedSignal!.probabilityMethod).not.toBe('real-world');
+    expect(withRv.combinedSignal!.successProbability).toBeGreaterThan(
+      baseline.combinedSignal!.successProbability,
+    );
+  });
+
+  it('gate AVOIDs a low-ROC trade even with positive credit and high pop', () => {
+    // Hand-crafted: tight strikes, large width — EV is positive but ROC is tiny.
+    // With pop=0.99 and credit=$0.05 on width=$10 (loss=$9.95), EV = $0.0505,
+    // ROC = 0.51% — well below the 10% gate.
+    const tinyCreditStrikes: EnrichedStrike[] = [
+      {
+        strike: 95,
+        call: {
+          bestIv: null,
+          bestVenue: null,
+          venues: {
+            deribit: quote({
+              bid: 5.05,
+              ask: 5.15,
+              bidIv: 0.55,
+              askIv: 0.56,
+              markIv: 0.55,
+              estimatedFees: { maker: 0, taker: 0 },
+            }),
+          },
+        },
+        put: { bestIv: null, bestVenue: null, venues: {} },
+      },
+      {
+        strike: 105,
+        call: {
+          bestIv: null,
+          bestVenue: null,
+          venues: {
+            deribit: quote({
+              bid: 4.95,
+              ask: 5.0,
+              bidIv: 0.55,
+              askIv: 0.56,
+              markIv: 0.55,
+              estimatedFees: { maker: 0, taker: 0 },
+            }),
+          },
+        },
+        put: { bestIv: null, bestVenue: null, venues: {} },
+      },
+    ];
+    const result = routeVerticalSpread({
+      kind: 'call-credit',
+      shortStrike: 95,
+      longStrike: 105,
+      strikes: tinyCreditStrikes,
+      spot,
+      T,
+      r,
+    });
+    const sig = result.combinedSignal!;
+    expect(sig.netCredit).toBeGreaterThan(0);
+    expect(sig.netCredit).toBeLessThan(0.5);
+    expect(sig.signal).toBe('AVOID');
+    expect(sig.roc).toBeLessThan(0.1);
+  });
+});
+
 describe('routeVerticalSpread — HOLD and signal gate', () => {
   const spot = 100;
   const T = 0.25;
