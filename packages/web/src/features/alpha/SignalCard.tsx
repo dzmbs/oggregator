@@ -4,14 +4,22 @@ import InfoTip from '@components/ui/InfoTip';
 import { fmtUsd } from '@lib/format';
 import type { SpreadSignal } from '@lib/analytics/verticalSpread';
 
+import type { RegimeResponse } from './useRegimeQuery';
 import styles from './SignalCard.module.css';
 
 interface Props {
   signal: SpreadSignal | null;
   label?: string;
+  regime?: RegimeResponse | null;
 }
 
-function SignalCard({ signal, label = 'Executable (best routing)' }: Props) {
+const REGIME_GATE_PCT: Record<string, string> = {
+  bull: '7%',
+  neutral: '10%',
+  stress: '20%',
+};
+
+function SignalCard({ signal, label = 'Executable (best routing)', regime }: Props) {
   if (!signal) {
     return (
       <div className={styles.card} data-empty="true">
@@ -19,6 +27,11 @@ function SignalCard({ signal, label = 'Executable (best routing)' }: Props) {
       </div>
     );
   }
+
+  const dominant = regime?.dominant ?? null;
+  const confidencePct =
+    regime?.confidence != null ? Math.round(regime.confidence * 100) : null;
+  const gatePct = dominant ? REGIME_GATE_PCT[dominant] : null;
 
   const probPct = Math.round(signal.successProbability * 100);
   const probMethodHint =
@@ -71,6 +84,21 @@ function SignalCard({ signal, label = 'Executable (best routing)' }: Props) {
         </span>
         <span className={styles.reasoning}>{signal.reasoning}</span>
       </div>
+
+      {dominant && (
+        <div className={styles.regimeRow} data-regime={dominant}>
+          <span className={styles.regimeLabel}>Regime</span>
+          <span className={styles.regimePill} data-regime={dominant}>
+            {dominant.toUpperCase()}
+          </span>
+          {confidencePct != null && (
+            <span className={styles.regimeMeta}>{confidencePct}% confidence</span>
+          )}
+          {gatePct && (
+            <span className={styles.regimeMeta}>· ROC gate {gatePct}</span>
+          )}
+        </div>
+      )}
 
       <div className={styles.stats}>
         <div

@@ -12,6 +12,7 @@ import { blockFlowRoute } from './block-flow.js';
 import { dvolHistoryRoute } from './dvol-history.js';
 import { spotCandlesRoute } from './spot-candles.js';
 import { ivHistoryRoute } from './iv-history.js';
+import { regimeRoute } from './regime.js';
 import { wsChainRoute } from './ws-chain.js';
 import { paperRoutes, paperWsRoute } from './paper/index.js';
 import { paperAuthRoute } from './paper/auth.js';
@@ -42,6 +43,7 @@ export function registerRoutes(app: FastifyInstance) {
   app.register(dvolHistoryRoute, { prefix: '/api' });
   app.register(spotCandlesRoute, { prefix: '/api' });
   app.register(ivHistoryRoute, { prefix: '/api' });
+  app.register(regimeRoute, { prefix: '/api' });
   app.register(paperRoutes, { prefix: '/api' });
   app.register(paperAuthRoute, { prefix: '/api' });
   app.register(wsChainRoute);

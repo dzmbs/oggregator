@@ -135,6 +135,23 @@ export {
   type ViterbiResult,
 } from './services/regime-hmm.js';
 export {
+  applyStandardization,
+  fitStandardization,
+  interpBasisToTenor,
+  labelStatesByVolLevel,
+  RegimeService,
+  type BasisPoint,
+  type RegimeInputs,
+  type RegimeLabel,
+  type RegimePersistedModel,
+  type RegimePersistedObservation,
+  type RegimePersistence,
+  type RegimeQueryResult,
+  type RegimeServiceDeps,
+  type RegimeServiceOptions,
+  type StandardizationParams,
+} from './services/regime.js';
+export {
   fitSvi,
   sviIv,
   sviTotalVariance,

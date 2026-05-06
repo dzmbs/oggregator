@@ -3,19 +3,26 @@ import {
   BlockTradeRuntime,
   DvolService,
   IvHistoryService,
+  RegimeService,
   SpotCandleService,
   SpotRuntime,
   TradeRuntime,
   buildIvSurfaceGrid,
+  interpBasisToTenor,
+  type RegimeInputs,
+  type RegimePersistence,
 } from '@oggregator/core';
 import {
   DEFAULT_IV_HISTORY_SIZE_WARN_BYTES,
   NoopIvHistoryStore,
+  NoopRegimeStore,
   NoopTradeStore,
   PostgresIvHistoryStore,
+  PostgresRegimeStore,
   PostgresTradeStore,
   type IvHistoryStorageStats,
   type IvHistoryStore,
+  type RegimeStore,
   type TradeStore,
 } from '@oggregator/db';
 import { disposeSettlementJob, startSettlementJob } from './settlement-service.js';
@@ -44,6 +51,108 @@ export const tradeStore: TradeStore = databaseUrl
   ? PostgresTradeStore.fromConnectionString(databaseUrl)
   : new NoopTradeStore();
 
+export const regimeStore: RegimeStore = databaseUrl
+  ? PostgresRegimeStore.fromConnectionString(databaseUrl)
+  : new NoopRegimeStore();
+
+const regimePersistence: RegimePersistence = {
+  enabled: regimeStore.enabled,
+  loadModel: async (underlying) => {
+    const persisted = await regimeStore.loadModel(underlying);
+    if (!persisted) return null;
+    const hmm = persisted.hmm as RegimePersistedHmm;
+    const standardization = persisted.standardization as RegimePersistedStandardization;
+    return {
+      underlying: persisted.underlying,
+      fittedAt: persisted.fittedAt.getTime(),
+      observationCount: persisted.observationCount,
+      hmm,
+      standardization,
+      stateLabels: persisted.stateLabels,
+    };
+  },
+  saveModel: async (model) => {
+    await regimeStore.saveModel({
+      underlying: model.underlying,
+      fittedAt: new Date(model.fittedAt),
+      observationCount: model.observationCount,
+      nStates: model.hmm.nStates,
+      hmm: model.hmm,
+      standardization: model.standardization,
+      stateLabels: model.stateLabels,
+    });
+  },
+  loadObservationsSince: async ({ underlyings, since }) => {
+    const rows = await regimeStore.loadObservationsSince({
+      underlyings,
+      since: new Date(since),
+    });
+    return rows.map((r) => ({
+      underlying: r.underlying,
+      ts: r.ts.getTime(),
+      features: r.features,
+      posterior: r.posterior,
+      dominant: r.dominant,
+    }));
+  },
+  saveObservation: async (row) => {
+    await regimeStore.saveObservation({
+      underlying: row.underlying,
+      ts: new Date(row.ts),
+      features: row.features,
+      posterior: row.posterior,
+      dominant: row.dominant,
+    });
+  },
+};
+
+// RegimeService is BTC/ETH-only because IvHistoryService only seeds 30d ATM
+// for those two underlyings (DVOL coverage). Other assets would need to
+// accumulate ~30 days of live snapshots before fits are usable.
+export const regimeService = new RegimeService(
+  {
+    underlyings: ['BTC', 'ETH'],
+    store: regimePersistence,
+    getRegimeInputs: async (underlying) => buildRegimeInputs(underlying),
+  },
+  { intervalMs: 5 * 60 * 1000 },
+);
+
+interface RegimePersistedHmm {
+  nStates: number;
+  pi: number[];
+  A: number[][];
+  mu: number[][];
+  sigma2: number[][];
+}
+
+interface RegimePersistedStandardization {
+  means: number[];
+  stds: number[];
+}
+
+async function buildRegimeInputs(underlying: string): Promise<RegimeInputs> {
+  const ts = Date.now();
+  const ivQuery = ivHistoryService.query(underlying, 30).tenors['30d'].current;
+  const atmIv30d = ivQuery.atmIv;
+  const rr25d_30d = ivQuery.rr25d;
+  const bfly25d_30d = ivQuery.bfly25d;
+
+  let basis30d: number | null = null;
+  try {
+    const entries = await buildIvSurfaceGrid({ underlying });
+    const points = entries
+      .filter((e) => e.basisPct != null)
+      .map((e) => ({ dte: e.dte, basisPct: e.basisPct as number }));
+    basis30d = interpBasisToTenor(points, 30);
+  } catch {
+    // Surface grid fetch failures are non-fatal — feed yields a null-feature
+    // snapshot which RegimeService skips without breaking the buffer.
+  }
+
+  return { ts, atmIv30d, rr25d_30d, bfly25d_30d, basis30d };
+}
+
 let ivHistoryStorageAlarmTimer: ReturnType<typeof setInterval> | null = null;
 
 const serviceHealth = {
@@ -53,6 +162,7 @@ const serviceHealth = {
   flow: false,
   blockFlow: false,
   ivHistory: false,
+  regime: false,
 };
 
 export function isDvolReady(): boolean {
@@ -72,6 +182,9 @@ export function isBlockFlowReady(): boolean {
 }
 export function isIvHistoryReady(): boolean {
   return serviceHealth.ivHistory;
+}
+export function isRegimeReady(): boolean {
+  return serviceHealth.regime;
 }
 
 export async function getIvHistoryStorageStats(): Promise<IvHistoryStorageStats> {
@@ -145,6 +258,16 @@ export async function bootstrapServices(log: FastifyBaseLogger) {
     log.warn({ err: String(err) }, 'IV history service failed');
   }
 
+  // RegimeService must start AFTER IvHistoryService — it reads the 30d
+  // constant-maturity ATM/RR/butterfly from the IV history query result.
+  try {
+    await regimeService.start();
+    serviceHealth.regime = true;
+    log.info('regime service started');
+  } catch (err: unknown) {
+    log.warn({ err: String(err) }, 'regime service failed');
+  }
+
   startIvHistoryStorageAlarm(log);
   startSettlementJob(log);
 
@@ -156,6 +279,7 @@ export function disposeServiceStores(): void {
     clearInterval(ivHistoryStorageAlarmTimer);
     ivHistoryStorageAlarmTimer = null;
   }
+  regimeService.dispose();
   disposeSettlementJob();
 }
 
