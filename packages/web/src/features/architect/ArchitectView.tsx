@@ -20,6 +20,7 @@ import PayoffChartV2, { pickCandleSpec } from './PayoffChartV2';
 import SnapshotBanner from './SnapshotBanner';
 import { isSpotCandleCurrency, useSpotCandles } from './queries';
 import VenueSlideover from './VenueSlideover';
+import type { StrategyRouting } from '@features/builder/round-trip';
 import { legsToOrderRequest, useCreateTrade } from '@features/trading';
 import { useAppStore as _useAppStoreForTabSwitch } from '@stores/app-store';
 import StrategyTemplates, {
@@ -205,13 +206,13 @@ export default function ArchitectView() {
     [activeVenues],
   );
 
-  async function handleSendToPaper() {
+  async function handleSendToPaper(routing?: StrategyRouting) {
     if (legs.length === 0) return;
     setPaperStatus(null);
     try {
       const venueFilter =
         paperVenue === ACTIVE_PAPER_VENUES_VALUE ? activeVenues : [paperVenue];
-      const req = legsToOrderRequest(legs, underlying, venueFilter);
+      const req = legsToOrderRequest(legs, underlying, venueFilter, routing);
       const strategyName = detectStrategy(legs);
       const result = await createTrade.mutateAsync({
         label: strategyName,
@@ -224,6 +225,7 @@ export default function ArchitectView() {
           ? VENUES[filledVenues[0] ?? '']?.label ?? filledVenues[0]
           : `${filledVenues.length} venues`;
       setPaperStatus(`Filled on ${fillSummary} - switching to Paper tab`);
+      setShowVenues(false);
       setTimeout(() => setActiveTab('trading'), 400);
     } catch (err) {
       setPaperStatus(err instanceof Error ? err.message : 'Paper order failed');
@@ -457,7 +459,7 @@ export default function ArchitectView() {
             {legs.length > 0 && (
               <button
                 className={styles.compareBtn}
-                onClick={handleSendToPaper}
+                onClick={() => handleSendToPaper()}
                 disabled={createTrade.isPending}
                 style={{ marginTop: 8 }}
               >
@@ -839,6 +841,8 @@ export default function ArchitectView() {
             chain={chain ?? null}
             activeVenues={activeVenues}
             onClose={() => setShowVenues(false)}
+            onSendToPaper={(routing) => handleSendToPaper(routing)}
+            isSending={createTrade.isPending}
           />
         </>
       )}
