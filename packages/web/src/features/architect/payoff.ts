@@ -58,6 +58,41 @@ function legPnlAtExpiry(leg: Leg, underlyingPrice: number): number {
   return sign * (intrinsicValue - leg.entryPrice) * leg.quantity;
 }
 
+/**
+ * Half-width of the price grid used by computePayoff / computeScenarioPayoff.
+ *
+ * The grid must cover every theoretical break-even, otherwise findBreakevens
+ * silently drops the ones that fall outside it and the V2 zone shading paints
+ * a single (-∞, upperBE) region that probes positive in the actual profit
+ * tail — turning the whole loss zone green. A long straddle at a near-the-
+ * money strike with rich premium hits this case (BEs at strike ± Σpremium,
+ * which can sit ~30% outside spot for long-DTE ATM contracts).
+ *
+ * Σ|entryPrice × qty| is an upper bound on how far any BE can be from the
+ * nearest strike, so anchoring the half-width on (max strike-to-spot distance
+ * + Σ premium × margin) guarantees both BEs land inside with room to spare.
+ */
+function computeRangeHalf(
+  legs: Leg[],
+  spotPrice: number,
+  minStrike: number,
+  maxStrike: number,
+): number {
+  const totalPremium = legs.reduce(
+    (s, l) => s + Math.abs(l.entryPrice) * l.quantity,
+    0,
+  );
+  const maxStrikeDistFromSpot = Math.max(
+    Math.abs(maxStrike - spotPrice),
+    Math.abs(minStrike - spotPrice),
+  );
+  return Math.max(
+    (maxStrike - minStrike) * 1.5,
+    spotPrice * 0.3,
+    maxStrikeDistFromSpot + totalPremium * 1.5,
+  );
+}
+
 /** Compute total strategy P&L across a range of underlying prices. */
 export function computePayoff(legs: Leg[], spotPrice: number, numPoints = 200): PayoffPoint[] {
   if (legs.length === 0) return [];
@@ -66,9 +101,8 @@ export function computePayoff(legs: Leg[], spotPrice: number, numPoints = 200): 
   const minStrike = Math.min(...strikes);
   const maxStrike = Math.max(...strikes);
 
-  // Range: ±30% around the strike range, centered on spot
   const rangeCenter = spotPrice;
-  const rangeHalf = Math.max((maxStrike - minStrike) * 1.5, spotPrice * 0.3);
+  const rangeHalf = computeRangeHalf(legs, spotPrice, minStrike, maxStrike);
   const low = Math.max(0, rangeCenter - rangeHalf);
   const high = rangeCenter + rangeHalf;
   const step = (high - low) / numPoints;
@@ -209,7 +243,7 @@ export function computeScenarioPayoff(
   const minStrike = Math.min(...strikes);
   const maxStrike = Math.max(...strikes);
   const rangeCenter = spotPrice;
-  const rangeHalf = Math.max((maxStrike - minStrike) * 1.5, spotPrice * 0.3);
+  const rangeHalf = computeRangeHalf(legs, spotPrice, minStrike, maxStrike);
   const low = Math.max(0, rangeCenter - rangeHalf);
   const high = rangeCenter + rangeHalf;
   const step = (high - low) / numPoints;

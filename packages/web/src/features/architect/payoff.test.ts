@@ -70,6 +70,21 @@ describe('computeMetrics', () => {
     expect(m.maxProfit).not.toBeNull();
     expect(m.maxLoss).not.toBeNull();
   });
+
+  // Regression: a 142-DTE ATM long straddle on ETH had the lower BE fall just
+  // outside the old ±30% search window, so findBreakevens returned only the
+  // upper BE and PayoffChartV2 painted the entire loss zone green.
+  it('long straddle reports both break-evens for an ATM long-DTE contract', () => {
+    const legs: Leg[] = [
+      leg({ type: 'call', direction: 'buy', strike: 2_300, entryPrice: 380 }),
+      leg({ type: 'put', direction: 'buy', strike: 2_300, entryPrice: 309 }),
+    ];
+    const m = computeMetrics(legs, 2_349.75);
+    expect(m.breakevens).toHaveLength(2);
+    const [lower, upper] = [...m.breakevens].sort((a, b) => a - b);
+    expect(lower).toBeCloseTo(1_611, -1);
+    expect(upper).toBeCloseTo(2_989, -1);
+  });
 });
 
 describe('computeMetrics — greek partial-coverage reporting', () => {
