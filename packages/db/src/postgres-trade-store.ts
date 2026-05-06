@@ -18,7 +18,14 @@ export class PostgresTradeStore implements TradeStore {
   constructor(private readonly pool: Pool) {}
 
   static fromConnectionString(connectionString: string): PostgresTradeStore {
-    return new PostgresTradeStore(new Pool({ connectionString }));
+    return new PostgresTradeStore(
+      new Pool({
+        connectionString,
+        connectionTimeoutMillis: 10_000,
+        statement_timeout: 15_000,
+        query_timeout: 15_000,
+      }),
+    );
   }
 
   async writeMany(records: PersistedTradeRecord[]): Promise<void> {
@@ -81,7 +88,7 @@ export class PostgresTradeStore implements TradeStore {
           legs,
           raw
         ) VALUES ${placeholders.join(', ')}
-        ON CONFLICT (trade_uid) DO NOTHING`,
+        ON CONFLICT (trade_uid, trade_ts) DO NOTHING`,
         values,
       );
     }
@@ -169,6 +176,17 @@ export class PostgresTradeStore implements TradeStore {
       newestTs: row?.newest_ts ?? null,
       venues: venuesResult.rows.map(mapVenueSummaryRow),
     };
+  }
+
+  async ensureForwardPartitions(monthsAhead: number): Promise<void> {
+    // Also create the previous month — venues sometimes replay recent trades
+    // with timestamps a few hours/days behind on resubscribe.
+    for (let i = -1; i <= monthsAhead; i += 1) {
+      await this.pool.query(
+        `SELECT flow_trades_ensure_month_partition(now() + ($1 || ' months')::INTERVAL)`,
+        [i],
+      );
+    }
   }
 
   async dispose(): Promise<void> {

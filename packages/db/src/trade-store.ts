@@ -43,5 +43,6 @@ export interface TradeStore {
   summarizeHistory(
     query: TradeFilterQuery & { mode: PersistedTradeMode },
   ): Promise<TradeHistorySummary>;
+  ensureForwardPartitions(monthsAhead: number): Promise<void>;
   dispose(): Promise<void>;
 }

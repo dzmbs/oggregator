@@ -1,7 +1,13 @@
+import { setDefaultResultOrder } from 'node:dns';
 import { readdir, readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { Pool } from 'pg';
+
+// WSL2 + Neon: AAAA records aren't routable here. pg calls dns.lookup() with no
+// family option, so we change the process-wide default before pg loads.
+setDefaultResultOrder('ipv4first');
+
+const { Pool } = await import('pg');
 
 const here = dirname(fileURLToPath(import.meta.url));
 const migrationsDir = join(here, '../migrations');

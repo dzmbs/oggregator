@@ -35,5 +35,7 @@ export class NoopTradeStore implements TradeStore {
     return EMPTY_SUMMARY;
   }
 
+  async ensureForwardPartitions(_monthsAhead: number): Promise<void> {}
+
   async dispose(): Promise<void> {}
 }

@@ -48,3 +48,4 @@ docs/superpowers/specs/2026-04-22-forward-analysis-design.md
 # Git worktrees
 .worktrees/
 docs/superpowers/
+.claude/scheduled_tasks.lock

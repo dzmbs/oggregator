@@ -1,3 +1,7 @@
+import { setDefaultResultOrder } from 'node:dns';
+
+setDefaultResultOrder('ipv4first');
+
 import { config as loadEnv } from 'dotenv';
 import {
   BlockTradeRuntime,
@@ -53,6 +57,8 @@ const FLUSH_BATCH_SIZE = 250;
 const MAX_PENDING_RECORDS = 10_000;
 const MAX_FLUSH_BACKOFF_MS = 30_000;
 const OPS_LOG_INTERVAL_MS = 60_000;
+const PARTITION_TOPUP_INTERVAL_MS = 24 * 60 * 60 * 1_000;
+const PARTITION_MONTHS_AHEAD = 3;
 
 async function main(): Promise<void> {
   const databaseUrl = process.env['DATABASE_URL'];
@@ -62,6 +68,12 @@ async function main(): Promise<void> {
 
   if (!tradeStore.enabled) {
     log.warn('DATABASE_URL not set, ingest worker is running without persistence');
+  } else {
+    try {
+      await tradeStore.ensureForwardPartitions(PARTITION_MONTHS_AHEAD);
+    } catch (error) {
+      log.warn({ err: String(error) }, 'forward partition top-up failed at startup');
+    }
   }
 
   const spotRuntime = new SpotRuntime();
@@ -117,6 +129,14 @@ async function main(): Promise<void> {
     );
   }, OPS_LOG_INTERVAL_MS);
 
+  const partitionTimer = tradeStore.enabled
+    ? setInterval(() => {
+        void tradeStore.ensureForwardPartitions(PARTITION_MONTHS_AHEAD).catch((error) => {
+          log.warn({ err: String(error) }, 'forward partition top-up failed');
+        });
+      }, PARTITION_TOPUP_INTERVAL_MS)
+    : null;
+
   let shutdownPromise: Promise<void> | null = null;
 
   const shutdown = async () => {
@@ -128,6 +148,7 @@ async function main(): Promise<void> {
     shutdownPromise = (async () => {
       log.info('shutting down ingest worker');
       clearInterval(opsTimer);
+      if (partitionTimer != null) clearInterval(partitionTimer);
       writer.dispose();
       await writer.flushAll();
       tradeRuntime.dispose();
@@ -307,17 +328,9 @@ function mapLiveTrade(trade: TradeEvent, spotService: SpotRuntime): PersistedTra
     strategyLabel: null,
     legs: null,
     raw: {
-      venue: trade.venue,
-      instrument: trade.instrument,
-      underlying: trade.underlying,
-      side: trade.side,
-      price: trade.price,
+      tradeId: trade.tradeId,
       size: trade.size,
-      iv: trade.iv,
-      markPrice: trade.markPrice,
       indexPrice: trade.indexPrice,
-      isBlock: trade.isBlock,
-      timestamp: trade.timestamp,
     },
   };
 }
@@ -360,16 +373,9 @@ function mapInstitutionalTrade(
     strategyLabel: trade.strategy,
     legs,
     raw: {
-      venue: trade.venue,
       tradeId: trade.tradeId,
-      timestamp: trade.timestamp,
-      underlying: trade.underlying,
-      direction: trade.direction,
-      strategy: trade.strategy,
       totalSize: trade.totalSize,
-      notionalUsd: trade.notionalUsd,
       indexPrice: trade.indexPrice,
-      legs,
     },
   };
 }
