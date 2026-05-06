@@ -118,6 +118,14 @@ export {
   type SpotCandleCurrency,
   type SpotCandleResolutionSec,
 } from './services/spot-candles.js';
+export { realizedVol } from './services/realized-vol.js';
+export {
+  fitSvi,
+  sviIv,
+  sviTotalVariance,
+  type SviParams,
+  type FitPoint as SviFitPoint,
+} from './services/svi-fit.js';
 export {
   IvHistoryService,
   type IvHistoryDeps,

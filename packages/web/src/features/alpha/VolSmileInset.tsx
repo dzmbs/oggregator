@@ -2,6 +2,8 @@ import { memo, useMemo, useState, type MouseEvent } from 'react';
 
 import InfoTip from '@components/ui/InfoTip';
 import { interpAtStrike, type SmileCurve, type SmilePoint } from '@lib/analytics/smile';
+import { sviIv } from '@lib/analytics/svi';
+import type { SviRichness } from './sviRichness';
 
 import styles from './VolSmileInset.module.css';
 
@@ -9,6 +11,17 @@ interface Props {
   smile: SmileCurve | null;
   shortStrike: number | null;
   longStrike: number | null;
+  richness?: SviRichness;
+  T?: number | null;
+}
+
+const Z_NEUTRAL = 1;
+
+function richnessColor(zScore: number | null | undefined): string {
+  if (zScore == null || !Number.isFinite(zScore)) return 'var(--text-dim)';
+  if (zScore > Z_NEUTRAL) return 'var(--accent-primary)';
+  if (zScore < -Z_NEUTRAL) return 'var(--color-loss)';
+  return 'var(--text-secondary)';
 }
 
 const W = 520;
@@ -18,8 +31,16 @@ const PAD_R = 14;
 const PAD_T = 16;
 const PAD_B = 28;
 
-function VolSmileInset({ smile, shortStrike, longStrike }: Props) {
+function VolSmileInset({ smile, shortStrike, longStrike, richness, T }: Props) {
   const [hoverX, setHoverX] = useState<number | null>(null);
+
+  const zByStrike = useMemo(() => {
+    const m = new Map<number, number | null>();
+    if (richness?.params != null) {
+      for (const r of richness.points) m.set(r.strike, r.zScore);
+    }
+    return m;
+  }, [richness]);
 
   const layout = useMemo(() => {
     if (!smile || smile.points.length === 0) return null;
@@ -44,11 +65,28 @@ function VolSmileInset({ smile, shortStrike, longStrike }: Props) {
     const screen = pts.map((p) => ({ x: sx(p.strike), y: sy(p.blendedIv!) }));
     const path = catmullRomPath(screen);
 
+    let sviPath: string | null = null;
+    if (richness?.params != null && T != null && T > 0 && smile.spot > 0) {
+      const samples: { x: number; y: number }[] = [];
+      const SAMPLES = 80;
+      for (let i = 0; i <= SAMPLES; i++) {
+        const strike = xMin + ((xMax - xMin) * i) / SAMPLES;
+        const k = Math.log(strike / smile.spot);
+        const iv = sviIv(richness.params, k, T);
+        if (Number.isFinite(iv) && iv > 0) {
+          samples.push({ x: sx(strike), y: sy(iv) });
+        }
+      }
+      if (samples.length >= 2) {
+        sviPath = catmullRomPath(samples);
+      }
+    }
+
     const xTicks = niceTicks(xMin, xMax, 5);
     const yTicks = niceTicks(yLo, yHi, 5);
 
-    return { path, pts, sx, sy, xMin, xMax, yLo, yHi, xTicks, yTicks };
-  }, [smile]);
+    return { path, sviPath, pts, sx, sy, xMin, xMax, yLo, yHi, xTicks, yTicks };
+  }, [smile, richness, T]);
 
   if (!layout) {
     return (
@@ -110,6 +148,14 @@ function VolSmileInset({ smile, shortStrike, longStrike }: Props) {
               fear). In BTC/ETH, mildly positive is normal; spikes often precede
               directional regimes. Use it to pick the side: rich put skew makes
               put-credit spreads structurally more attractive.
+            </p>
+            <p style={{ marginTop: 6 }}>
+              <strong>Dashed line</strong> is the arbitrage-free SVI fit (Gatheral
+              raw, Zeliade calibration). Dot color = richness vs. fit:{' '}
+              <span style={{ color: 'var(--accent-primary)' }}>rich</span> at
+              z &gt; +1σ (good for sellers),{' '}
+              <span style={{ color: 'var(--color-loss)' }}>cheap</span> at z &lt;
+              −1σ (good for buyers / cheap protection legs).
             </p>
           </InfoTip>
         </span>
@@ -186,17 +232,42 @@ function VolSmileInset({ smile, shortStrike, longStrike }: Props) {
         />
         <line x1={PAD_L} y1={PAD_T} x2={PAD_L} y2={H - PAD_B} stroke="var(--border-subtle)" strokeWidth="1" />
 
+        {layout.sviPath && (
+          <path
+            d={layout.sviPath}
+            fill="none"
+            stroke="var(--text-dim)"
+            strokeWidth="1"
+            strokeDasharray="4 4"
+            opacity="0.7"
+          />
+        )}
+
         <path d={layout.path} fill="none" stroke="var(--accent-primary)" strokeWidth="1.5" />
 
-        {layout.pts.map((p) => (
-          <circle
-            key={p.strike}
-            cx={layout.sx(p.strike)}
-            cy={layout.sy(p.blendedIv!)}
-            r="1.75"
-            className={styles.dataDot}
-          />
-        ))}
+        {layout.pts.map((p) => {
+          const z = zByStrike.get(p.strike);
+          const fill = richness?.params != null ? richnessColor(z) : 'var(--text-secondary)';
+          const r = z != null && Math.abs(z) > Z_NEUTRAL ? 3 : 1.75;
+          return (
+            <circle
+              key={p.strike}
+              cx={layout.sx(p.strike)}
+              cy={layout.sy(p.blendedIv!)}
+              r={r}
+              fill={fill}
+              className={styles.dataDot}
+            >
+              {z != null && (
+                <title>
+                  {p.strike} · IV {(p.blendedIv! * 100).toFixed(1)}% · richness{' '}
+                  {z >= 0 ? '+' : ''}
+                  {z.toFixed(2)}σ
+                </title>
+              )}
+            </circle>
+          );
+        })}
 
         {smile && (
           <line

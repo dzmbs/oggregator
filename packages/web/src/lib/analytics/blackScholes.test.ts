@@ -12,6 +12,7 @@ import {
   normCdf,
   normPdf,
   erf,
+  realWorldPop,
 } from './blackScholes';
 
 // Numeric parity targets. Values generated from the reference Python
@@ -145,6 +146,49 @@ describe('Greeks — round-trip with IV solver', () => {
     });
     expect(iv).not.toBeNull();
     expect(iv!).toBeCloseTo(args.sigma, 4);
+  });
+});
+
+// Real-world (P-measure) probability of profit at expiry. Same N(d₂) shape as
+// the risk-neutral version but uses physical drift μ and realized vol σ_RV
+// instead of r and IV. Targets verified against scipy.stats.norm.cdf.
+describe('realWorldPop', () => {
+  it('drift-balanced ATM case → 0.5 either direction', () => {
+    // When μ = ½σ², the (μ − ½σ²) term vanishes and S = BE → d₂ = 0 → Φ(0) = 0.5.
+    expect(realWorldPop('above', 100, 100, 1, 0.02, 0.2)).toBeCloseTo(0.5, 6);
+    expect(realWorldPop('below', 100, 100, 1, 0.02, 0.2)).toBeCloseTo(0.5, 6);
+  });
+
+  it('ATM zero-drift call-credit ≈ 0.5398, put-credit ≈ 0.4602', () => {
+    // S=100, BE=100, T=1, μ=0, σ=0.2 → d₂ = -0.5*0.04*1/0.2 = -0.1
+    // call-credit (below): N(0.1) ≈ 0.5398   put-credit (above): N(-0.1) ≈ 0.4602
+    expect(realWorldPop('below', 100, 100, 1, 0, 0.2)).toBeCloseTo(0.5398, 4);
+    expect(realWorldPop('above', 100, 100, 1, 0, 0.2)).toBeCloseTo(0.4602, 4);
+  });
+
+  it('directional drift moves the put-credit POP up', () => {
+    // Put-credit at BE=90 with spot=100, 30d, σ=0.6.
+    // μ=0 → d₂ ≈ 0.5267 → Φ ≈ 0.7008
+    // μ=0.5 (bullish view) → d₂ ≈ 0.7654 → Φ ≈ 0.7780
+    const flat = realWorldPop('above', 100, 90, 30 / 365, 0, 0.6);
+    const bullish = realWorldPop('above', 100, 90, 30 / 365, 0.5, 0.6);
+    expect(flat).toBeCloseTo(0.7008, 3);
+    expect(bullish).toBeCloseTo(0.7780, 3);
+    expect(bullish).toBeGreaterThan(flat);
+  });
+
+  it('deep OTM call-credit at 2× spot in 30d → almost certainly profitable', () => {
+    // S=100, BE=200, T=30/365, μ=0, σ=0.6 → d₂ ≈ -4.11 → Φ(4.11) ≈ 0.99998
+    const p = realWorldPop('below', 100, 200, 30 / 365, 0, 0.6);
+    expect(p).toBeGreaterThan(0.999);
+    expect(p).toBeLessThan(1);
+  });
+
+  it('returns NaN for non-positive σ, T, or prices', () => {
+    expect(Number.isNaN(realWorldPop('above', 100, 100, 0, 0, 0.2))).toBe(true);
+    expect(Number.isNaN(realWorldPop('above', 100, 100, 1, 0, 0))).toBe(true);
+    expect(Number.isNaN(realWorldPop('above', 0, 100, 1, 0, 0.2))).toBe(true);
+    expect(Number.isNaN(realWorldPop('above', 100, 0, 1, 0, 0.2))).toBe(true);
   });
 });
 
