@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 
 import type { EnrichedStrike, VenueId, VenueQuote } from '@shared/enriched';
 import { blackScholesCall, blackScholesPut } from './blackScholes';
-import { routeVerticalSpread } from './verticalSpread';
+import { rocGateForRegime, routeVerticalSpread } from './verticalSpread';
 
 function quote(partial: Partial<VenueQuote>): VenueQuote {
   return {
@@ -487,6 +487,73 @@ describe('routeVerticalSpread — EV / ROC fields', () => {
     expect(withRv.combinedSignal!.successProbability).toBeGreaterThan(
       baseline.combinedSignal!.successProbability,
     );
+  });
+
+  it('rocGateForRegime maps regime label to the right ROC threshold', () => {
+    expect(rocGateForRegime('stress')).toBeCloseTo(0.20, 6);
+    expect(rocGateForRegime('bull')).toBeCloseTo(0.07, 6);
+    expect(rocGateForRegime('neutral')).toBeCloseTo(0.10, 6);
+    expect(rocGateForRegime(null)).toBeCloseTo(0.10, 6);
+    expect(rocGateForRegime(undefined)).toBeCloseTo(0.10, 6);
+  });
+
+  it('reasoning string surfaces the active regime gate so it shows up in the UI', () => {
+    // Run the same low-credit AVOID twice — once with no regime, once stress —
+    // and assert the reasoning line carries the regime suffix.
+    const strikes: EnrichedStrike[] = [
+      {
+        strike: 75,
+        call: { bestIv: null, bestVenue: null, venues: {} },
+        put: {
+          bestIv: null,
+          bestVenue: null,
+          venues: {
+            deribit: quote({
+              bid: 0.20,
+              ask: 0.25,
+              bidIv: 0.4,
+              askIv: 0.41,
+              markIv: 0.4,
+              estimatedFees: { maker: 0, taker: 0 },
+            }),
+          },
+        },
+      },
+      {
+        strike: 85,
+        call: { bestIv: null, bestVenue: null, venues: {} },
+        put: {
+          bestIv: null,
+          bestVenue: null,
+          venues: {
+            deribit: quote({
+              bid: 0.30,
+              ask: 0.35,
+              bidIv: 0.4,
+              askIv: 0.41,
+              markIv: 0.4,
+              estimatedFees: { maker: 0, taker: 0 },
+            }),
+          },
+        },
+      },
+    ];
+    const base = {
+      kind: 'put-credit' as const,
+      shortStrike: 85,
+      longStrike: 75,
+      strikes,
+      spot: 100,
+      T: 30 / 365.25,
+      r: 0.05,
+      realWorld: { drift: 0, sigmaRV: 0.10 },
+    };
+    const stress = routeVerticalSpread({ ...base, regimeDominant: 'stress' });
+    const bull = routeVerticalSpread({ ...base, regimeDominant: 'bull' });
+    expect(stress.combinedSignal!.reasoning).toContain('stress');
+    expect(stress.combinedSignal!.reasoning).toContain('20%');
+    expect(bull.combinedSignal!.reasoning).toContain('bull');
+    expect(bull.combinedSignal!.reasoning).toContain('7%');
   });
 
   it('gate AVOIDs a low-ROC trade even with positive credit and high pop', () => {

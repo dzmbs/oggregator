@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import type { EnrichedChainResponse, EnrichedStrike } from '@shared/enriched';
 import {
   routeVerticalSpread,
+  type RegimeLabel,
   type SpreadKind,
   type RoutedSpreadAnalysis,
   type RealWorldParams,
@@ -18,6 +19,7 @@ export interface AnalysisInput {
   longStrike: number | null;
   venues?: readonly string[];
   realWorld?: RealWorldParams;
+  regimeDominant?: RegimeLabel | null;
 }
 
 export interface AnalysisOutput {
@@ -40,6 +42,7 @@ export function useVerticalSpreadAnalysis({
   longStrike,
   venues,
   realWorld,
+  regimeDominant,
 }: AnalysisInput): AnalysisOutput {
   // Pre-index strikes by key so the router's lookups are O(1) per WS tick.
   // Separated from the analysis memo so the map only rebuilds when the
@@ -91,9 +94,10 @@ export function useVerticalSpreadAnalysis({
       venues: venues as readonly import('@shared/enriched').VenueId[] | undefined,
       ivAtStrike,
       realWorld,
+      regimeDominant,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chain?.strikes, kind, shortStrike, longStrike, spot, T, strikeByKey, venuesKey, smile, rwKey]);
+  }, [chain?.strikes, kind, shortStrike, longStrike, spot, T, strikeByKey, venuesKey, smile, rwKey, regimeDominant]);
 
   return { spot, smile, analysis, T, r: DEFAULT_RISK_FREE_RATE };
 }

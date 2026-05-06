@@ -15,6 +15,7 @@ import VenueRouterTable from './VenueRouterTable';
 import VolSmileInset from './VolSmileInset';
 import VrpChip from './VrpChip';
 import { computeSviRichness } from './sviRichness';
+import { useRegimeQuery } from './useRegimeQuery';
 import { useVerticalSpreadAnalysis } from './useVerticalSpreadAnalysis';
 import styles from './AlphaView.module.css';
 
@@ -106,6 +107,9 @@ export default function AlphaView() {
     [surface?.rv30d],
   );
 
+  const { data: regime } = useRegimeQuery(underlying);
+  const regimeDominant = regime?.dominant ?? null;
+
   const analysis = useVerticalSpreadAnalysis({
     chain,
     kind,
@@ -113,6 +117,7 @@ export default function AlphaView() {
     longStrike,
     venues: activeVenues,
     realWorld,
+    regimeDominant,
   });
 
   const richness = useMemo(
@@ -175,7 +180,10 @@ export default function AlphaView() {
 
   const signalStack = (
     <>
-      <SignalCard signal={analysis.analysis?.combinedSignal ?? null} />
+      <SignalCard
+        signal={analysis.analysis?.combinedSignal ?? null}
+        regime={regime ?? null}
+      />
       <VenueRouterTable
         shortLeg={analysis.analysis?.short ?? null}
         longLeg={analysis.analysis?.long ?? null}

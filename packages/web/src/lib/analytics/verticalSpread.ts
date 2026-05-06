@@ -4,6 +4,7 @@ import { inferMissingIv } from './ivInference';
 
 export type SpreadKind = 'call-credit' | 'put-credit';
 export type TradingSignal = 'SELL' | 'AVOID' | 'HOLD';
+export type RegimeLabel = 'bull' | 'neutral' | 'stress';
 
 // Physical-measure inputs. When supplied, success probability is computed
 // against realized vol and the user's directional drift instead of the
@@ -36,6 +37,10 @@ export interface SpreadInput {
   // When provided, success probability and EV are computed from physical
   // drift and realized vol instead of the risk-neutral surface IV.
   realWorld?: RealWorldParams;
+  // When provided, the SELL gate's ROC threshold flexes with the macro
+  // regime: stress tightens the gate (less aggressive selling), bull loosens
+  // it. Drives `gateSignal` only; pricing/EV are unaffected.
+  regimeDominant?: RegimeLabel | null;
 }
 
 export interface VenueLegCandidate {
@@ -289,7 +294,19 @@ function successProbability(
 // a positive-EV trade isn't worth the buying-power tie-up. Sourced from
 // vol-seller practitioner targets (≈25–33%); we use 10% so the gate accepts
 // shorter-dated tickets where carry is mechanically smaller.
-const ROC_GATE = 0.10;
+const ROC_GATE_NEUTRAL = 0.10;
+const ROC_GATE_STRESS = 0.20;
+const ROC_GATE_BULL = 0.07;
+
+// Macro regime modulates the SELL gate. In stress the cost of being short
+// vol/short gamma is non-linear (tail blow-ups), so the gate doubles. In
+// low-vol bull the realized-vs-implied gap typically widens in the seller's
+// favor, so the gate eases. Neutral keeps the practitioner default.
+export function rocGateForRegime(regime: RegimeLabel | null | undefined): number {
+  if (regime === 'stress') return ROC_GATE_STRESS;
+  if (regime === 'bull') return ROC_GATE_BULL;
+  return ROC_GATE_NEUTRAL;
+}
 
 function gateSignal(
   kind: SpreadKind,
@@ -302,6 +319,7 @@ function gateSignal(
   r: number,
   ivAtStrike: ((strike: number) => number | null) | undefined,
   realWorld: RealWorldParams | undefined,
+  regimeDominant: RegimeLabel | null | undefined,
 ): SpreadSignal | null {
   if (shortPremium == null || longPremium == null) return null;
 
@@ -325,17 +343,24 @@ function gateSignal(
 
   const expectedValue = prob * netCredit - (1 - prob) * maxLoss;
   const roc = maxLoss > 0 ? expectedValue / maxLoss : 0;
+  const rocGate = rocGateForRegime(regimeDominant);
+  const regimeSuffix =
+    regimeDominant === 'stress'
+      ? ' [stress: gate 20%]'
+      : regimeDominant === 'bull'
+        ? ' [bull: gate 7%]'
+        : '';
 
   let signal: TradingSignal;
   let reasoning: string;
-  if (netCredit > 0 && expectedValue > 0 && roc >= ROC_GATE) {
+  if (netCredit > 0 && expectedValue > 0 && roc >= rocGate) {
     signal = 'SELL';
-    reasoning = `Favorable: EV $${expectedValue.toFixed(2)}, ROC ${(roc * 100).toFixed(1)}%, Success ${Math.round(prob * 100)}%`;
+    reasoning = `Favorable: EV $${expectedValue.toFixed(2)}, ROC ${(roc * 100).toFixed(1)}%, Success ${Math.round(prob * 100)}%${regimeSuffix}`;
   } else if (netCredit > 0) {
     signal = 'AVOID';
     reasoning = expectedValue <= 0
-      ? `Negative EV: $${expectedValue.toFixed(2)} at ${Math.round(prob * 100)}% success`
-      : `Low ROC: ${(roc * 100).toFixed(1)}% (gate ${(ROC_GATE * 100).toFixed(0)}%)`;
+      ? `Negative EV: $${expectedValue.toFixed(2)} at ${Math.round(prob * 100)}% success${regimeSuffix}`
+      : `Low ROC: ${(roc * 100).toFixed(1)}% (gate ${(rocGate * 100).toFixed(0)}%)${regimeSuffix}`;
   } else {
     signal = 'HOLD';
     reasoning = `Negative credit: $${netCredit.toFixed(2)}`;
@@ -402,6 +427,7 @@ function computeSurfaceSignal(
   ivAtStrike: ((strike: number) => number | null) | undefined,
   realWorld: RealWorldParams | undefined,
   venuesFilter: readonly VenueId[],
+  regimeDominant: RegimeLabel | null | undefined,
 ): SpreadSignal | null {
   if (!shortSide || !longSide) return null;
   const right = rightForKind(kind);
@@ -417,13 +443,13 @@ function computeSurfaceSignal(
 
   const shortPremium = priceAtIv(right, spot, shortStrike, T, r, shortBidIv);
   const longPremium = priceAtIv(right, spot, longStrike, T, r, longAskIv);
-  return gateSignal(kind, shortStrike, longStrike, shortPremium, longPremium, spot, T, r, ivAtStrike, realWorld);
+  return gateSignal(kind, shortStrike, longStrike, shortPremium, longPremium, spot, T, r, ivAtStrike, realWorld, regimeDominant);
 }
 
 // ── Public API ─────────────────────────────────────────────────────
 
 export function routeVerticalSpread(input: SpreadInput): RoutedSpreadAnalysis {
-  const { kind, shortStrike, longStrike, strikes, spot, T, r, venues, strikeByKey, ivAtStrike, realWorld } = input;
+  const { kind, shortStrike, longStrike, strikes, spot, T, r, venues, strikeByKey, ivAtStrike, realWorld, regimeDominant } = input;
   const right = rightForKind(kind);
   const shortRow = findStrike(strikes, shortStrike, strikeByKey);
   const longRow = findStrike(strikes, longStrike, strikeByKey);
@@ -446,6 +472,7 @@ export function routeVerticalSpread(input: SpreadInput): RoutedSpreadAnalysis {
     r,
     ivAtStrike,
     realWorld,
+    regimeDominant,
   );
 
   const surfaceSignal = computeSurfaceSignal(
@@ -460,6 +487,7 @@ export function routeVerticalSpread(input: SpreadInput): RoutedSpreadAnalysis {
     ivAtStrike,
     realWorld,
     venueList,
+    regimeDominant,
   );
 
   return {
