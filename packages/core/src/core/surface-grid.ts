@@ -7,6 +7,7 @@ import {
   computeDte,
   computeIvSurface,
   computeIvSurfaceFine,
+  ULTRA_FINE_DELTA_GRID,
   type EnrichedStrike,
   type IvSurfaceRow,
   type IvSurfaceFineRow,
@@ -88,6 +89,7 @@ export async function buildIvSurfaceGrid({
       enriched.strikes,
       refPrice,
       T,
+      ULTRA_FINE_DELTA_GRID,
     );
 
     let atmStrike: EnrichedStrike | null = null;

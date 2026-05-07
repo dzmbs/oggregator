@@ -25,8 +25,9 @@ export interface IvSurfaceRow {
   delta10c: number | null;
 }
 
-// Fine-grained per-expiry IV grid for the 3D surface view. ivs is aligned to
-// IvSurfaceResponse.surfaceFineDeltas (mirrors core FINE_DELTA_GRID).
+// Fine-grained per-expiry IV grid for the 3D surface view. ivs[] aligns to
+// surfaceFineDeltas (raw rows) or surfaceFineDeltasDense (smoothed rows) —
+// shape and length depend on which list the row came from.
 export interface IvSurfaceFineRow {
   expiry: string;
   dte: number;
@@ -76,9 +77,14 @@ export interface IvSurfaceResponse {
   // Constant-maturity grid: one row per canonical tenor (7/14/30/60/90/180/
   // 365d) within the listed-expiry range. Interpolated in total variance.
   surfaceFineCmm: CmmIvSurfaceRow[];
-  // Delta tick values aligned 1:1 with each row's ivs[] (typically 0.05–0.95
-  // step 0.05). Frontend should render against these instead of hard-coding.
+  // Delta tick values aligned 1:1 with each surfaceFine row's ivs[] (raw
+  // observed grid: 0.05–0.95 step 0.05, 19 buckets).
   surfaceFineDeltas: number[];
+  // Dense delta grid (0.05–0.95 step 0.01, 91 buckets) aligned 1:1 with
+  // surfaceFineSmoothed and surfaceFineCmm row ivs[]. Used to render the
+  // smooth surface variants. Smoothed/CMM are continuous outputs of the SVI
+  // fit and total-variance interpolator, so they sample cheaply at any grid.
+  surfaceFineDeltasDense: number[];
   termStructure: TermStructure;
   venueAtm: Record<string, VenueAtmPoint[]>;
   // Constant-maturity 30d ATM IV (fraction). Source: IvHistoryService.

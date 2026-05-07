@@ -52,6 +52,7 @@ export {
   computeGex,
   interpTenor,
   FINE_DELTA_GRID,
+  ULTRA_FINE_DELTA_GRID,
 } from './core/enrichment.js';
 
 export { buildIvSurfaceGrid } from './core/surface-grid.js';
@@ -61,8 +62,10 @@ export {
   computeCmmIvSurface,
   fillRowLinear,
   fitRowFromStrikesSvi,
+  liftRowToGrid,
   smoothFineSurfaceRow,
   DEFAULT_CMM_TENORS,
+  DENSE_CMM_TENORS,
   type CmmIvSurfaceRow,
 } from './core/iv-surface-smoothing.js';
 

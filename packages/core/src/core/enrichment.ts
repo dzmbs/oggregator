@@ -63,6 +63,16 @@ export const FINE_DELTA_GRID: readonly number[] = [
   0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95,
 ];
 
+// Dense delta grid (0.05 → 0.95 step 0.01, 91 points) used to render smoothed
+// and constant-maturity surfaces. Raw observed rows still use FINE_DELTA_GRID
+// because rounding more strikes into more buckets just creates more empty
+// cells; the SVI fit and CMM interpolator are continuous and resample cheaply.
+export const ULTRA_FINE_DELTA_GRID: readonly number[] = (() => {
+  const out: number[] = [];
+  for (let i = 5; i <= 95; i++) out.push(i / 100);
+  return out;
+})();
+
 export interface IvSurfaceFineRow {
   expiry: string;
   dte: number;

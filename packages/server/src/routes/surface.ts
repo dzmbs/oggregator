@@ -12,6 +12,8 @@ import {
   type VenueId,
   VENUE_IDS,
   FINE_DELTA_GRID,
+  ULTRA_FINE_DELTA_GRID,
+  DENSE_CMM_TENORS,
 } from '@oggregator/core';
 import {
   isIvHistoryReady,
@@ -62,7 +64,10 @@ export async function surfaceRoute(app: FastifyInstance) {
     }
 
     const termStructure: TermStructure = computeTermStructure(surface);
-    const surfaceFineCmm: CmmIvSurfaceRow[] = computeCmmIvSurface(surfaceFineSmoothed);
+    const surfaceFineCmm: CmmIvSurfaceRow[] = computeCmmIvSurface(
+      surfaceFineSmoothed,
+      DENSE_CMM_TENORS,
+    );
     const { atmIv30d, rv30d, vrp30d } = await computeVrpContext(underlying, req.log);
 
     reply.header('Cache-Control', 'public, max-age=0, s-maxage=1, stale-while-revalidate=2');
@@ -74,6 +79,7 @@ export async function surfaceRoute(app: FastifyInstance) {
       surfaceFineSmoothed,
       surfaceFineCmm,
       surfaceFineDeltas: FINE_DELTA_GRID,
+      surfaceFineDeltasDense: ULTRA_FINE_DELTA_GRID,
       termStructure,
       venueAtm,
       atmIv30d,

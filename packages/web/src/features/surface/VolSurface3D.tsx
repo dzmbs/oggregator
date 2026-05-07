@@ -61,10 +61,13 @@ interface SurfaceGrid {
 }
 
 function buildListedGrid(data: IvSurfaceResponse): SurfaceGrid | null {
-  const x = data.surfaceFineDeltas;
+  const useSmoothed = !!data.surfaceFineSmoothed?.length;
+  const x = useSmoothed
+    ? data.surfaceFineDeltasDense ?? data.surfaceFineDeltas
+    : data.surfaceFineDeltas;
   if (!x || x.length === 0) return null;
 
-  const source = data.surfaceFineSmoothed?.length ? data.surfaceFineSmoothed : data.surfaceFine;
+  const source = useSmoothed ? data.surfaceFineSmoothed : data.surfaceFine;
   const sorted = source
     .filter((r) => r.dte > 0)
     .slice()
@@ -102,7 +105,7 @@ function buildListedGrid(data: IvSurfaceResponse): SurfaceGrid | null {
 }
 
 function buildCmmGrid(data: IvSurfaceResponse): SurfaceGrid | null {
-  const x = data.surfaceFineDeltas;
+  const x = data.surfaceFineDeltasDense ?? data.surfaceFineDeltas;
   if (!x || x.length === 0) return null;
   const rows = data.surfaceFineCmm ?? [];
   if (rows.length === 0) return null;
@@ -173,6 +176,16 @@ export default function VolSurface3D({ defaultUnderlying = 'BTC' }: Props) {
 
   const tickLabels = grid.x.map(deltaTickLabel);
 
+  // Aim for ~10 X labels and ~8 Y labels regardless of grid density. Plotly
+  // shows every value otherwise, which collides into an unreadable smear at
+  // 91 deltas / 240 CMM tenors.
+  const xStride = Math.max(1, Math.floor(grid.x.length / 10));
+  const yStride = Math.max(1, Math.floor(grid.y.length / 8));
+  const xTickVals = grid.x.filter((_, i) => i % xStride === 0);
+  const xTickText = tickLabels.filter((_, i) => i % xStride === 0);
+  const yTickVals = grid.y.filter((_, i) => i % yStride === 0);
+  const yTickText = grid.yLabels.filter((_, i) => i % yStride === 0);
+
   const plotData: Partial<Plotly.PlotData>[] = [
     {
       type: 'surface' as const,
@@ -217,14 +230,14 @@ export default function VolSurface3D({ defaultUnderlying = 'BTC' }: Props) {
       xaxis: {
         ...SCENE_DEFAULTS.xaxis,
         title: '' as never,
-        tickvals: grid.x.filter((_, i) => i % 2 === 0),
-        ticktext: tickLabels.filter((_, i) => i % 2 === 0),
+        tickvals: xTickVals,
+        ticktext: xTickText,
       },
       yaxis: {
         ...SCENE_DEFAULTS.yaxis,
         title: '' as never,
-        tickvals: grid.y,
-        ticktext: grid.yLabels,
+        tickvals: yTickVals,
+        ticktext: yTickText,
       },
       zaxis: {
         ...SCENE_DEFAULTS.zaxis,

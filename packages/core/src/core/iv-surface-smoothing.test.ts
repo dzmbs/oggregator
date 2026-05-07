@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   FINE_DELTA_GRID,
+  ULTRA_FINE_DELTA_GRID,
   type EnrichedStrike,
   type IvSurfaceFineRow,
   type VenueQuote,
@@ -10,7 +11,9 @@ import {
   computeCmmIvSurface,
   fillRowLinear,
   fitRowFromStrikesSvi,
+  liftRowToGrid,
   smoothFineSurfaceRow,
+  DENSE_CMM_TENORS,
 } from './iv-surface-smoothing.js';
 
 function createQuote(partial: Partial<VenueQuote> = {}): VenueQuote {
@@ -206,5 +209,82 @@ describe('computeCmmIvSurface', () => {
         { expiry: '2026-05-06', dte: 0, ivs: FINE_DELTA_GRID.map(() => 0.5) },
       ]),
     ).toEqual([]);
+  });
+
+  it('preserves dense grid length when rows align to ULTRA_FINE_DELTA_GRID', () => {
+    const rows: IvSurfaceFineRow[] = [
+      { expiry: '2026-05-13', dte: 10, ivs: ULTRA_FINE_DELTA_GRID.map(() => 0.5) },
+      { expiry: '2026-06-05', dte: 40, ivs: ULTRA_FINE_DELTA_GRID.map(() => 0.6) },
+    ];
+    const cmm = computeCmmIvSurface(rows, [25]);
+    expect(cmm).toHaveLength(1);
+    expect(cmm[0]!.ivs).toHaveLength(ULTRA_FINE_DELTA_GRID.length);
+  });
+
+  it('emits one row per dense tenor inside the listed DTE range', () => {
+    const rows: IvSurfaceFineRow[] = [
+      { expiry: '2026-05-13', dte: 7, ivs: ULTRA_FINE_DELTA_GRID.map(() => 0.5) },
+      { expiry: '2026-08-04', dte: 90, ivs: ULTRA_FINE_DELTA_GRID.map(() => 0.6) },
+    ];
+    const cmm = computeCmmIvSurface(rows, DENSE_CMM_TENORS);
+    expect(cmm.length).toBeGreaterThan(20);
+    for (const row of cmm) {
+      expect(row.tenorDays).toBeGreaterThanOrEqual(7);
+      expect(row.tenorDays).toBeLessThanOrEqual(90);
+      expect(row.ivs).toHaveLength(ULTRA_FINE_DELTA_GRID.length);
+    }
+  });
+});
+
+describe('ULTRA_FINE_DELTA_GRID sampling', () => {
+  it('fitRowFromStrikesSvi fills the dense grid when given ULTRA_FINE_DELTA_GRID', () => {
+    const refPrice = 100_000;
+    const T = 30 / 365;
+    const strikes = syntheticSmile(
+      refPrice,
+      T,
+      [70_000, 80_000, 90_000, 100_000, 110_000, 120_000, 130_000],
+      0.6,
+      -0.1,
+      0.5,
+    );
+    const ivs = fitRowFromStrikesSvi(strikes, refPrice, T, ULTRA_FINE_DELTA_GRID);
+    expect(ivs).not.toBeNull();
+    expect(ivs).toHaveLength(ULTRA_FINE_DELTA_GRID.length);
+    expect(ivs!.every((v) => v != null)).toBe(true);
+  });
+
+  it('smoothFineSurfaceRow returns dense ivs when given ULTRA_FINE_DELTA_GRID, even via linear fallback', () => {
+    const refPrice = 100_000;
+    const T = 30 / 365;
+    const noStrikes: EnrichedStrike[] = [];
+    const raw: IvSurfaceFineRow = {
+      expiry: '2026-04-04',
+      dte: 30,
+      ivs: [null, null, 0.5, null, null, null, null, null, null, 0.55, null, null, null, null, null, null, null, null, 0.6],
+    };
+    const out = smoothFineSurfaceRow(raw, noStrikes, refPrice, T, ULTRA_FINE_DELTA_GRID);
+    expect(out.ivs).toHaveLength(ULTRA_FINE_DELTA_GRID.length);
+    expect(out.ivs.every((v) => v != null)).toBe(true);
+  });
+});
+
+describe('liftRowToGrid', () => {
+  it('upsamples a coarse row onto a finer grid via linear interpolation', () => {
+    const lifted = liftRowToGrid(
+      FINE_DELTA_GRID.map((d) => d),
+      FINE_DELTA_GRID,
+      ULTRA_FINE_DELTA_GRID,
+    );
+    expect(lifted).toHaveLength(ULTRA_FINE_DELTA_GRID.length);
+    for (let i = 0; i < ULTRA_FINE_DELTA_GRID.length; i++) {
+      expect(lifted[i]).toBeCloseTo(ULTRA_FINE_DELTA_GRID[i]!, 6);
+    }
+  });
+
+  it('returns the row as-is when source and target grids are identical', () => {
+    const raw: (number | null)[] = FINE_DELTA_GRID.map((_, i) => i / 10);
+    const lifted = liftRowToGrid(raw, FINE_DELTA_GRID, FINE_DELTA_GRID);
+    expect(lifted).toEqual(raw);
   });
 });

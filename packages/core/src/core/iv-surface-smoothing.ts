@@ -1,6 +1,7 @@
 import { fitSvi, sviIv } from '../services/svi-fit.js';
 import {
   FINE_DELTA_GRID,
+  ULTRA_FINE_DELTA_GRID,
   type EnrichedSide,
   type EnrichedStrike,
   type IvSurfaceFineRow,
@@ -14,6 +15,15 @@ const FP_MAX_ITER = 16;
 const FP_TOL = 1e-4;
 
 export const DEFAULT_CMM_TENORS: readonly number[] = [7, 14, 30, 60, 90, 180, 365];
+
+// Dense CMM tenor candidates (every 3 days from 3..720). The CMM builder
+// drops tenors outside the listed-DTE range automatically, so feeding a long
+// list yields one row per 3 days within whatever the venue actually lists.
+export const DENSE_CMM_TENORS: readonly number[] = (() => {
+  const out: number[] = [];
+  for (let d = 3; d <= 720; d += 3) out.push(d);
+  return out;
+})();
 
 export interface CmmIvSurfaceRow {
   tenorDays: number;
@@ -124,6 +134,7 @@ export function fitRowFromStrikesSvi(
   strikes: readonly EnrichedStrike[],
   refPrice: number,
   T: number,
+  deltaGrid: readonly number[] = FINE_DELTA_GRID,
 ): (number | null)[] | null {
   if (!Number.isFinite(refPrice) || refPrice <= 0) return null;
   if (!Number.isFinite(T) || T <= 0) return null;
@@ -150,7 +161,7 @@ export function fitRowFromStrikesSvi(
   if (!Number.isFinite(atmSigma) || atmSigma <= 0) return null;
 
   const out: (number | null)[] = [];
-  for (const key of FINE_DELTA_GRID) {
+  for (const key of deltaGrid) {
     const d1 = invNormCdf(1 - key);
     if (!Number.isFinite(d1)) {
       out.push(null);
@@ -181,18 +192,66 @@ export function fitRowFromStrikesSvi(
 }
 
 /**
+ * Resamples a coarse-grid row onto a target delta grid via linear interp
+ * across delta. Used to lift the linear-fallback row from FINE_DELTA_GRID
+ * (19 buckets) to ULTRA_FINE_DELTA_GRID (91 buckets) so smoothed rows have
+ * a consistent length regardless of which path produced them.
+ */
+export function liftRowToGrid(
+  raw: readonly (number | null)[],
+  fromGrid: readonly number[],
+  toGrid: readonly number[],
+): (number | null)[] {
+  const filled = fillRowLinear(raw);
+  if (fromGrid === toGrid) return filled;
+  const out: (number | null)[] = [];
+  for (const target of toGrid) {
+    let lo = 0;
+    while (lo < fromGrid.length - 1 && fromGrid[lo + 1]! <= target) lo++;
+    const hi = Math.min(lo + 1, fromGrid.length - 1);
+    const dLo = fromGrid[lo]!;
+    const dHi = fromGrid[hi]!;
+    const a = filled[lo] ?? null;
+    const b = filled[hi] ?? null;
+    if (a == null && b == null) {
+      out.push(null);
+      continue;
+    }
+    if (a == null) {
+      out.push(b);
+      continue;
+    }
+    if (b == null) {
+      out.push(a);
+      continue;
+    }
+    if (dLo === dHi) {
+      out.push(a);
+      continue;
+    }
+    const t = (target - dLo) / (dHi - dLo);
+    out.push(a + (b - a) * t);
+  }
+  return out;
+}
+
+/**
  * Smooths a fine-surface row. Prefers an SVI fit when at least 5 strikes
  * carry valid IVs; falls back to in-row linear interpolation; returns the
  * raw row unchanged when even that has fewer than 2 observed buckets.
+ *
+ * Output is sampled at `deltaGrid` (default FINE_DELTA_GRID). Pass
+ * ULTRA_FINE_DELTA_GRID for a 91-point dense surface.
  */
 export function smoothFineSurfaceRow(
   rawRow: IvSurfaceFineRow,
   strikes: readonly EnrichedStrike[],
   refPrice: number | null,
   T: number,
+  deltaGrid: readonly number[] = FINE_DELTA_GRID,
 ): IvSurfaceFineRow {
   if (refPrice != null && refPrice > 0 && T > 0) {
-    const sviIvs = fitRowFromStrikesSvi(strikes, refPrice, T);
+    const sviIvs = fitRowFromStrikesSvi(strikes, refPrice, T, deltaGrid);
     if (sviIvs && sviIvs.every((v): v is number => v != null)) {
       return { expiry: rawRow.expiry, dte: rawRow.dte, ivs: sviIvs };
     }
@@ -200,7 +259,7 @@ export function smoothFineSurfaceRow(
   return {
     expiry: rawRow.expiry,
     dte: rawRow.dte,
-    ivs: fillRowLinear(rawRow.ivs),
+    ivs: liftRowToGrid(rawRow.ivs, FINE_DELTA_GRID, deltaGrid),
   };
 }
 
@@ -248,7 +307,8 @@ export function computeCmmIvSurface(
     }
 
     const ivs: (number | null)[] = [];
-    for (let i = 0; i < FINE_DELTA_GRID.length; i++) {
+    const gridLen = Math.min(lo.ivs.length, hi.ivs.length);
+    for (let i = 0; i < gridLen; i++) {
       const a = lo.ivs[i] ?? null;
       const b = hi.ivs[i] ?? null;
 
