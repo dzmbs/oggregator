@@ -3,6 +3,7 @@ import {
   createChart,
   LineSeries,
   ColorType,
+  CrosshairMode,
   type IChartApi,
   type ISeriesApi,
   type Time,
@@ -167,6 +168,7 @@ function useMultiDeltaTermStructureChart(
         tickMarkFormatter: (v: number) => `${v}d`,
       },
       crosshair: {
+        mode: CrosshairMode.Magnet,
         horzLine: { color: '#50D2C1', labelBackgroundColor: '#0E3333' },
         vertLine: { color: '#50D2C1', labelBackgroundColor: '#0E3333', labelVisible: false },
       },
@@ -479,29 +481,36 @@ export default function AtmTermStructure({ defaultUnderlying = 'BTC' }: Props) {
             />
             <div className={styles.chartArea}>
               <div className={styles.chartWrap} ref={multiContainerRef} />
-              {crosshair && (
-                <div ref={tooltipRef} className={styles.tooltip}>
-                  <div className={styles.tooltipHead}>
-                    {expiryByDte.get(crosshair.dte) ?? `${crosshair.dte}d`}
-                    {expiryByDte.has(crosshair.dte) ? ` (${crosshair.dte}d)` : ''}
-                  </div>
-                  <ul className={styles.tooltipList}>
-                    {crosshair.values
-                      .slice()
-                      .sort((a, b) => a.delta - b.delta)
-                      .map(({ delta, iv }) => (
-                        <li key={delta} className={styles.tooltipRow}>
-                          <span
-                            className={styles.tooltipSwatch}
-                            style={{ background: deltaColor(delta) }}
-                          />
-                          <span className={styles.tooltipLabel}>{deltaLabel(delta)}</span>
-                          <span className={styles.tooltipValue}>{fmtIv(iv)}</span>
-                        </li>
-                      ))}
-                  </ul>
-                </div>
-              )}
+              <div
+                ref={tooltipRef}
+                className={styles.tooltip}
+                style={{ visibility: crosshair ? 'visible' : 'hidden' }}
+                aria-hidden={!crosshair}
+              >
+                {crosshair && (
+                  <>
+                    <div className={styles.tooltipHead}>
+                      {expiryByDte.get(crosshair.dte) ?? `${crosshair.dte}d`}
+                      {expiryByDte.has(crosshair.dte) ? ` (${crosshair.dte}d)` : ''}
+                    </div>
+                    <ul className={styles.tooltipList}>
+                      {crosshair.values
+                        .slice()
+                        .sort((a, b) => a.delta - b.delta)
+                        .map(({ delta, iv }) => (
+                          <li key={delta} className={styles.tooltipRow}>
+                            <span
+                              className={styles.tooltipSwatch}
+                              style={{ background: deltaColor(delta) }}
+                            />
+                            <span className={styles.tooltipLabel}>{deltaLabel(delta)}</span>
+                            <span className={styles.tooltipValue}>{fmtIv(iv)}</span>
+                          </li>
+                        ))}
+                    </ul>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </>
