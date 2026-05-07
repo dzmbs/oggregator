@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 
 import { Spinner, EmptyState, VenuePickerButton, AssetPickerButton } from '@components/ui';
 import { VENUES } from '@lib/venue-meta';
@@ -106,7 +106,7 @@ interface TradeRowProps {
   isNew: boolean;
 }
 
-function TradeRow({ trade, isNew }: TradeRowProps) {
+const TradeRow = memo(function TradeRow({ trade, isNew }: TradeRowProps) {
   const meta = VENUES[trade.venue];
   const { strike, type } = parseStrikeAndType(trade.instrument);
   const expiry = parseExpiry(trade.instrument);
@@ -161,7 +161,7 @@ function TradeRow({ trade, isNew }: TradeRowProps) {
       </span>
     </div>
   );
-}
+});
 
 export default function FlowView() {
   const [mode, setMode] = useState<FlowMode>('all');
@@ -211,6 +211,12 @@ export default function FlowView() {
   const [seenIds, setSeenIds] = useState<Set<string>>(new Set());
   const prevCountRef = useRef(0);
   const cueIdsRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    setSeenIds(new Set());
+    prevCountRef.current = 0;
+    cueIdsRef.current = new Set();
+  }, [underlying]);
 
   useEffect(() => {
     if (!liveTrades.length) return;
