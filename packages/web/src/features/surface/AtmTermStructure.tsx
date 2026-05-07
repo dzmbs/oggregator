@@ -16,7 +16,7 @@ import { venueColor, deltaColor, deltaLabel } from '@lib/colors';
 import { fmtIv } from '@lib/format';
 import { VENUE_LIST, VENUE_IDS } from '@lib/venue-meta';
 import { useSurface } from './queries';
-import DeltaToggleLegend from './DeltaToggleLegend';
+import DeltaToggleLegend, { preset25Deltas } from './DeltaToggleLegend';
 import styles from './AtmTermStructure.module.css';
 
 const AVG_COLOR = '#50D2C1';
@@ -303,7 +303,7 @@ export default function AtmTermStructure({ defaultUnderlying = 'BTC' }: Props) {
 
   useEffect(() => {
     if (multiDeltas.length === 0) return;
-    setEnabledDeltas((prev) => (prev.size === 0 ? new Set(multiDeltas) : prev));
+    setEnabledDeltas((prev) => (prev.size === 0 ? preset25Deltas(multiDeltas) : prev));
   }, [multiDeltas]);
 
   useTermStructureChart(

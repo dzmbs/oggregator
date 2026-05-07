@@ -82,7 +82,7 @@
   padding: var(--space-4);
   background: var(--bg-surface);
   min-width: 0;
-  min-height: 380px;
+  height: 380px;
 }
 
 @media (max-width: 768px) {
@@ -110,6 +110,6 @@
 
   .chartPanel {
     padding: var(--space-3);
-    min-height: 280px;
+    height: 280px;
   }
 }

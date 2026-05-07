@@ -8,12 +8,16 @@ interface Props {
   onSetAll: (next: Set<number>) => void;
 }
 
-const PRESET_25D = new Set<number>([0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95]);
+export const PRESET_25D = new Set<number>([0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95]);
+
+export function preset25Deltas(deltas: readonly number[]): Set<number> {
+  return new Set(deltas.filter((d) => PRESET_25D.has(round2(d))));
+}
 
 export default function DeltaToggleLegend({ deltas, enabled, onToggle, onSetAll }: Props) {
   const allOn = () => onSetAll(new Set(deltas));
   const allOff = () => onSetAll(new Set());
-  const preset25 = () => onSetAll(new Set(deltas.filter((d) => PRESET_25D.has(round2(d)))));
+  const preset25 = () => onSetAll(preset25Deltas(deltas));
 
   return (
     <div className={styles.rail}>
