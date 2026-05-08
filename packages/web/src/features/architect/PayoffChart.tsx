@@ -358,7 +358,7 @@ export default function PayoffChart({
         ctx.fillStyle = '#888';
         ctx.font = "10px 'IBM Plex Mono', monospace";
         ctx.textAlign = 'left';
-        ctx.fillText(`Price  $${(hoverInfo.price / 1000).toFixed(1)}k`, tx + 8, ty + 16);
+        ctx.fillText(`Price  ${fmtUsd(hoverInfo.price)}`, tx + 8, ty + 16);
 
         ctx.fillStyle = hoverInfo.pnl >= 0 ? '#00E997' : '#CB3855';
         ctx.font = "bold 12px 'IBM Plex Mono', monospace";

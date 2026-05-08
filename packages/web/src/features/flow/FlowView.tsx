@@ -174,7 +174,8 @@ export default function FlowView() {
   const activeVenues = useAppStore((s) => s.activeVenues);
   const soundEnabled = useAppStore((s) => s.soundEnabled);
   const setSoundEnabled = useAppStore((s) => s.setSoundEnabled);
-  const { data, isLoading, error } = useFlow(underlying);
+  const isLiveTape = mode === 'all' && scope === 'tape';
+  const { data, isLoading, error } = useFlow(underlying, isLiveTape);
   const liveTrades = useMemo(
     () => (data?.trades ?? []).filter((trade) => activeVenues.includes(trade.venue)),
     [activeVenues, data?.trades],
@@ -216,7 +217,7 @@ export default function FlowView() {
     setSeenIds(new Set());
     prevCountRef.current = 0;
     cueIdsRef.current = new Set();
-  }, [underlying]);
+  }, [underlying, isLiveTape]);
 
   useEffect(() => {
     if (!liveTrades.length) return;

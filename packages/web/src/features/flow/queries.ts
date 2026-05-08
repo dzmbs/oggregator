@@ -69,11 +69,11 @@ export interface HistoryPageQuery {
   limit?: number;
 }
 
-export function useFlow(underlying: string) {
+export function useFlow(underlying: string, enabled = true) {
   return useQuery({
     queryKey: ['flow', underlying],
     queryFn: () => fetchJson<FlowResponse>(`/flow?underlying=${underlying}&limit=200`),
-    enabled: Boolean(underlying),
+    enabled: Boolean(underlying) && enabled,
     refetchInterval: 2_000,
   });
 }

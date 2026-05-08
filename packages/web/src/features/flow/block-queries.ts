@@ -47,11 +47,12 @@ export interface BlockHistoryPageQuery {
   limit?: number;
 }
 
-export function useBlockFlow(underlying?: string) {
+export function useBlockFlow(underlying?: string, enabled = true) {
   const params = underlying ? `?underlying=${underlying}&limit=200` : '?limit=200';
   return useQuery({
     queryKey: ['block-flow', underlying ?? 'all'],
     queryFn: () => fetchJson<BlockFlowResponse>(`/block-flow${params}`),
+    enabled,
     refetchInterval: 30_000,
   });
 }

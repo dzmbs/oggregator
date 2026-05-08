@@ -200,7 +200,7 @@ export default function BlockFlowView({
 }: BlockFlowViewProps) {
   const underlying = useAppStore((s) => s.underlying);
   const activeVenues = useAppStore((s) => s.activeVenues);
-  const { data, isLoading, error } = useBlockFlow(underlying);
+  const { data, isLoading, error } = useBlockFlow(underlying, scope === 'tape');
   const liveTrades = useMemo(
     () => (data?.trades ?? []).filter((trade) => activeVenues.includes(trade.venue)),
     [activeVenues, data?.trades],
