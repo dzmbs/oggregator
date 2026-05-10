@@ -35,6 +35,10 @@ export interface TradeHistorySummary {
   venues: TradeVenueSummary[];
 }
 
+export interface TradePruneResult {
+  deleted: number;
+}
+
 export interface TradeStore {
   readonly enabled: boolean;
   writeMany(records: PersistedTradeRecord[]): Promise<void>;
@@ -43,6 +47,7 @@ export interface TradeStore {
   summarizeHistory(
     query: TradeFilterQuery & { mode: PersistedTradeMode },
   ): Promise<TradeHistorySummary>;
+  pruneHistory(beforeTs: Date): Promise<TradePruneResult>;
   ensureForwardPartitions(monthsAhead: number): Promise<void>;
   dispose(): Promise<void>;
 }

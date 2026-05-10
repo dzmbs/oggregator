@@ -3,6 +3,7 @@ import type {
   TradeFilterQuery,
   TradeHistoryQuery,
   TradeHistorySummary,
+  TradePruneResult,
   TradeStore,
 } from './trade-store.js';
 import type { PersistedTradeRecord } from './types.js';
@@ -33,6 +34,10 @@ export class NoopTradeStore implements TradeStore {
     _query: TradeFilterQuery & { mode: PersistedTradeRecord['mode'] },
   ): Promise<TradeHistorySummary> {
     return EMPTY_SUMMARY;
+  }
+
+  async pruneHistory(_beforeTs: Date): Promise<TradePruneResult> {
+    return { deleted: 0 };
   }
 
   async ensureForwardPartitions(_monthsAhead: number): Promise<void> {}

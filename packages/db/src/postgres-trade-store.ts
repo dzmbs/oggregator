@@ -5,6 +5,7 @@ import type {
   TradeFilterQuery,
   TradeHistoryQuery,
   TradeHistorySummary,
+  TradePruneResult,
   TradeStore,
   TradeVenueSummary,
 } from './trade-store.js';
@@ -176,6 +177,11 @@ export class PostgresTradeStore implements TradeStore {
       newestTs: row?.newest_ts ?? null,
       venues: venuesResult.rows.map(mapVenueSummaryRow),
     };
+  }
+
+  async pruneHistory(beforeTs: Date): Promise<TradePruneResult> {
+    const result = await this.pool.query('DELETE FROM flow_trades WHERE trade_ts < $1', [beforeTs]);
+    return { deleted: result.rowCount ?? 0 };
   }
 
   async ensureForwardPartitions(monthsAhead: number): Promise<void> {
