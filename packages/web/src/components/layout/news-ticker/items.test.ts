@@ -92,4 +92,21 @@ describe('mergeTickerItems', () => {
     const out = mergeTickerItems({ news, spots: [], sponsors: [SPONSOR], adEvery: 0 });
     expect(out.find((i) => i.kind === 'ad')).toBeUndefined();
   });
+
+  it('startIndex shifts the creative rotation so a single ad slot cycles', () => {
+    const sponsors: Sponsor[] = [
+      { ...SPONSOR, id: 'a', sponsor: 'A', labels: ['a1'] },
+      { ...SPONSOR, id: 'b', sponsor: 'B', labels: ['b1'] },
+    ];
+    const news = Array.from({ length: 6 }, (_, i) => newsItem(`n${i}`, i));
+
+    const at0 = mergeTickerItems({ news, spots: [], sponsors, adEvery: 6, startIndex: 0 });
+    const at1 = mergeTickerItems({ news, spots: [], sponsors, adEvery: 6, startIndex: 1 });
+
+    const ad0 = at0.find((i) => i.kind === 'ad') as { sponsor: string };
+    const ad1 = at1.find((i) => i.kind === 'ad') as { sponsor: string };
+
+    expect(ad0.sponsor).toBe('A');
+    expect(ad1.sponsor).toBe('B');
+  });
 });

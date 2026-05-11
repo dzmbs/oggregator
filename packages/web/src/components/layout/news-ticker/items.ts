@@ -33,9 +33,17 @@ export interface MergeArgs {
   sponsors: Sponsor[];
   adEvery: number;
   newsCap?: number;
+  startIndex?: number;
 }
 
-export function mergeTickerItems({ news, spots, sponsors, adEvery, newsCap = 30 }: MergeArgs): TickerItem[] {
+export function mergeTickerItems({
+  news,
+  spots,
+  sponsors,
+  adEvery,
+  newsCap = 30,
+  startIndex = 0,
+}: MergeArgs): TickerItem[] {
   const spotItems: TickerItem[] = spots.map((s) => ({
     kind: 'spot',
     id: `spot:${s.symbol}`,
@@ -73,7 +81,7 @@ export function mergeTickerItems({ news, spots, sponsors, adEvery, newsCap = 30 
   }
 
   const result: TickerItem[] = [];
-  let creativeIdx = 0;
+  let creativeIdx = ((startIndex % creatives.length) + creatives.length) % creatives.length;
   content.forEach((item, i) => {
     result.push(item);
     if ((i + 1) % adEvery === 0) {

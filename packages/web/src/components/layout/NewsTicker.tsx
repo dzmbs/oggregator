@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 
 import { useNewsFeed } from '@hooks/useNewsFeed';
@@ -9,6 +9,7 @@ import { mergeTickerItems, type TickerItem } from './news-ticker/items';
 import styles from './NewsTicker.module.css';
 
 const PX_PER_SEC = 28;
+const AD_ROTATE_MS = 20_000;
 
 function symbolToBase(symbol: string): string {
   return symbol.replace(/USDT$|USDC$|USD$/i, '');
@@ -81,12 +82,21 @@ export function NewsTicker() {
   const { data: news = [] } = useNewsFeed();
   const { data: spots = [] } = useSpots();
 
+  const [adTick, setAdTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setAdTick((t) => t + 1), AD_ROTATE_MS);
+    return () => clearInterval(id);
+  }, []);
+
   const items = useMemo(
-    () => mergeTickerItems({ news, spots, sponsors: SPONSORS, adEvery: AD_EVERY }),
-    [news, spots],
+    () => mergeTickerItems({ news, spots, sponsors: SPONSORS, adEvery: AD_EVERY, startIndex: adTick }),
+    [news, spots, adTick],
   );
 
-  const itemsKey = useMemo(() => items.map((i) => i.id).join('|'), [items]);
+  const itemsKey = useMemo(
+    () => items.filter((i) => i.kind !== 'ad').map((i) => i.id).join('|'),
+    [items],
+  );
 
   const trackRef = useRef<HTMLDivElement>(null);
   const [durationSec, setDurationSec] = useState(60);
