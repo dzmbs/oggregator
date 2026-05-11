@@ -1,22 +1,59 @@
-import { z } from 'zod';
 import type { FastifyBaseLogger } from 'fastify';
 
-const NewsItemSchema = z.object({
-  id: z.string(),
-  text: z.string(),
-  url: z.string(),
-  source: z.string(),
-  handle: z.string().nullable().optional(),
-  ruleTag: z.string().nullable().optional(),
-  timestamp: z.number(),
-  classification: z.enum(['GOOD', 'BAD']).optional(),
-  createdAt: z.string().optional(),
-});
+interface RawTweet {
+  id: string;
+  text: string;
+  url: string;
+  source: string;
+  handle?: string | null;
+  ruleTag?: string | null;
+  timestamp: number;
+  classification?: 'GOOD' | 'BAD';
+  createdAt?: string;
+}
 
-const NewsResponseSchema = z.object({
-  count: z.number(),
-  tweets: z.array(NewsItemSchema),
-});
+interface RawNewsResponse {
+  count: number;
+  tweets: RawTweet[];
+}
+
+function isString(v: unknown): v is string {
+  return typeof v === 'string';
+}
+
+function parseNewsResponse(json: unknown): RawNewsResponse | null {
+  if (typeof json !== 'object' || json === null) return null;
+  const obj = json as Record<string, unknown>;
+  if (typeof obj['count'] !== 'number') return null;
+  if (!Array.isArray(obj['tweets'])) return null;
+
+  const tweets: RawTweet[] = [];
+  for (const t of obj['tweets']) {
+    if (typeof t !== 'object' || t === null) return null;
+    const r = t as Record<string, unknown>;
+    if (!isString(r['id']) || !isString(r['text']) || !isString(r['url']) || !isString(r['source'])) {
+      return null;
+    }
+    if (typeof r['timestamp'] !== 'number') return null;
+    const handle = r['handle'];
+    const ruleTag = r['ruleTag'];
+    const classification = r['classification'];
+    const createdAt = r['createdAt'];
+    const tweet: RawTweet = {
+      id: r['id'],
+      text: r['text'],
+      url: r['url'],
+      source: r['source'],
+      timestamp: r['timestamp'],
+    };
+    if (handle === null || isString(handle)) tweet.handle = handle;
+    if (ruleTag === null || isString(ruleTag)) tweet.ruleTag = ruleTag;
+    if (classification === 'GOOD' || classification === 'BAD') tweet.classification = classification;
+    if (isString(createdAt)) tweet.createdAt = createdAt;
+    tweets.push(tweet);
+  }
+  return { count: obj['count'], tweets };
+}
 
 export interface NewsItem {
   id: string;
@@ -117,13 +154,13 @@ export class NewsRuntime {
         throw new Error(`upstream ${res.status}`);
       }
       const json = await res.json();
-      const parsed = NewsResponseSchema.safeParse(json);
-      if (!parsed.success) {
-        throw new Error(`bad payload: ${parsed.error.message}`);
+      const parsed = parseNewsResponse(json);
+      if (!parsed) {
+        throw new Error('bad payload shape');
       }
 
       const fresh: NewsItem[] = [];
-      for (const t of parsed.data.tweets) {
+      for (const t of parsed.tweets) {
         if (t.classification !== 'GOOD') continue;
         fresh.push({
           id: t.id,
