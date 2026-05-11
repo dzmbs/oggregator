@@ -276,16 +276,15 @@ export default function ExpandedRow({
     return map;
   }, [callSide, putSide, strike, activeVenues, atmConsensusForward]);
 
+  const isAtm = atmStrike != null && strike === atmStrike;
+
   return (
     <div className={styles.expanded}>
-      <div className={styles.topBar}>
-        <span className={styles.strikeBadge}>STRIKE {strike.toLocaleString()}</span>
-        {atmConsensusForward != null && atmStrike != null && (
-          <span className={styles.consensusInline}>
-            CONSENSUS F @ ATM {atmStrike.toLocaleString()}: {fmtUsd(atmConsensusForward)}
-          </span>
-        )}
-      </div>
+      {atmConsensusForward != null && atmStrike != null && (
+        <div className={styles.consensusLine}>
+          CONSENSUS F @ ATM {atmStrike.toLocaleString()}: {fmtUsd(atmConsensusForward)}
+        </div>
+      )}
 
       <div className={styles.sides}>
         <div className={styles.side} data-type="call">
@@ -302,8 +301,17 @@ export default function ExpandedRow({
           />
         </div>
 
+        <div className={styles.strikeChannel} data-atm={isAtm || undefined}>
+          <div className={styles.strikeChannelHeader}>
+            {isAtm && <span className={styles.strikeAtmBadge}>ATM</span>}
+            <span className={styles.strikeChannelNum} data-atm={isAtm || undefined}>
+              {strike.toLocaleString()}
+            </span>
+          </div>
+        </div>
+
         <div className={styles.side} data-type="put">
-          <div className={styles.sideHeader}>
+          <div className={styles.sideHeader} data-align="end">
             <span className={styles.sideLabel}>PUTS</span>
           </div>
           <SideTable

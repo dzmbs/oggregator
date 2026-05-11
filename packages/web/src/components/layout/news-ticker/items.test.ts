@@ -7,7 +7,7 @@ const SPONSOR: Sponsor = {
   id: 'coincall',
   category: 'SPONSORED',
   sponsor: 'Coincall',
-  label: 'Trade options',
+  labels: ['Trade options'],
   href: 'https://coincall.com/r/1',
 };
 
@@ -72,6 +72,19 @@ describe('mergeTickerItems', () => {
     const out = mergeTickerItems({ news, spots: [], sponsors, adEvery: 6 });
     const ads = out.filter((i) => i.kind === 'ad') as Array<{ sponsor: string }>;
     expect(ads.map((a) => a.sponsor)).toEqual(['A', 'B']);
+  });
+
+  it('rotates label variants within a single sponsor across slots', () => {
+    const sponsor: Sponsor = {
+      ...SPONSOR,
+      labels: ['offer one', 'offer two', 'offer three'],
+    };
+    const news = Array.from({ length: 18 }, (_, i) => newsItem(`n${i}`, i));
+    const out = mergeTickerItems({ news, spots: [], sponsors: [sponsor], adEvery: 6 });
+    const ads = out.filter((i) => i.kind === 'ad') as Array<{ label: string; sponsor: string }>;
+    expect(ads).toHaveLength(3);
+    expect(ads.map((a) => a.label)).toEqual(['offer one', 'offer two', 'offer three']);
+    expect(ads.every((a) => a.sponsor === 'Coincall')).toBe(true);
   });
 
   it('emits no ads when adEvery is 0', () => {

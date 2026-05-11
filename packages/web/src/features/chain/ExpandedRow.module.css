@@ -18,49 +18,31 @@
   }
 }
 
-/* ── Top bar: strike + consensus, spans both halves ──────────────────────── */
+/* ── Consensus line (full width above sides) ─────────────────────────────── */
 
-.topBar {
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
+.consensusLine {
   padding: 4px var(--space-4);
-  background: var(--bg-elevated);
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.strikeBadge {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  color: var(--text-primary);
-  font-variant-numeric: tabular-nums;
-}
-
-.consensusInline {
   font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.05em;
   color: var(--text-dim);
-  font-variant-numeric: tabular-nums;
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border-subtle);
 }
 
-/* ── Sides grid (calls | puts) ───────────────────────────────────────────── */
+/* ── Sides grid: calls │ strike │ puts ───────────────────────────────────── */
+/* The 100px center channel mirrors the data row's STRIKE column so the      */
+/* vertical borders continue straight down from the data row above.          */
 
 .sides {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 100px 1fr;
 }
 
 .side {
   overflow-x: auto;
   min-width: 0;
-}
-
-.side[data-type="call"] {
-  border-right: 1px solid var(--border-default);
 }
 
 .sideHeader {
@@ -70,6 +52,10 @@
   padding: 4px var(--space-4);
   background: var(--bg-elevated);
   border-bottom: 1px solid var(--border-subtle);
+}
+
+.sideHeader[data-align="end"] {
+  justify-content: flex-end;
 }
 
 .sideLabel {
@@ -85,6 +71,53 @@
 
 .side[data-type="put"] .sideLabel {
   color: var(--color-loss);
+}
+
+/* ── Strike channel: continues the data row's STRIKE column borders ──────── */
+
+.strikeChannel {
+  border-left: 1px solid var(--border-subtle);
+  border-right: 1px solid var(--border-subtle);
+  background: var(--bg-elevated);
+}
+
+.strikeChannel[data-atm="true"] {
+  background: rgba(80, 210, 193, 0.06);
+}
+
+.strikeChannelHeader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 4px var(--space-2);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.strikeAtmBadge {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 1px 5px;
+  border-radius: 2px;
+  background: var(--accent-primary);
+  color: var(--bg-base);
+  line-height: 1.3;
+}
+
+.strikeChannelNum {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.strikeChannelNum[data-atm="true"] {
+  color: var(--accent-primary);
 }
 
 /* ── Compact venue table ─────────────────────────────────────────────────── */
@@ -224,8 +257,20 @@
   }
 
   .side[data-type="call"] {
-    border-right: none;
     border-bottom: 1px solid var(--border-default);
+  }
+
+  .strikeChannel {
+    border-left: none;
+    border-right: none;
+    border-top: 1px solid var(--border-default);
+    border-bottom: 1px solid var(--border-default);
+  }
+
+  .strikeChannelHeader {
+    flex-direction: row;
+    gap: var(--space-2);
+    border-bottom: none;
   }
 }
 
