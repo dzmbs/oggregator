@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 
 import { useNewsFeed } from '@hooks/useNewsFeed';
@@ -7,6 +7,8 @@ import { AD_EVERY, SPONSORS } from '@lib/sponsors';
 
 import { mergeTickerItems, type TickerItem } from './news-ticker/items';
 import styles from './NewsTicker.module.css';
+
+const PX_PER_SEC = 28;
 
 function symbolToBase(symbol: string): string {
   return symbol.replace(/USDT$|USDC$|USD$/i, '');
@@ -84,17 +86,36 @@ export function NewsTicker() {
     [news, spots],
   );
 
+  const itemsKey = useMemo(() => items.map((i) => i.id).join('|'), [items]);
+
+  const trackRef = useRef<HTMLDivElement>(null);
+  const [durationSec, setDurationSec] = useState(60);
+
+  useLayoutEffect(() => {
+    const el = trackRef.current;
+    if (!el) return;
+    const update = () => {
+      const halfWidth = el.scrollWidth / 2;
+      if (halfWidth > 0) {
+        setDurationSec(Math.max(20, halfWidth / PX_PER_SEC));
+      }
+    };
+    update();
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [itemsKey]);
+
   if (items.length === 0) return null;
 
-  const durationSec = Math.min(260, Math.max(65, items.length * 4.2));
   const trackStyle = { '--scroll-duration': `${durationSec}s` } as CSSProperties;
-
   const doubled = [...items, ...items];
 
   return (
     <div className={styles.ticker}>
       <div className={styles.viewport}>
-        <div className={styles.track} style={trackStyle}>
+        <div key={itemsKey} ref={trackRef} className={styles.track} style={trackStyle}>
           {doubled.map((item, i) => (
             <TickerChip key={`${item.id}-${i}`} item={item} />
           ))}
