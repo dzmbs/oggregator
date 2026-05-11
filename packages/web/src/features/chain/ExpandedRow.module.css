@@ -117,6 +117,10 @@
   min-width: 90px;
 }
 
+.thVenue[data-mirror="true"] {
+  text-align: right;
+}
+
 /* ── Venue rows ──────────────────────────────────────────────────────────── */
 
 .venueRow {
@@ -137,6 +141,15 @@
 .tdVenue {
   padding: 4px 8px;
   text-align: left;
+}
+
+.tdVenue[data-mirror="true"] {
+  text-align: right;
+}
+
+.tdVenue[data-mirror="true"] .venueCell {
+  flex-direction: row-reverse;
+  justify-content: flex-end;
 }
 
 .tdNum {
