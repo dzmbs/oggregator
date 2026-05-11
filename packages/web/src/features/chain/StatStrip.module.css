@@ -76,6 +76,49 @@
   outline: none;
 }
 
+.label[data-interactive="true"] {
+  cursor: help;
+  text-decoration: underline dotted color-mix(in srgb, currentColor 40%, transparent);
+  text-underline-offset: 2px;
+  outline: none;
+}
+
+.statTip {
+  width: 320px;
+  padding: 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  line-height: 1.5;
+  color: var(--text-primary);
+  text-align: left;
+}
+
+.statTipTitle {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+
+.statTipFormula {
+  margin: 6px 0;
+  padding: 4px 6px;
+  background: var(--bg-panel);
+  border-radius: 4px;
+  color: var(--text-primary);
+}
+
+.statTipList {
+  margin: 6px 0 0;
+  padding-left: 14px;
+}
+
 .feedState {
   display: flex;
   align-items: center;

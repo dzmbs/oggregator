@@ -86,7 +86,7 @@ export function NewsTicker() {
 
   if (items.length === 0) return null;
 
-  const durationSec = Math.min(200, Math.max(50, items.length * 3.2));
+  const durationSec = Math.min(260, Math.max(65, items.length * 4.2));
   const trackStyle = { '--scroll-duration': `${durationSec}s` } as CSSProperties;
 
   const doubled = [...items, ...items];

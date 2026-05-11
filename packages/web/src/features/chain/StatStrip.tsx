@@ -26,6 +26,7 @@ interface StatCellProps {
   positive?: boolean | null; // true = green, false = red, null/undefined = neutral
   subPositive?: boolean | null;
   subTooltip?: ReactNode;
+  labelTooltip?: ReactNode;
 }
 
 function StatCell({
@@ -36,10 +37,25 @@ function StatCell({
   positive,
   subPositive,
   subTooltip,
+  labelTooltip,
 }: StatCellProps) {
+  const labelNode = labelTooltip ? (
+    <HoverTooltip
+      as="span"
+      className={styles.label}
+      placement="bottom-start"
+      content={labelTooltip}
+      dataInteractive="true"
+    >
+      {label}
+    </HoverTooltip>
+  ) : (
+    <span className={styles.label}>{label}</span>
+  );
+
   return (
     <div className={styles.cell}>
-      <span className={styles.label}>{label}</span>
+      {labelNode}
       <span
         className={styles.value}
         data-accent={accent}
@@ -75,6 +91,84 @@ function StatCell({
   );
 }
 
+const IVR_TIP = (
+  <div className={styles.statTip}>
+    <div className={styles.statTipTitle}>IV Rank (52-week)</div>
+    <div>
+      Position of current Deribit DVOL within its 52-week range. DVOL is Deribit’s 30-day
+      ATM IV index — the same series the IV history panel seeds from.
+    </div>
+    <div className={styles.statTipFormula}>
+      IVR = (current − 52w low) / (52w high − 52w low) × 100
+    </div>
+    <ul className={styles.statTipList}>
+      <li>
+        <b style={{ color: 'var(--color-profit)' }}>0–30</b>: IV cheap historically — vol buyers favored.
+      </li>
+      <li>
+        <b style={{ color: 'var(--color-warning)' }}>30–70</b>: mid-range; no strong edge.
+      </li>
+      <li>
+        <b style={{ color: 'var(--color-loss)' }}>70–100</b>: IV rich historically — vol sellers favored.
+      </li>
+    </ul>
+    <ul className={styles.statTipList}>
+      <li>Sub-text shows the 52w low–high band the rank is measured against.</li>
+      <li>Available for BTC and ETH only (the venues Deribit publishes DVOL for).</li>
+    </ul>
+  </div>
+);
+
+const IV_CHANGE_TIP = (
+  <div className={styles.statTip}>
+    <div className={styles.statTipTitle}>IV Δ1d</div>
+    <div>Change in Deribit DVOL from yesterday’s UTC close to the latest live print.</div>
+    <ul className={styles.statTipList}>
+      <li>Positive (green): IV expanding — premium getting richer day-on-day.</li>
+      <li>Negative (red): IV compressing — premium decaying.</li>
+      <li>Resets at 00:05 UTC when the day rolls over and a new previousClose anchors the diff.</li>
+    </ul>
+  </div>
+);
+
+const ATM_IV_TIP = (
+  <div className={styles.statTip}>
+    <div className={styles.statTipTitle}>ATM IV</div>
+    <div>
+      Cross-venue average of at-the-money implied volatility for the currently selected expiry.
+      Averages the mark IV of the call and put closest to the forward, across the active venues.
+    </div>
+    <ul className={styles.statTipList}>
+      <li>Reflects this expiry only — for a constant-maturity view see the IV Rank panel.</li>
+      <li>Pair with IVR to gauge whether this expiry’s IV is rich vs the 52-week range.</li>
+    </ul>
+  </div>
+);
+
+const SKEW_TIP = (
+  <div className={styles.statTip}>
+    <div className={styles.statTipTitle}>25Δ Skew</div>
+    <div>25-delta call IV minus 25-delta put IV for the selected expiry.</div>
+    <ul className={styles.statTipList}>
+      <li>Negative (usual in BTC/ETH): puts richer than calls — downside fear priced in.</li>
+      <li>Positive: calls richer than puts — upside FOMO / squeeze pricing.</li>
+      <li>Compression toward zero often precedes regime shifts.</li>
+    </ul>
+  </div>
+);
+
+const PCOI_TIP = (
+  <div className={styles.statTip}>
+    <div className={styles.statTipTitle}>Put / Call OI</div>
+    <div>Total put open interest divided by total call open interest for this expiry.</div>
+    <ul className={styles.statTipList}>
+      <li>&gt; 1: more puts open than calls — hedging / bearish lean.</li>
+      <li>&lt; 1: more calls open than puts — directional upside positioning.</li>
+      <li>Single-expiry only; compare across expiries on the term-structure view.</li>
+    </ul>
+  </div>
+);
+
 const CONN_DISPLAY: Record<WsConnectionState, { dot: string; label: string }> = {
   live: { dot: 'var(--color-profit)', label: 'Live' },
   connecting: { dot: 'var(--text-dim)', label: 'Connecting' },
@@ -109,12 +203,13 @@ export default function StatStrip({
         }
       />
       <div className={styles.divider} />
-      <StatCell label="ATM IV" value={fmtIv(stats.atmIv)} accent />
+      <StatCell label="ATM IV" value={fmtIv(stats.atmIv)} accent labelTooltip={ATM_IV_TIP} />
       <div className={styles.divider} />
       <StatCell
         label="Put/Call OI"
         value={stats.putCallOiRatio != null ? fmtNum(stats.putCallOiRatio) : '–'}
         sub={`${dte}d to expiry`}
+        labelTooltip={PCOI_TIP}
       />
       <div className={styles.divider} />
       <StatCell
@@ -122,6 +217,7 @@ export default function StatStrip({
         value={stats.skew25d != null ? fmtIv(stats.skew25d) : '–'}
         sub="call − put"
         positive={skewPositive}
+        labelTooltip={SKEW_TIP}
       />
       <div className={styles.divider} />
       <StatCell
@@ -143,6 +239,7 @@ export default function StatStrip({
             value={`${marketStats.dvol.ivr.toFixed(0)}`}
             sub={`52w: ${fmtIv(marketStats.dvol.low52w)}–${fmtIv(marketStats.dvol.high52w)}`}
             accent
+            labelTooltip={IVR_TIP}
           />
           <div className={styles.divider} />
           <StatCell
@@ -155,6 +252,7 @@ export default function StatStrip({
                   ? false
                   : null
             }
+            labelTooltip={IV_CHANGE_TIP}
           />
         </>
       )}
