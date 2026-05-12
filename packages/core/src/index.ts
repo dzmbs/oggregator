@@ -262,6 +262,12 @@ export {
   signLoginMessage as signDeriveLoginMessage,
   recoverSignerAddress as recoverDeriveSignerAddress,
 } from './feeds/derive-private/index.js';
+export {
+  ThalexPrivateClient,
+  type ThalexPrivateCreds,
+  type ThalexPositionsListener,
+  mintAuthToken as mintThalexAuthToken,
+} from './feeds/thalex-private/index.js';
 
 // feeds — venue adapters
 export { DeribitWsAdapter } from './feeds/deribit/index.js';

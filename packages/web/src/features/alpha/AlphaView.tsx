@@ -213,6 +213,7 @@ export default function AlphaView() {
           selected={expiry}
           onSelect={setExpiry}
           onChangeAsset={openPalette}
+          onPrefetch={prefetchChain}
         />
       )}
 
