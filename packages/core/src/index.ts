@@ -254,6 +254,15 @@ export {
   type PortfolioErrorEvent,
 } from './runtime/portfolio/index.js';
 
+// private (per-user, authenticated) venue adapters
+export {
+  DerivePrivateClient,
+  type DerivePrivateCreds,
+  type DerivePositionsListener,
+  signLoginMessage as signDeriveLoginMessage,
+  recoverSignerAddress as recoverDeriveSignerAddress,
+} from './feeds/derive-private/index.js';
+
 // feeds — venue adapters
 export { DeribitWsAdapter } from './feeds/deribit/index.js';
 export { OkxWsAdapter } from './feeds/okx/index.js';

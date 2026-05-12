@@ -45,7 +45,7 @@ export function derivePositionToLeg(pos: DerivePosition): PositionLeg | null {
     entryIv: null,
     entryTs: pos.creation_timestamp,
     venueHint: 'derive',
-    source: 'thalex-private' === ('manual' as string) ? 'manual' : 'manual',
+    source: 'derive',
   };
 }
 
