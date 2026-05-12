@@ -4,6 +4,7 @@ import { generateLegId } from '@oggregator/core';
 import { DEFAULT_ACCOUNT_ID } from '@oggregator/trading';
 import {
   PositionLegInputSchema,
+  PositionLegSchema,
   type PositionLeg,
 } from '@oggregator/protocol';
 
@@ -54,11 +55,15 @@ export async function portfolioPositionsRoute(app: FastifyInstance) {
     '/portfolio/positions/:legId',
     async (req, reply) => {
       const accountId = getAccountId(req);
-      const removed = portfolioStore.remove(accountId, req.params.legId);
-      if (!removed) {
-        return reply.status(404).send({ error: 'not_found', legId: req.params.legId });
+      const parsed = PositionLegSchema.shape.legId.safeParse(req.params.legId);
+      if (!parsed.success) {
+        return reply.status(400).send({ error: 'invalid_legId', issues: parsed.error.issues });
       }
-      return { legId: req.params.legId, removed: true };
+      const removed = portfolioStore.remove(accountId, parsed.data);
+      if (!removed) {
+        return reply.status(404).send({ error: 'not_found', legId: parsed.data });
+      }
+      return { legId: parsed.data, removed: true };
     },
   );
 }
