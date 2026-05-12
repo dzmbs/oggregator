@@ -128,6 +128,21 @@
   gap: 16px;
 }
 
+.readOnlyNote {
+  padding: 12px;
+  background: rgba(96, 165, 250, 0.08);
+  border: 1px solid rgba(96, 165, 250, 0.3);
+  border-radius: 8px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: #cbd5e1;
+  line-height: 1.5;
+}
+
+.readOnlyNote strong {
+  color: #60a5fa;
+}
+
 @media (max-width: 900px) {
   .bodyGrid {
     grid-template-columns: 1fr;

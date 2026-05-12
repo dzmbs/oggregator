@@ -6,6 +6,7 @@ import styles from './PositionsTable.module.css';
 interface Props {
   positions: PositionLeg[];
   breakEven: BreakEvenIvRow[];
+  readOnly?: boolean;
 }
 
 function fmtUsd(value: number | null | undefined): string {
@@ -24,12 +25,16 @@ function fmtPct(value: number | null | undefined): string {
   return `${sign}${(value * 100).toFixed(2)}%`;
 }
 
-export default function PositionsTable({ positions, breakEven }: Props) {
+export default function PositionsTable({ positions, breakEven, readOnly = false }: Props) {
   const removePosition = useRemovePosition();
   const breakEvenByLegId = new Map(breakEven.map((row) => [row.legId, row]));
 
   if (positions.length === 0) {
-    return <div className={styles.empty}>No positions yet — add a leg below.</div>;
+    return (
+      <div className={styles.empty}>
+        {readOnly ? 'No open paper positions.' : 'No positions yet — add a leg below.'}
+      </div>
+    );
   }
 
   return (
@@ -73,15 +78,17 @@ export default function PositionsTable({ positions, breakEven }: Props) {
               <td>{fmtIv(be?.breakEvenIv)}</td>
               <td className={cushionClass}>{fmtPct(be?.ivCushionPct)}</td>
               <td>
-                <button
-                  type="button"
-                  className={styles.remove}
-                  onClick={() => removePosition.mutate(leg.legId)}
-                  disabled={removePosition.isPending}
-                  aria-label={`remove ${leg.legId}`}
-                >
-                  ×
-                </button>
+                {readOnly ? null : (
+                  <button
+                    type="button"
+                    className={styles.remove}
+                    onClick={() => removePosition.mutate(leg.legId)}
+                    disabled={removePosition.isPending}
+                    aria-label={`remove ${leg.legId}`}
+                  >
+                    ×
+                  </button>
+                )}
               </td>
             </tr>
           );
