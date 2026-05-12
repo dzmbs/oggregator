@@ -296,6 +296,17 @@ export default function AccountChip() {
                     {configuredVenues.map((venue) => (
                       <div key={venue} className={styles.venueChip}>
                         <span>{VENUES[venue]?.label ?? venue}</span>
+                        <span
+                          className={styles.venueChipStatus}
+                          data-status={PRIVATE_ADAPTER_SPECS[venue].status}
+                          title={
+                            PRIVATE_ADAPTER_SPECS[venue].status === 'available'
+                              ? 'Live private WS feed wired — switch the Portfolio source toggle to see positions.'
+                              : `Adapter status: ${PRIVATE_ADAPTER_SPECS[venue].status}. Keys are saved but no server-side feed exists yet.`
+                          }
+                        >
+                          {PRIVATE_ADAPTER_SPECS[venue].status === 'available' ? 'live' : 'TODO'}
+                        </span>
                         <button
                           type="button"
                           className={styles.venueChipRemove}
@@ -316,7 +327,9 @@ export default function AccountChip() {
                   + Add venue key
                 </button>
                 <div className={styles.warning}>
-                  Keys are stored in this browser only. Private WS adapters are TODO — see
+                  Only <strong>Derive</strong> has a working private WS adapter today. Other venues
+                  store keys locally but won&apos;t show positions in the Portfolio tab until the
+                  server-side adapter is built — see TODOs in
                   <code className={styles.codeInline}> protocol/venue-credentials.ts</code>.
                 </div>
               </div>
@@ -471,10 +484,18 @@ function VenueCredentialForm({ venue, values, onChange, onSubmit }: VenueCredent
       <button type="button" className={styles.primaryBtn} onClick={onSubmit}>
         Save {VENUES[venue]?.label ?? venue} keys
       </button>
-      <div className={styles.hint}>
-        Private WS adapter status: <strong>{spec.status}</strong>. Once available, the Portfolio
-        tab&apos;s source toggle will include <strong>{VENUES[venue]?.label ?? venue}</strong>.
-      </div>
+      {spec.status === 'available' ? (
+        <div className={styles.hint}>
+          Saving will connect to the private WS and start streaming positions. Pick{' '}
+          <strong>{VENUES[venue]?.label ?? venue}</strong> in the Portfolio source toggle to see them.
+        </div>
+      ) : (
+        <div className={styles.warning}>
+          <strong>Heads-up:</strong> {VENUES[venue]?.label ?? venue}&apos;s private adapter is{' '}
+          <strong>{spec.status}</strong>. Keys will be stored locally, but the Portfolio tab can&apos;t
+          show your live positions until the server-side adapter is built (see TODO list in the spec).
+        </div>
+      )}
     </>
   );
 }

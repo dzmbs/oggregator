@@ -282,6 +282,27 @@
   color: #f87171;
 }
 
+.venueChipStatus {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 1px 5px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  cursor: help;
+}
+
+.venueChipStatus[data-status='available'] {
+  background: rgba(74, 222, 128, 0.18);
+  color: #4ade80;
+}
+
+.venueChipStatus[data-status='planned'],
+.venueChipStatus[data-status='in_progress'] {
+  background: rgba(251, 191, 36, 0.18);
+  color: #fbbf24;
+}
+
 .warning {
   font-family: 'IBM Plex Mono', monospace;
   font-size: 10px;

@@ -72,6 +72,38 @@
   color: #000;
 }
 
+.toggle[data-disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.toggle[data-disabled]:hover {
+  background: transparent;
+}
+
+.todoTag {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 0 4px;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  background: rgba(251, 191, 36, 0.2);
+  color: #fbbf24;
+  border-radius: 3px;
+  vertical-align: middle;
+}
+
+.sourceNote {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: #888;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.02);
+  border-left: 2px solid #50d2c1;
+  border-radius: 0 4px 4px 0;
+}
+
 .totalsRow {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));

@@ -1,6 +1,9 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+
+import { PRIVATE_ADAPTER_SPECS, VENUE_IDS, type VenueId } from '@oggregator/protocol';
 
 import { useAppStore } from '@stores/app-store';
+import { VENUES } from '@lib/venue-meta';
 
 import type { PortfolioSource } from './api';
 import PortfolioVegaCurve from './PortfolioVegaCurve';
@@ -12,11 +15,33 @@ import { usePortfolioWs } from './hooks/usePortfolioWs';
 import styles from './PortfolioView.module.css';
 
 const FORWARD_OPTIONS: number[] = [0, 1, 3, 7];
-const SOURCE_OPTIONS: { value: PortfolioSource; label: string }[] = [
-  { value: 'manual', label: 'Manual' },
-  { value: 'paper', label: 'Paper' },
-  { value: 'derive', label: 'Derive' },
+
+interface SourceOption {
+  value: PortfolioSource;
+  label: string;
+  ready: boolean;
+  note: string;
+}
+
+const BASE_SOURCES: SourceOption[] = [
+  { value: 'manual', label: 'Manual', ready: true, note: 'Hand-entered legs' },
+  { value: 'paper', label: 'Paper', ready: true, note: 'Live paper trading book' },
 ];
+
+function venueSourceOptions(): SourceOption[] {
+  return VENUE_IDS.map((venue: VenueId) => {
+    const spec = PRIVATE_ADAPTER_SPECS[venue];
+    return {
+      value: venue,
+      label: VENUES[venue]?.label ?? venue,
+      ready: spec.status === 'available',
+      note:
+        spec.status === 'available'
+          ? `Live ${VENUES[venue]?.label ?? venue} book via private WS`
+          : `Adapter ${spec.status} — keys are stored but not wired yet`,
+    };
+  });
+}
 
 function fmtUsdSigned(value: number | null | undefined): string {
   if (value == null || !Number.isFinite(value)) return '—';
@@ -38,8 +63,12 @@ export default function PortfolioView() {
   const { data: positionsData } = usePortfolioPositions(source);
   const { data: metricsData } = usePortfolioMetrics(forwardDays, source);
 
+  const sourceOptions = useMemo(() => [...BASE_SOURCES, ...venueSourceOptions()], []);
+  const activeNote = sourceOptions.find((o) => o.value === source)?.note ?? '';
+
   const positions = positionsData?.positions ?? metricsData?.positions ?? [];
   const metrics = metricsData?.metrics ?? null;
+  const isReadOnly = source !== 'manual';
 
   return (
     <div className={styles.wrap}>
@@ -47,15 +76,19 @@ export default function PortfolioView() {
         <h2 className={styles.title}>Portfolio</h2>
         <div className={styles.statusGroup}>
           <div className={styles.toggleGroup} role="radiogroup" aria-label="Source">
-            {SOURCE_OPTIONS.map((opt) => (
+            {sourceOptions.map((opt) => (
               <button
                 key={opt.value}
                 type="button"
                 className={styles.toggle}
                 data-active={source === opt.value || undefined}
+                data-disabled={!opt.ready || undefined}
+                disabled={!opt.ready}
+                title={opt.note}
                 onClick={() => setSource(opt.value)}
               >
                 {opt.label}
+                {!opt.ready && <span className={styles.todoTag}>TODO</span>}
               </button>
             ))}
           </div>
@@ -77,6 +110,8 @@ export default function PortfolioView() {
           </div>
         </div>
       </div>
+
+      <div className={styles.sourceNote}>{activeNote}</div>
 
       <div className={styles.totalsRow}>
         <div className={styles.totalCard}>
@@ -116,16 +151,21 @@ export default function PortfolioView() {
             <PositionsTable
               positions={positions}
               breakEven={metrics?.breakEven ?? []}
-              readOnly={source === 'paper'}
+              readOnly={isReadOnly}
             />
           </div>
         </div>
         <div className={styles.sidebar}>
           {source === 'manual' ? (
             <PositionForm defaultUnderlying={underlying} />
-          ) : (
+          ) : source === 'paper' ? (
             <div className={styles.readOnlyNote}>
               Showing live paper-trading positions. Add or close legs from the <strong>Paper</strong> tab.
+            </div>
+          ) : (
+            <div className={styles.readOnlyNote}>
+              Showing live <strong>{VENUES[source as VenueId]?.label ?? source}</strong> positions
+              from your private WS feed. Trade on the venue directly to change the book.
             </div>
           )}
           <ShockHeatmap grid={metrics?.shockGrid ?? []} />
