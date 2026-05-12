@@ -198,6 +198,21 @@
     gap: 8px;
   }
 
+  .toggleGroup {
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .toggleGroup::-webkit-scrollbar {
+    display: none;
+  }
+
+  .toggle {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
   .totalsRow {
     grid-template-columns: repeat(2, 1fr);
   }

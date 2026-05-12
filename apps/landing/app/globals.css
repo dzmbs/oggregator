@@ -1,12 +1,15 @@
 @import "tailwindcss";
 
 :root {
-  --landing-bg: #07141d;
-  --landing-panel: rgba(10, 25, 35, 0.88);
-  --landing-text: #f4f7f5;
-  --landing-muted: #91a3ad;
-  --landing-accent: #8cf6d1;
-  --landing-border: rgba(140, 246, 209, 0.18);
+  --landing-bg: #0c0d10;
+  --landing-panel: rgba(23, 25, 30, 0.92);
+  --landing-panel-strong: rgba(10, 11, 15, 0.94);
+  --landing-text: #f3f0e8;
+  --landing-muted: #8a8f98;
+  --landing-accent: #d77a52;
+  --landing-accent-soft: rgba(215, 122, 82, 0.18);
+  --landing-border: rgba(255, 255, 255, 0.08);
+  --font-heading: var(--font-display);
 }
 
 html,
@@ -19,7 +22,11 @@ body {
 
 body {
   font-family: var(--font-display), sans-serif;
-  background-image: radial-gradient(circle at top, rgba(140, 246, 209, 0.12), transparent 38%);
+  background-image:
+    radial-gradient(circle at top, rgba(215, 122, 82, 0.1), transparent 26%),
+    linear-gradient(180deg, #1a1b20 0%, #0d0e12 12%, #0c0d10 100%);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
 }
 
 .landing-shell {
@@ -81,4 +88,24 @@ body {
 .landing-button:focus-visible {
   outline: 2px solid var(--landing-accent);
   outline-offset: 3px;
+}
+
+::selection {
+  background: var(--landing-accent-soft);
+  color: var(--landing-text);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+@keyframes ticker-marquee {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(-50%);
+  }
 }
