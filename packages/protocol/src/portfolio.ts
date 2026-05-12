@@ -13,7 +13,7 @@ export const PositionLegSchema = z.object({
   optionRight: z.enum(['call', 'put']),
   size: z.number().refine((v) => v !== 0, 'size must be non-zero'),
   entryPriceUsd: z.number().positive(),
-  entryIv: z.number().positive().nullable(),
+  entryIv: z.number().nonnegative().nullable(),
   entryTs: z.number().int().nonnegative(),
   venueHint: VenueIdSchema.nullable(),
   source: PositionSourceSchema,
@@ -54,8 +54,8 @@ export const BreakEvenIvRowSchema = z.object({
   optionRight: z.enum(['call', 'put']),
   entryIv: z.number().nullable(),
   currentMarkUsd: z.number().nullable(),
-  currentIv: z.number().nullable(),
-  breakEvenIv: z.number().nullable(),
+  currentIv: z.number().nonnegative().nullable(),
+  breakEvenIv: z.number().nonnegative().nullable(),
   ivCushionPct: z.number().nullable(),
 });
 export type BreakEvenIvRow = z.infer<typeof BreakEvenIvRowSchema>;
