@@ -1,4 +1,6 @@
 import type {
+  InstrumentListQuery,
+  InstrumentSummary,
   RecentTradeQuery,
   TradeFilterQuery,
   TradeHistoryQuery,
@@ -34,6 +36,10 @@ export class NoopTradeStore implements TradeStore {
     _query: TradeFilterQuery & { mode: PersistedTradeRecord['mode'] },
   ): Promise<TradeHistorySummary> {
     return EMPTY_SUMMARY;
+  }
+
+  async listInstruments(_query: InstrumentListQuery): Promise<InstrumentSummary[]> {
+    return [];
   }
 
   async pruneHistory(_beforeTs: Date): Promise<TradePruneResult> {
