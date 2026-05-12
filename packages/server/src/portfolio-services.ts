@@ -175,6 +175,7 @@ export async function ensureChainsForBook(legs: PositionLeg[]): Promise<void> {
 }
 
 const portfolioRuntimes = new Map<string, PortfolioRuntime>();
+const portfolioStoreUnsubscribes = new Map<string, () => void>();
 
 export function getOrCreatePortfolioRuntime(accountId: string): PortfolioRuntime {
   const existing = portfolioRuntimes.get(accountId);
@@ -186,7 +187,7 @@ export function getOrCreatePortfolioRuntime(accountId: string): PortfolioRuntime
     markProvider: portfolioMarkProvider,
   });
 
-  portfolioStore.subscribe((event) => {
+  const unsubscribe = portfolioStore.subscribe((event) => {
     if (event.accountId !== accountId) return;
     for (const legId of event.changedLegIds) {
       const leg = portfolioStore.get(accountId, legId);
@@ -195,6 +196,7 @@ export function getOrCreatePortfolioRuntime(accountId: string): PortfolioRuntime
       }
     }
   });
+  portfolioStoreUnsubscribes.set(accountId, unsubscribe);
 
   runtime.start();
   portfolioRuntimes.set(accountId, runtime);
@@ -208,6 +210,8 @@ export async function bootstrapPortfolioForAccount(accountId: string): Promise<v
 }
 
 export async function disposePortfolioServices(): Promise<void> {
+  for (const unsubscribe of portfolioStoreUnsubscribes.values()) unsubscribe();
+  portfolioStoreUnsubscribes.clear();
   for (const r of portfolioRuntimes.values()) r.dispose();
   portfolioRuntimes.clear();
   const refs = [...chainRefs.values()];
