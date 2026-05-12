@@ -69,3 +69,10 @@
   font-family: 'IBM Plex Mono', monospace;
   font-size: 12px;
 }
+
+.cardList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+}

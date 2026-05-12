@@ -1,5 +1,8 @@
 import type { BreakEvenIvRow, PositionLeg } from '@oggregator/protocol';
 
+import { useIsMobile } from '@hooks/useIsMobile';
+
+import MobilePositionCard from './MobilePositionCard';
 import { useRemovePosition } from './hooks/queries';
 import styles from './PositionsTable.module.css';
 
@@ -27,12 +30,30 @@ function fmtPct(value: number | null | undefined): string {
 
 export default function PositionsTable({ positions, breakEven, readOnly = false }: Props) {
   const removePosition = useRemovePosition();
+  const isMobile = useIsMobile();
   const breakEvenByLegId = new Map(breakEven.map((row) => [row.legId, row]));
 
   if (positions.length === 0) {
     return (
       <div className={styles.empty}>
         {readOnly ? 'No open paper positions.' : 'No positions yet — add a leg below.'}
+      </div>
+    );
+  }
+
+  if (isMobile) {
+    return (
+      <div className={styles.cardList}>
+        {positions.map((leg) => (
+          <MobilePositionCard
+            key={leg.legId}
+            leg={leg}
+            be={breakEvenByLegId.get(leg.legId)}
+            readOnly={readOnly}
+            onRemove={() => removePosition.mutate(leg.legId)}
+            removing={removePosition.isPending}
+          />
+        ))}
       </div>
     );
   }

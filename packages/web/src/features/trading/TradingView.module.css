@@ -487,22 +487,65 @@
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
   .view {
     padding: 10px;
+    gap: 12px;
   }
 
   .header {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 10px 12px;
+    gap: 10px;
+  }
+
+  .headerValue {
+    font-size: 15px;
   }
 
   .table {
     display: block;
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .table th,
+  .table td {
+    padding: 8px 10px;
+    white-space: nowrap;
   }
 
   .sliderRow {
     grid-template-columns: 64px minmax(0, 1fr) 48px;
+  }
+
+  .metricGrid,
+  .riskGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 10px;
+    gap: 8px;
+  }
+
+  .metricCard {
+    padding: 8px 10px;
+  }
+
+  .metricValue {
+    font-size: 14px;
+  }
+
+  .chartWrap {
+    height: 240px;
+    padding: 10px;
+  }
+
+  .actionRow {
+    flex-wrap: wrap;
+  }
+
+  .accountFooter {
+    justify-content: flex-start;
+    flex-wrap: wrap;
   }
 }
 

@@ -148,3 +148,35 @@
     grid-template-columns: 1fr;
   }
 }
+
+@media (max-width: 768px) {
+  .wrap {
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .statusGroup {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .totalsRow {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .totalValue {
+    font-size: 13px;
+  }
+
+  .tableWrap {
+    background: transparent;
+    border: none;
+    border-radius: 0;
+  }
+}
