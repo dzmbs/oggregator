@@ -687,6 +687,15 @@
   letter-spacing: 0.06em;
 }
 
+.routeUnroutable {
+  font-size: 11px;
+  color: var(--color-loss);
+  padding: var(--space-1) var(--space-2);
+  background: color-mix(in srgb, var(--color-loss) 8%, transparent);
+  border-radius: var(--radius-sm);
+  margin-top: 6px;
+}
+
 .backdrop {
   position: fixed;
   inset: 0;

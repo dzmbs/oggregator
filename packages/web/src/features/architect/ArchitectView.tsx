@@ -40,7 +40,7 @@ interface LegRowProps {
   onUpdate: (id: string, patch: Partial<Leg>) => void;
 }
 
-const ACTIVE_PAPER_VENUES_VALUE = '__active-venues__';
+const BEST_ROUTE_VALUE = '__best-route__';
 
 function resolveBuilderExpiry(preferredExpiry: string, expiries: string[]): string {
   if (preferredExpiry && expiries.includes(preferredExpiry)) return preferredExpiry;
@@ -175,23 +175,47 @@ export default function ArchitectView() {
   const [dragOver, setDragOver] = useState(false);
   const [builderError, setBuilderError] = useState<string | null>(null);
   const [paperStatus, setPaperStatus] = useState<string | null>(null);
-  const [paperVenue, setPaperVenue] = useState(ACTIVE_PAPER_VENUES_VALUE);
+  const [routeVenue, setRouteVenue] = useState(BEST_ROUTE_VALUE);
   const [variant, setVariant] = useState<'v1' | 'v2'>('v1');
 
   const setActiveTab = _useAppStoreForTabSwitch((s) => s.setActiveTab);
   const createTrade = useCreateTrade();
 
   useEffect(() => {
-    if (paperVenue !== ACTIVE_PAPER_VENUES_VALUE && !activeVenues.includes(paperVenue)) {
-      setPaperVenue(ACTIVE_PAPER_VENUES_VALUE);
+    if (routeVenue !== BEST_ROUTE_VALUE && !activeVenues.includes(routeVenue)) {
+      setRouteVenue(BEST_ROUTE_VALUE);
     }
-  }, [activeVenues, paperVenue]);
+  }, [activeVenues, routeVenue]);
 
-  const paperVenueOptions = useMemo(
+  const pricingVenues = useMemo(
+    () => (routeVenue === BEST_ROUTE_VALUE ? activeVenues : [routeVenue]),
+    [routeVenue, activeVenues],
+  );
+
+  const unroutableLegs = useMemo(() => {
+    if (routeVenue === BEST_ROUTE_VALUE || !chain || legs.length === 0) return [];
+    return legs.filter(
+      (leg) =>
+        repriceLeg(
+          chain,
+          [routeVenue],
+          {
+            type: leg.type,
+            direction: leg.direction,
+            strike: leg.strike,
+            expiry: builderExpiry,
+            quantity: leg.quantity,
+          },
+          { exactStrike: true },
+        ) == null,
+    );
+  }, [routeVenue, chain, legs, builderExpiry]);
+
+  const routeOptions = useMemo(
     () => [
       {
-        value: ACTIVE_PAPER_VENUES_VALUE,
-        label: 'Active venues',
+        value: BEST_ROUTE_VALUE,
+        label: 'Best route',
         meta:
           activeVenues.length === 1
             ? VENUES[activeVenues[0] ?? '']?.label ?? '1 venue'
@@ -210,9 +234,7 @@ export default function ArchitectView() {
     if (legs.length === 0) return;
     setPaperStatus(null);
     try {
-      const venueFilter =
-        paperVenue === ACTIVE_PAPER_VENUES_VALUE ? activeVenues : [paperVenue];
-      const req = legsToOrderRequest(legs, underlying, venueFilter, routing);
+      const req = legsToOrderRequest(legs, underlying, pricingVenues, routing);
       const strategyName = detectStrategy(legs);
       const result = await createTrade.mutateAsync({
         label: strategyName,
@@ -259,7 +281,7 @@ export default function ArchitectView() {
 
       return repriceLeg(
         chain,
-        activeVenues,
+        pricingVenues,
         {
           type: patch.type ?? leg.type,
           direction: patch.direction ?? leg.direction,
@@ -270,7 +292,7 @@ export default function ArchitectView() {
         { exactStrike },
       );
     },
-    [activeVenues, builderExpiry, chain],
+    [pricingVenues, builderExpiry, chain],
   );
 
   const handleLegUpdate = useCallback(
@@ -447,12 +469,20 @@ export default function ArchitectView() {
 
             {legs.length > 0 && (
               <div className={styles.paperTradeControls}>
-                <span className={styles.paperTradeLabel}>Paper venue</span>
+                <span className={styles.paperTradeLabel}>Route</span>
                 <DropdownPicker
-                  options={paperVenueOptions}
-                  value={paperVenue}
-                  onChange={setPaperVenue}
+                  options={routeOptions}
+                  value={routeVenue}
+                  onChange={setRouteVenue}
                 />
+                {unroutableLegs.length > 0 && (
+                  <div className={styles.routeUnroutable}>
+                    {unroutableLegs.length === legs.length
+                      ? `No legs have a quote on ${VENUES[routeVenue]?.label ?? routeVenue}.`
+                      : `${unroutableLegs.length} of ${legs.length} legs have no quote on ${VENUES[routeVenue]?.label ?? routeVenue}.`}{' '}
+                    Pick another venue or switch to Best route.
+                  </div>
+                )}
               </div>
             )}
 
