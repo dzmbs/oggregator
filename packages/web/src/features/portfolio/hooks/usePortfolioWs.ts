@@ -11,7 +11,7 @@ function backoffMs(attempt: number): number {
   return Math.min(1000 * 2 ** attempt + Math.random() * 500, 15_000);
 }
 
-export function usePortfolioWs(forwardDays: number): { connectionState: ConnectionState; lastSeq: number } {
+export function usePortfolioWs(_forwardDays: number): { connectionState: ConnectionState; lastSeq: number } {
   const qc = useQueryClient();
   const [connectionState, setConnectionState] = useState<ConnectionState>('closed');
   const [lastSeq, setLastSeq] = useState(0);
@@ -25,7 +25,12 @@ export function usePortfolioWs(forwardDays: number): { connectionState: Connecti
       if (disposed) return;
       setConnectionState('connecting');
       const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const apiKey = localStorage.getItem('paperApiKey') ?? '';
+      let apiKey = '';
+      try {
+        apiKey = localStorage.getItem('paperApiKey') ?? '';
+      } catch (err) {
+        console.error('localStorage access failed', err);
+      }
       const url = `${proto}//${window.location.host}/ws/portfolio${apiKey ? `?apiKey=${encodeURIComponent(apiKey)}` : ''}`;
       const ws = new WebSocket(url);
       wsRef.current = ws;
@@ -86,7 +91,7 @@ export function usePortfolioWs(forwardDays: number): { connectionState: Connecti
       wsRef.current = null;
       setConnectionState('closed');
     };
-  }, [qc, forwardDays]);
+  }, [qc]);
 
   return { connectionState, lastSeq };
 }
