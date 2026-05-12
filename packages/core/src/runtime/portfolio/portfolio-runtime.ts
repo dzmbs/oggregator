@@ -8,6 +8,8 @@ import type {
   VegaByStrikeRow,
 } from '@oggregator/protocol';
 
+import { logger } from '../../utils/logger.js';
+
 import {
   aggregateGreeksByExpiry,
   aggregateGreeksByStrike,
@@ -120,6 +122,7 @@ export class PortfolioRuntime {
   }
 
   start(): void {
+    if (this.disposed) return;
     if (this.pushTimer != null) return;
 
     this.storeUnsubscribe = this.store.subscribe((event) => {
@@ -248,7 +251,12 @@ export class PortfolioRuntime {
     for (const listener of this.listeners) {
       try {
         listener.onEvent(event);
-      } catch {}
+      } catch (err) {
+        logger.error(
+          { err, accountId: this.accountId, eventType: event.type },
+          'portfolio runtime listener failed',
+        );
+      }
     }
   }
 }
