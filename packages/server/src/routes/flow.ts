@@ -38,7 +38,7 @@ interface HistorySummary {
 
 const isoDate = z
   .string()
-  .refine((v) => !Number.isNaN(new Date(v).getTime()), 'invalid date');
+  .refine((v: string) => !Number.isNaN(new Date(v).getTime()), 'invalid date');
 
 const FlowInstrumentsQuerySchema = z.object({
   underlying: z.string().min(1).optional(),
