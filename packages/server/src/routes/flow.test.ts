@@ -259,6 +259,20 @@ describe('GET /flow/instrument-trades', () => {
     await app.close();
   });
 
+  it('returns available:false when trade store is disabled', async () => {
+    const services = await import('../services.js');
+    Object.assign(services.tradeStore, { enabled: false });
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/flow/instrument-trades?underlying=BTC&venue=deribit&instrument=BTC-28MAR26-100000-C',
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({ available: false, trades: [], nextCursor: null });
+
+    Object.assign(services.tradeStore, { enabled: true });
+  });
+
   it('400s when venue or instrument is missing', async () => {
     const res = await app.inject({
       method: 'GET',
