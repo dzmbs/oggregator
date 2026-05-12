@@ -363,7 +363,7 @@ export default function FlowView() {
               <button
                 className={styles.modeBtn}
                 data-active={mode === 'block'}
-                onClick={() => setMode('block')}
+                onClick={() => { setMode('block'); if (scope === 'charts') setScope('tape'); }}
               >
                 🏛 Institutions
               </button>
@@ -383,13 +383,15 @@ export default function FlowView() {
               >
                 History
               </button>
-              <button
-                className={styles.modeBtn}
-                data-active={scope === 'charts'}
-                onClick={() => setScope('charts')}
-              >
-                Charts
-              </button>
+              {mode === 'all' && (
+                <button
+                  className={styles.modeBtn}
+                  data-active={scope === 'charts'}
+                  onClick={() => setScope('charts')}
+                >
+                  Charts
+                </button>
+              )}
             </div>
             <AssetPickerButton />
             <VenuePickerButton />
