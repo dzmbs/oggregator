@@ -1,6 +1,6 @@
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
-import React, { type ReactNode } from "react";
+import type { ReactNode } from "react";
 import type { Metadata } from "next";
 import { IBM_Plex_Mono, Inter_Tight } from "next/font/google";
 

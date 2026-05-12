@@ -5,7 +5,7 @@ import { VolSurfaceShowcase } from "./VolSurfaceShowcase";
 
 describe("vol surface showcase", () => {
   it("renders the approved headline and proof metrics", () => {
-    render(<VolSurfaceShowcase />);
+    render(React.createElement(VolSurfaceShowcase));
 
     expect(
       screen.getByRole("heading", { name: /see the surface/i }),

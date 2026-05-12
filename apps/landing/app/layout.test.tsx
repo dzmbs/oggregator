@@ -19,9 +19,11 @@ vi.mock("@vercel/speed-insights/next", () => ({
 describe("RootLayout", () => {
   it("includes the analytics hooks in the document shell", () => {
     const html = renderToStaticMarkup(
-      <RootLayout>
-        <div>child</div>
-      </RootLayout>,
+      React.createElement(
+        RootLayout,
+        undefined,
+        React.createElement("div", undefined, "child"),
+      ),
     );
 
     expect(html).toContain('data-testid="analytics"');

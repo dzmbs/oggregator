@@ -1,15 +1,21 @@
-import { appendFile, mkdir } from "node:fs/promises";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { appendFile, mkdir } from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-import type { LeadInput } from "./lead-schema";
+import type { LeadInput } from './lead-schema';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const defaultDataDir = path.resolve(here, "../.data");
-const defaultDataFile = path.join(defaultDataDir, "landing-leads.jsonl");
+const defaultDataDir = path.resolve(here, '../.data');
+const defaultDataFile = path.join(defaultDataDir, 'landing-leads.jsonl');
 
 function resolveLeadFilePath() {
-  return process.env.LANDING_LEADS_FILE ?? defaultDataFile;
+  const configuredPath = process.env.LANDING_LEADS_FILE;
+
+  if (configuredPath && configuredPath.trim().length > 0) {
+    return path.resolve(configuredPath);
+  }
+
+  return defaultDataFile;
 }
 
 export async function persistLead(input: LeadInput): Promise<void> {
@@ -22,6 +28,6 @@ export async function persistLead(input: LeadInput): Promise<void> {
       ...input,
       createdAt: new Date().toISOString(),
     })}\n`,
-    "utf8",
+    'utf8',
   );
 }

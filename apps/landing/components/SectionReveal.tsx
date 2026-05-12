@@ -8,7 +8,11 @@ export function SectionReveal({
 }: Readonly<{ children: ReactNode }>) {
   const prefersReducedMotion = useReducedMotion();
 
-  if (prefersReducedMotion) {
+  if (
+    prefersReducedMotion ||
+    typeof window === "undefined" ||
+    typeof window.IntersectionObserver === "undefined"
+  ) {
     return <>{children}</>;
   }
 
