@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify';
+import { z } from 'zod';
 import {
   buildLiveTradeUid,
   computeLiveTradeAmounts,
@@ -34,6 +35,29 @@ interface HistorySummary {
     notionalUsd: number;
   }>;
 }
+
+const isoDate = z
+  .string()
+  .refine((v) => !Number.isNaN(new Date(v).getTime()), 'invalid date');
+
+const FlowInstrumentsQuerySchema = z.object({
+  underlying: z.string().min(1).optional(),
+  venue: z.string().min(1),
+  start: isoDate.optional(),
+  end: isoDate.optional(),
+  limit: z.coerce.number().int().positive().max(200).optional(),
+});
+
+const FlowInstrumentTradesQuerySchema = z.object({
+  underlying: z.string().min(1).optional(),
+  venue: z.string().min(1),
+  instrument: z.string().min(1),
+  start: isoDate.optional(),
+  end: isoDate.optional(),
+  beforeTs: z.string().optional(),
+  beforeUid: z.string().optional(),
+  limit: z.coerce.number().int().positive().max(1000).optional(),
+});
 
 export async function flowRoute(app: FastifyInstance) {
   app.get<{
@@ -94,28 +118,25 @@ export async function flowRoute(app: FastifyInstance) {
     };
   });
 
-  app.get<{
-    Querystring: { underlying?: string; venue?: string; start?: string; end?: string; limit?: string };
-  }>('/flow/instruments', async (req, reply) => {
+  app.get('/flow/instruments', async (req, reply) => {
     if (!tradeStore.enabled) {
       return { available: false, instruments: [] };
     }
-
-    const underlying = req.query.underlying ? normalizeApiUnderlying(req.query.underlying) : undefined;
-    const venue = req.query.venue?.trim();
-    if (!venue) {
-      return reply.status(400).send({ error: 'venue is required' });
+    const parsed = FlowInstrumentsQuerySchema.safeParse(req.query);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: 'invalid_query', issues: parsed.error.issues });
     }
-
-    const limit = parseBoundedLimit(req.query.limit, 50, 200);
-    const startTs = parseDate(req.query.start);
-    const endTs = parseDate(req.query.end);
+    const q = parsed.data;
+    const underlying = q.underlying ? normalizeApiUnderlying(q.underlying) : undefined;
+    const limit = q.limit ?? 50;
+    const startTs = q.start ? new Date(q.start) : undefined;
+    const endTs = q.end ? new Date(q.end) : undefined;
 
     const rows = await tradeStore.listInstruments({
       mode: 'live',
       limit,
-      venues: [venue],
       ...(underlying ? { underlying } : {}),
+      venues: [q.venue],
       ...(startTs ? { startTs } : {}),
       ...(endTs ? { endTs } : {}),
     });
@@ -135,23 +156,12 @@ export async function flowRoute(app: FastifyInstance) {
     };
   });
 
-  app.get<{
-    Querystring: {
-      underlying?: string;
-      venue?: string;
-      instrument?: string;
-      start?: string;
-      end?: string;
-      beforeTs?: string;
-      beforeUid?: string;
-      limit?: string;
-    };
-  }>('/flow/instrument-trades', async (req, reply) => {
-    const venue = req.query.venue?.trim();
-    const instrument = req.query.instrument?.trim();
-    if (!venue || !instrument) {
-      return reply.status(400).send({ error: 'venue and instrument are required' });
+  app.get('/flow/instrument-trades', async (req, reply) => {
+    const parsed = FlowInstrumentTradesQuerySchema.safeParse(req.query);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: 'invalid_query', issues: parsed.error.issues });
     }
+    const q = parsed.data;
 
     if (!tradeStore.enabled) {
       return {
@@ -163,18 +173,17 @@ export async function flowRoute(app: FastifyInstance) {
 
     const historyQuery = buildHistoryQuery(
       {
-        venues: venue,
-        ...(req.query.underlying ? { underlying: req.query.underlying } : {}),
-        ...(req.query.start ? { start: req.query.start } : {}),
-        ...(req.query.end ? { end: req.query.end } : {}),
-        ...(req.query.beforeTs ? { beforeTs: req.query.beforeTs } : {}),
-        ...(req.query.beforeUid ? { beforeUid: req.query.beforeUid } : {}),
-        ...(req.query.limit ? { limit: req.query.limit } : {}),
+        venues: q.venue,
+        ...(q.underlying ? { underlying: q.underlying } : {}),
+        ...(q.start ? { start: q.start } : {}),
+        ...(q.end ? { end: q.end } : {}),
+        ...(q.beforeTs ? { beforeTs: q.beforeTs } : {}),
+        ...(q.beforeUid ? { beforeUid: q.beforeUid } : {}),
       },
       'live',
     );
-    historyQuery.instrumentName = instrument;
-    historyQuery.limit = parseBoundedLimit(req.query.limit, 200, 1000);
+    historyQuery.instrumentName = q.instrument;
+    historyQuery.limit = q.limit ?? 200;
 
     const rows = await tradeStore.loadHistory(historyQuery);
     const trades = rows.flatMap((row) => {
