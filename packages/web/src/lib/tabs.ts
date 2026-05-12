@@ -13,19 +13,20 @@ export interface TabDef {
   id: TabId;
   label: string;
   slug: string;
+  icon: string;
   badge?: string;
 }
 
 export const TABS: readonly TabDef[] = [
-  { id: 'chain', label: 'Chain', slug: 'chain' },
-  { id: 'alpha', label: 'Alpha', slug: 'alpha', badge: 'NEW' },
-  { id: 'architect', label: 'Builder', slug: 'builder' },
-  { id: 'trading', label: 'Paper', slug: 'paper' },
-  { id: 'portfolio', label: 'Portfolio', slug: 'portfolio', badge: 'NEW' },
-  { id: 'surface', label: 'Volatility', slug: 'volatility' },
-  { id: 'flow', label: 'Flow', slug: 'flow', badge: 'LIVE' },
-  { id: 'analytics', label: 'Analytics', slug: 'analytics' },
-  { id: 'gex', label: 'GEX', slug: 'gex' },
+  { id: 'chain', label: 'Chain', slug: 'chain', icon: '⟐' },
+  { id: 'alpha', label: 'Alpha', slug: 'alpha', icon: 'α', badge: 'NEW' },
+  { id: 'architect', label: 'Builder', slug: 'builder', icon: '⚙' },
+  { id: 'trading', label: 'Paper', slug: 'paper', icon: '$' },
+  { id: 'portfolio', label: 'Portfolio', slug: 'portfolio', icon: 'Σ', badge: 'NEW' },
+  { id: 'surface', label: 'Volatility', slug: 'volatility', icon: '◈' },
+  { id: 'flow', label: 'Flow', slug: 'flow', icon: '⚡', badge: 'LIVE' },
+  { id: 'analytics', label: 'Analytics', slug: 'analytics', icon: '◎' },
+  { id: 'gex', label: 'GEX', slug: 'gex', icon: '▧' },
 ] as const;
 
 export const DEFAULT_TAB: TabId = 'chain';
