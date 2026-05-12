@@ -13,7 +13,12 @@ interface ExpiryBarProps {
   selected: string;
   onSelect: (expiry: string) => void;
   onChangeAsset: () => void;
+  /** Fired on hover/intent (NOT click) so consumers can warm caches/runtimes
+   * ahead of a click. Called once per sustained hover (~60ms debounce). */
+  onPrefetch?: (expiry: string) => void;
 }
+
+const PREFETCH_HOVER_MS = 60;
 
 export default function ExpiryBar({
   underlying,
@@ -23,9 +28,32 @@ export default function ExpiryBar({
   selected,
   onSelect,
   onChangeAsset,
+  onPrefetch,
 }: ExpiryBarProps) {
   const logo = getTokenLogo(underlying);
   const tabsRef = useRef<HTMLDivElement>(null);
+  const prefetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearPrefetchTimer = useCallback(() => {
+    if (prefetchTimerRef.current != null) {
+      clearTimeout(prefetchTimerRef.current);
+      prefetchTimerRef.current = null;
+    }
+  }, []);
+
+  const schedulePrefetch = useCallback(
+    (e: string) => {
+      if (!onPrefetch) return;
+      clearPrefetchTimer();
+      prefetchTimerRef.current = setTimeout(() => {
+        prefetchTimerRef.current = null;
+        onPrefetch(e);
+      }, PREFETCH_HOVER_MS);
+    },
+    [onPrefetch, clearPrefetchTimer],
+  );
+
+  useEffect(() => () => clearPrefetchTimer(), [clearPrefetchTimer]);
 
   // Translate vertical wheel input into horizontal scroll so a regular
   // mouse-wheel user can reach tabs past the right edge. Skip when the input
@@ -90,6 +118,9 @@ export default function ExpiryBar({
               className={styles.tab}
               data-active={e === selected}
               onClick={() => onSelect(e)}
+              onPointerEnter={() => e !== selected && schedulePrefetch(e)}
+              onPointerLeave={clearPrefetchTimer}
+              onPointerDown={() => e !== selected && onPrefetch?.(e)}
             >
               <span className={styles.tabLabel}>{formatExpiry(e)}</span>
               <span className={styles.dteBadge} data-urgent={dte <= 1}>

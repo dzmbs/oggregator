@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 
 import { useAppStore } from '@stores/app-store';
-import { useChainQuery, useExpiries, useStats } from './queries';
+import { useChainQuery, useExpiries, useStats, usePrefetchChain } from './queries';
 import { useChainWs } from '@hooks/useChainWs';
 import { useOpenPalette } from '@components/layout';
 import { Spinner, EmptyState } from '@components/ui';
@@ -55,6 +55,8 @@ export default function ChainView() {
   if (chain) lastChainRef.current = chain;
   const displayChain = chain ?? lastChainRef.current;
   const isStale = !chain && lastChainRef.current != null;
+
+  const prefetchChain = usePrefetchChain(underlying, activeVenues);
 
   const failedVenueIds = useMemo(() => failedVenues.map((f) => f.venue), [failedVenues]);
   useEffect(() => {
@@ -175,6 +177,7 @@ export default function ChainView() {
           selected={expiry}
           onSelect={setExpiry}
           onChangeAsset={openPalette}
+          onPrefetch={prefetchChain}
         />
 
         {displayChain && (

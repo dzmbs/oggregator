@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import { useAppStore } from '@stores/app-store';
-import { ExpiryBar, useChainQuery, useExpiries } from '@features/chain';
+import { ExpiryBar, useChainQuery, useExpiries, usePrefetchChain } from '@features/chain';
 import { useSurface } from '@features/surface/queries';
 import { useChainWs } from '@hooks/useChainWs';
 import { useOpenPalette } from '@components/layout';
@@ -29,6 +29,7 @@ export default function AlphaView() {
 
   const { data: expiriesData } = useExpiries(underlying);
   const expiries = expiriesData?.expiries ?? [];
+  const prefetchChain = usePrefetchChain(underlying, activeVenues);
   const { data: chain, isLoading, error } = useChainQuery(underlying, expiry, activeVenues);
   const { data: surface } = useSurface(underlying, activeVenues);
   const { connectionState, staleMs, failedVenues } = useChainWs({

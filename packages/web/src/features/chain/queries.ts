@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCallback } from 'react';
 
 import { fetchJson } from '@lib/http';
 import type { EnrichedChainResponse } from '@shared/enriched';
@@ -94,6 +95,32 @@ export function useChainQuery(
     enabled: Boolean(underlying && expiry) && (options?.enabled ?? true),
     refetchInterval: options?.refetchInterval,
   });
+}
+
+/**
+ * Returns a stable prefetch callback for the chain query. Wire it to hover /
+ * pointer-enter on tenor tabs: by the time the user clicks, the REST response
+ * has populated TanStack cache AND warmed the server-side runtime, so the
+ * subsequent WS resubscribe gets an in-memory snapshot back instantly.
+ */
+export function usePrefetchChain(underlying: string, activeVenues: string[]) {
+  const qc = useQueryClient();
+  return useCallback(
+    (targetExpiry: string) => {
+      if (!underlying || !targetExpiry) return;
+      const venueParam =
+        activeVenues.length > 0 ? `&venues=${activeVenues.join(',')}` : '';
+      void qc.prefetchQuery({
+        queryKey: chainKeys.chain(underlying, targetExpiry, activeVenues),
+        queryFn: () =>
+          fetchJson<EnrichedChainResponse>(
+            `/chains?underlying=${underlying}&expiry=${targetExpiry}${venueParam}`,
+          ),
+        staleTime: 10_000,
+      });
+    },
+    [qc, underlying, activeVenues],
+  );
 }
 
 export function useVenues() {
