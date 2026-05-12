@@ -119,9 +119,18 @@ export interface DeriveConnectRequest {
   env?: 'prod' | 'test';
 }
 
+export interface ThalexConnectRequest {
+  kid: string;
+  privateKeyPem: string;
+  account?: string;
+  env?: 'prod' | 'test';
+}
+
+export type VenueConnectRequest = DeriveConnectRequest | ThalexConnectRequest;
+
 export async function connectVenue(
   venue: string,
-  body: DeriveConnectRequest,
+  body: VenueConnectRequest,
 ): Promise<{ venue: string; connected: boolean }> {
   return postJson(
     `/portfolio/venue-credentials/${venue}`,

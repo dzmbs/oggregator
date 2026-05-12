@@ -88,27 +88,42 @@ export default function AccountChip() {
   }, [pasteTarget, venueCreds]);
 
   useEffect(() => {
-    const deriveCreds = venueCreds.derive;
-    if (deriveCreds == null) return;
-    const walletAddress = deriveCreds.fields.walletAddress;
-    const signerPrivateKey = deriveCreds.fields.privateKeyPem;
-    const subaccountRaw = deriveCreds.fields.subaccountId;
-    if (!walletAddress || !signerPrivateKey || !subaccountRaw) return;
-    const subaccountId = Number(subaccountRaw);
-    if (!Number.isFinite(subaccountId) || subaccountId <= 0) return;
     let cancelled = false;
-    (async () => {
+
+    const reconnectDerive = async () => {
+      const creds = venueCreds.derive;
+      if (creds == null) return;
+      const walletAddress = creds.fields.walletAddress;
+      const signerPrivateKey = creds.fields.privateKeyPem;
+      const subaccountRaw = creds.fields.subaccountId;
+      if (!walletAddress || !signerPrivateKey || !subaccountRaw) return;
+      const subaccountId = Number(subaccountRaw);
+      if (!Number.isFinite(subaccountId) || subaccountId <= 0) return;
       try {
         const status = await venueStatus('derive');
         if (cancelled || status.connected) return;
-        await connectVenue('derive', {
-          walletAddress,
-          signerPrivateKey,
-          subaccountId,
-        });
+        await connectVenue('derive', { walletAddress, signerPrivateKey, subaccountId });
         if (!cancelled) refresh();
       } catch {}
-    })();
+    };
+
+    const reconnectThalex = async () => {
+      const creds = venueCreds.thalex;
+      if (creds == null) return;
+      const kid = creds.fields.kid;
+      const privateKeyPem = creds.fields.privateKeyPem;
+      if (!kid || !privateKeyPem) return;
+      try {
+        const status = await venueStatus('thalex');
+        if (cancelled || status.connected) return;
+        await connectVenue('thalex', { kid, privateKeyPem });
+        if (!cancelled) refresh();
+      } catch {}
+    };
+
+    void reconnectDerive();
+    void reconnectThalex();
+
     return () => {
       cancelled = true;
     };
@@ -209,6 +224,21 @@ export default function AccountChip() {
       } finally {
         setBusy(false);
       }
+    } else if (venue === 'thalex') {
+      setBusy(true);
+      try {
+        await connectVenue('thalex', {
+          kid: trimmedFields.kid ?? '',
+          privateKeyPem: trimmedFields.privateKeyPem ?? '',
+        });
+        refresh();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'connect failed');
+        setBusy(false);
+        return;
+      } finally {
+        setBusy(false);
+      }
     }
 
     setError(null);
@@ -217,9 +247,9 @@ export default function AccountChip() {
 
   const onRemoveVenue = async (venue: VenueId) => {
     removeVenueCreds(venue);
-    if (venue === 'derive') {
+    if (venue === 'derive' || venue === 'thalex') {
       try {
-        await disconnectVenue('derive');
+        await disconnectVenue(venue);
         refresh();
       } catch {}
     }
@@ -356,9 +386,9 @@ export default function AccountChip() {
                   + Add venue key
                 </button>
                 <div className={styles.warning}>
-                  Only <strong>Derive</strong> has a working private WS adapter today. Other venues
-                  store keys locally but won&apos;t show positions in the Portfolio tab until the
-                  server-side adapter is built — see TODOs in
+                  <strong>Derive</strong> and <strong>Thalex</strong> have working private WS adapters
+                  today. Other venues store keys locally but won&apos;t show positions in the Portfolio
+                  tab until the server-side adapter is built — see TODOs in
                   <code className={styles.codeInline}> protocol/venue-credentials.ts</code>.
                 </div>
               </div>
