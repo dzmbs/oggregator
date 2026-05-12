@@ -11,7 +11,7 @@ import {
 
 import { useAppStore } from '@stores/app-store';
 import { registerUser } from '@features/trading/api';
-import { connectVenue, disconnectVenue } from '@features/portfolio/api';
+import { connectVenue, disconnectVenue, venueStatus } from '@features/portfolio/api';
 import { VENUES } from '@lib/venue-meta';
 
 import styles from './AccountChip.module.css';
@@ -86,6 +86,35 @@ export default function AccountChip() {
     }
     setError(null);
   }, [pasteTarget, venueCreds]);
+
+  useEffect(() => {
+    const deriveCreds = venueCreds.derive;
+    if (deriveCreds == null) return;
+    const walletAddress = deriveCreds.fields.walletAddress;
+    const signerPrivateKey = deriveCreds.fields.privateKeyPem;
+    const subaccountRaw = deriveCreds.fields.subaccountId;
+    if (!walletAddress || !signerPrivateKey || !subaccountRaw) return;
+    const subaccountId = Number(subaccountRaw);
+    if (!Number.isFinite(subaccountId) || subaccountId <= 0) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const status = await venueStatus('derive');
+        if (cancelled || status.connected) return;
+        await connectVenue('derive', {
+          walletAddress,
+          signerPrivateKey,
+          subaccountId,
+        });
+        if (!cancelled) refresh();
+      } catch {}
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // intentionally only runs once on mount — auto-reconnect, not on every cred change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const signedIn = apiKey != null && accountId != null;
   const acctShort = accountId != null ? accountId.slice(0, 8) : '';
