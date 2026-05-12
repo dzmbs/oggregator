@@ -1,25 +1,21 @@
-import { tickerItems } from "@/lib/demo-data";
+import { tickerItems, type TickerItem } from "@/lib/demo-data";
 
-const directionClass = {
-  up: "text-emerald-400",
-  down: "text-rose-400",
+const directionClass: Record<TickerItem["direction"], string> = {
+  up: "text-emerald-300",
+  down: "text-rose-300",
   flat: "text-zinc-500",
-} as const;
+};
 
 export function TopTicker() {
-  const repeatedItems = [...tickerItems, ...tickerItems];
-
   return (
-    <div className="sticky top-0 z-50 overflow-hidden border-b border-white/6 bg-black/35 backdrop-blur-md">
-      <div className="ticker-track flex min-w-max animate-[ticker-marquee_32s_linear_infinite]">
-        <div className="flex items-center gap-3 border-r border-white/6 px-4 py-3 font-[var(--font-mono)] text-[11px] uppercase tracking-[0.28em] text-zinc-500">
-          <span>Live Network</span>
-          <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
-        </div>
-        {repeatedItems.map((item, index) => (
+    <div className="border-b border-[color:var(--landing-border)] bg-black/30 backdrop-blur-sm">
+      <div className="mx-auto flex w-full max-w-7xl items-center overflow-x-auto px-4 py-2 [scrollbar-width:none] sm:px-6">
+        {tickerItems.map((item, index) => (
           <div
-            key={`${item.label}-${index}`}
-            className="flex items-center gap-3 border-r border-white/6 px-5 py-3 font-[var(--font-mono)] text-[11px] uppercase tracking-[0.22em]"
+            key={item.label}
+            className={`flex shrink-0 items-center gap-3 border-white/6 px-4 py-1 font-[var(--font-mono)] text-[10px] uppercase tracking-[0.22em] ${
+              index === tickerItems.length - 1 ? "" : "border-r"
+            } ${index === 0 ? "pl-0" : ""}`}
           >
             <span className="text-zinc-500">{item.label}</span>
             <span className="text-zinc-100">{item.value}</span>

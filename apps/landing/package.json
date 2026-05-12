@@ -7,7 +7,7 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "biome lint .",
+    "lint": "pnpm --dir ../.. exec biome lint apps/landing",
     "typecheck": "tsc --noEmit",
     "test": "vitest",
     "test:run": "vitest run"
