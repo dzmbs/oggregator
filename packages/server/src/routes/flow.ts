@@ -95,6 +95,47 @@ export async function flowRoute(app: FastifyInstance) {
   });
 
   app.get<{
+    Querystring: { underlying?: string; venue?: string; start?: string; end?: string; limit?: string };
+  }>('/flow/instruments', async (req, reply) => {
+    if (!tradeStore.enabled) {
+      return { available: false, instruments: [] };
+    }
+
+    const underlying = req.query.underlying ? normalizeApiUnderlying(req.query.underlying) : undefined;
+    const venue = req.query.venue?.trim();
+    if (!venue) {
+      return reply.status(400).send({ error: 'venue is required' });
+    }
+
+    const limit = parseBoundedLimit(req.query.limit, 50, 200);
+    const startTs = parseDate(req.query.start);
+    const endTs = parseDate(req.query.end);
+
+    const rows = await tradeStore.listInstruments({
+      mode: 'live',
+      limit,
+      venues: [venue],
+      ...(underlying ? { underlying } : {}),
+      ...(startTs ? { startTs } : {}),
+      ...(endTs ? { endTs } : {}),
+    });
+
+    return {
+      available: true,
+      instruments: rows.map((row) => ({
+        instrument: row.instrument,
+        count: row.count,
+        lastTs: row.lastTs.toISOString(),
+        lastPrice: row.lastPrice,
+        lastReferencePriceUsd: row.lastReferencePriceUsd,
+        optionType: row.optionType,
+        strike: row.strike,
+        expiry: row.expiry,
+      })),
+    };
+  });
+
+  app.get<{
     Querystring: { underlying?: string; venues?: string; start?: string; end?: string };
   }>('/flow/history/summary', async (req): Promise<HistorySummary> => {
     if (!tradeStore.enabled) {
