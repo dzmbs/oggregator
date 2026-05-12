@@ -31,7 +31,11 @@ export default function ShockHeatmap({ grid }: Props) {
     return <div className={styles.empty}>Add positions to see vol-shock P&amp;L.</div>;
   }
   const allCells = grid.flat();
-  const maxAbs = Math.max(...allCells.map((c) => Math.abs(c.totalPnlUsd)));
+  let maxAbs = 0;
+  for (const c of allCells) {
+    const v = Math.abs(c.totalPnlUsd);
+    if (v > maxAbs) maxAbs = v;
+  }
   const colLabels = grid[0].map((c) => c.skewShiftPerLogK);
 
   return (
