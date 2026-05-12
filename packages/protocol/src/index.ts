@@ -62,6 +62,7 @@ export {
 
 export {
   PositionSourceSchema,
+  PortfolioSourceSchema,
   PositionLegSchema,
   PositionLegInputSchema,
   VegaByStrikeRowSchema,
@@ -76,6 +77,7 @@ export {
   PortfolioWsClientMessageSchema,
   PortfolioWsServerMessageSchema,
   type PositionSource,
+  type PortfolioSource,
   type PositionLeg,
   type PositionLegInput,
   type VegaByStrikeRow,

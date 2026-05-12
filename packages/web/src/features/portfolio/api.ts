@@ -78,8 +78,12 @@ const PositionLegSchema: z.ZodType<PositionLeg> = z.object({
   entryIv: z.number().nullable(),
   entryTs: z.number(),
   venueHint: VenueIdSchema.nullable(),
-  source: z.enum(['manual', 'thalex-private']),
+  source: z.enum(['manual', 'paper', 'thalex-private']),
 }) as z.ZodType<PositionLeg>;
+
+export type PortfolioSource = 'manual' | 'paper';
+
+const PortfolioSourceSchema = z.enum(['manual', 'paper']);
 
 const PortfolioTotalsSchema = z.object({
   netDeltaUsd: z.number(),
@@ -166,12 +170,14 @@ const VolShockResultSchema: z.ZodType<VolShockResult> = z.object({
 
 const PositionsResponseSchema = z.object({
   accountId: z.string(),
+  source: PortfolioSourceSchema.optional(),
   positions: z.array(PositionLegSchema),
 });
 export type PositionsResponse = z.infer<typeof PositionsResponseSchema>;
 
 const MetricsResponseSchema = z.object({
   accountId: z.string(),
+  source: PortfolioSourceSchema.optional(),
   metrics: PortfolioMetricsSchema.nullable(),
   positions: z.array(PositionLegSchema),
 });
@@ -188,13 +194,18 @@ const RemovePositionResponseSchema = z.object({
   removed: z.boolean(),
 });
 
-export function fetchPositions(): Promise<PositionsResponse> {
-  return getJson('/portfolio/positions', PositionsResponseSchema);
+export function fetchPositions(source: PortfolioSource = 'manual'): Promise<PositionsResponse> {
+  return getJson(`/portfolio/positions?source=${source}`, PositionsResponseSchema);
 }
 
-export function fetchMetrics(forwardDays: number): Promise<MetricsResponse> {
-  const qs = forwardDays > 0 ? `?forwardDays=${forwardDays}` : '';
-  return getJson(`/portfolio/metrics${qs}`, MetricsResponseSchema);
+export function fetchMetrics(
+  forwardDays: number,
+  source: PortfolioSource = 'manual',
+): Promise<MetricsResponse> {
+  const params = new URLSearchParams();
+  if (forwardDays > 0) params.set('forwardDays', String(forwardDays));
+  params.set('source', source);
+  return getJson(`/portfolio/metrics?${params.toString()}`, MetricsResponseSchema);
 }
 
 export function addPosition(input: PositionLegInput): Promise<{ leg: PositionLeg }> {
@@ -206,6 +217,9 @@ export function removePosition(legId: string): Promise<{ legId: string; removed:
   return deleteRequest(`/portfolio/positions/${encoded}`, RemovePositionResponseSchema);
 }
 
-export function runScenarios(scenarios: VolShockScenario[]): Promise<ScenariosResponse> {
-  return postJson('/portfolio/scenarios', { scenarios }, ScenariosResponseSchema);
+export function runScenarios(
+  scenarios: VolShockScenario[],
+  source: PortfolioSource = 'manual',
+): Promise<ScenariosResponse> {
+  return postJson(`/portfolio/scenarios?source=${source}`, { scenarios }, ScenariosResponseSchema);
 }

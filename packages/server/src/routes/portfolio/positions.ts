@@ -3,14 +3,17 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { generateLegId } from '@oggregator/core';
 import { DEFAULT_ACCOUNT_ID } from '@oggregator/trading';
 import {
+  PortfolioSourceSchema,
   PositionLegInputSchema,
   PositionLegSchema,
+  type PortfolioSource,
   type PositionLeg,
 } from '@oggregator/protocol';
 
 import {
   ensureChainForLeg,
   getOrCreatePortfolioRuntime,
+  listPositions,
   portfolioStore,
 } from '../../portfolio-services.js';
 import { portfolioEvents } from './events.js';
@@ -19,11 +22,20 @@ function getAccountId(req: FastifyRequest): string {
   return req.user?.accountId ?? DEFAULT_ACCOUNT_ID;
 }
 
+function parseSource(raw: unknown): PortfolioSource {
+  const parsed = PortfolioSourceSchema.safeParse(raw);
+  return parsed.success ? parsed.data : 'manual';
+}
+
 export async function portfolioPositionsRoute(app: FastifyInstance) {
-  app.get('/portfolio/positions', async (req) => {
-    const accountId = getAccountId(req);
-    return { accountId, positions: portfolioStore.list(accountId) };
-  });
+  app.get<{ Querystring: { source?: string } }>(
+    '/portfolio/positions',
+    async (req) => {
+      const accountId = getAccountId(req);
+      const source = parseSource(req.query.source);
+      return { accountId, source, positions: listPositions(accountId, source) };
+    },
+  );
 
   app.post('/portfolio/positions', async (req, reply) => {
     const parsed = PositionLegInputSchema.safeParse(req.body);
@@ -47,7 +59,7 @@ export async function portfolioPositionsRoute(app: FastifyInstance) {
     };
     const stored = portfolioStore.upsert(accountId, leg);
     void ensureChainForLeg(stored);
-    getOrCreatePortfolioRuntime(accountId);
+    getOrCreatePortfolioRuntime(accountId, 'manual');
     return reply.status(201).send({ leg: stored });
   });
 

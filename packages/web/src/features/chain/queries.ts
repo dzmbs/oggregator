@@ -82,7 +82,7 @@ export function useChainQuery(
   underlying: string,
   expiry: string,
   venues: string[],
-  options?: { refetchInterval?: number },
+  options?: { refetchInterval?: number; enabled?: boolean },
 ) {
   const venueParam = venues.length > 0 ? `&venues=${venues.join(',')}` : '';
   return useQuery({
@@ -91,7 +91,7 @@ export function useChainQuery(
       fetchJson<EnrichedChainResponse>(
         `/chains?underlying=${underlying}&expiry=${expiry}${venueParam}`,
       ),
-    enabled: Boolean(underlying && expiry),
+    enabled: Boolean(underlying && expiry) && (options?.enabled ?? true),
     placeholderData: (prev: EnrichedChainResponse | undefined) => prev,
     refetchInterval: options?.refetchInterval,
   });

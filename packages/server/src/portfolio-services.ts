@@ -9,10 +9,13 @@ import {
   type MarkContext,
   type MarkProvider,
   type PositionLeg,
+  type PositionStore,
   type VenueId,
 } from '@oggregator/core';
+import type { PortfolioSource } from '@oggregator/protocol';
 
 import { chainEngines } from './chain-engines.js';
+import { paperPositionStore } from './paper-position-store.js';
 
 const RUNTIME_IDLE_TTL_MS = 30 * 60 * 1000;
 
@@ -174,46 +177,76 @@ export async function ensureChainsForBook(legs: PositionLeg[]): Promise<void> {
   );
 }
 
-const portfolioRuntimes = new Map<string, PortfolioRuntime>();
-const portfolioStoreUnsubscribes = new Map<string, () => void>();
+interface RuntimeEntry {
+  runtime: PortfolioRuntime;
+  unsubscribe: () => void;
+}
 
-export function getOrCreatePortfolioRuntime(accountId: string): PortfolioRuntime {
-  const existing = portfolioRuntimes.get(accountId);
-  if (existing != null) return existing;
+const portfolioRuntimes = new Map<string, RuntimeEntry>();
 
+function runtimeKey(accountId: string, source: PortfolioSource): string {
+  return `${source}|${accountId}`;
+}
+
+function storeFor(source: PortfolioSource): PositionStore {
+  return source === 'paper' ? paperPositionStore : portfolioStore;
+}
+
+export function getOrCreatePortfolioRuntime(
+  accountId: string,
+  source: PortfolioSource = 'manual',
+): PortfolioRuntime {
+  const key = runtimeKey(accountId, source);
+  const existing = portfolioRuntimes.get(key);
+  if (existing != null) return existing.runtime;
+
+  const store = storeFor(source);
   const runtime = new PortfolioRuntime({
     accountId,
-    store: portfolioStore,
+    store,
     markProvider: portfolioMarkProvider,
   });
 
-  const unsubscribe = portfolioStore.subscribe((event) => {
+  const unsubscribe = store.subscribe((event) => {
     if (event.accountId !== accountId) return;
     for (const legId of event.changedLegIds) {
-      const leg = portfolioStore.get(accountId, legId);
+      const leg = store.get(accountId, legId);
       if (leg != null) {
         void ensureChainForLeg(leg);
       }
     }
   });
-  portfolioStoreUnsubscribes.set(accountId, unsubscribe);
+
+  if (source === 'paper') {
+    void ensureChainsForBook(store.list(accountId));
+  }
 
   runtime.start();
-  portfolioRuntimes.set(accountId, runtime);
+  portfolioRuntimes.set(key, { runtime, unsubscribe });
   return runtime;
 }
 
-export async function bootstrapPortfolioForAccount(accountId: string): Promise<void> {
-  const legs = portfolioStore.list(accountId);
+export async function bootstrapPortfolioForAccount(
+  accountId: string,
+  source: PortfolioSource = 'manual',
+): Promise<void> {
+  const store = storeFor(source);
+  const legs = store.list(accountId);
   await ensureChainsForBook(legs);
-  getOrCreatePortfolioRuntime(accountId);
+  getOrCreatePortfolioRuntime(accountId, source);
+}
+
+export function listPositions(accountId: string, source: PortfolioSource): PositionLeg[] {
+  return storeFor(source).list(accountId);
 }
 
 export async function disposePortfolioServices(): Promise<void> {
-  for (const unsubscribe of portfolioStoreUnsubscribes.values()) unsubscribe();
-  portfolioStoreUnsubscribes.clear();
-  for (const r of portfolioRuntimes.values()) r.dispose();
+  for (const entry of portfolioRuntimes.values()) {
+    entry.unsubscribe();
+    entry.runtime.dispose();
+  }
   portfolioRuntimes.clear();
+  paperPositionStore.dispose();
   const refs = [...chainRefs.values()];
   chainRefs.clear();
   await Promise.allSettled(
@@ -227,8 +260,8 @@ export async function disposePortfolioServices(): Promise<void> {
 setInterval(() => {
   const cutoff = Date.now() - RUNTIME_IDLE_TTL_MS;
   const referenced = new Set<string>();
-  for (const runtime of portfolioRuntimes.values()) {
-    const snap = runtime.getSnapshot();
+  for (const entry of portfolioRuntimes.values()) {
+    const snap = entry.runtime.getSnapshot();
     if (snap == null) continue;
     for (const leg of snap.positions) referenced.add(chainKey(leg.underlying, leg.expiry));
   }

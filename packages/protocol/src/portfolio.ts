@@ -2,8 +2,11 @@ import { z } from 'zod';
 
 import { VenueIdSchema } from './ws.js';
 
-export const PositionSourceSchema = z.enum(['manual', 'thalex-private']);
+export const PositionSourceSchema = z.enum(['manual', 'paper', 'thalex-private']);
 export type PositionSource = z.infer<typeof PositionSourceSchema>;
+
+export const PortfolioSourceSchema = z.enum(['manual', 'paper']);
+export type PortfolioSource = z.infer<typeof PortfolioSourceSchema>;
 
 export const PositionLegSchema = z.object({
   legId: z.string().min(1),

@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import type { PortfolioWsServerMessage } from '@oggregator/protocol';
 
 import { DEFAULT_ACCOUNT_ID } from '@oggregator/trading';
+import { PortfolioSourceSchema } from '@oggregator/protocol';
 
 import {
   bootstrapPortfolioForAccount,
@@ -26,11 +27,14 @@ export async function portfolioWsRoute(app: FastifyInstance) {
     let disposed = false;
     let accountId = DEFAULT_ACCOUNT_ID;
 
-    const apiKey = new URL(req.url, 'http://localhost').searchParams.get('apiKey');
+    const url = new URL(req.url, 'http://localhost');
+    const apiKey = url.searchParams.get('apiKey');
     if (apiKey) {
       const user = await getUserByApiKey(apiKey);
       if (user) accountId = user.accountId;
     }
+    const sourceParsed = PortfolioSourceSchema.safeParse(url.searchParams.get('source'));
+    const source = sourceParsed.success ? sourceParsed.data : 'manual';
 
     send(socket, {
       type: 'hello',
@@ -38,8 +42,8 @@ export async function portfolioWsRoute(app: FastifyInstance) {
       serverTime: Date.now(),
     });
 
-    await bootstrapPortfolioForAccount(accountId);
-    const runtime = getOrCreatePortfolioRuntime(accountId);
+    await bootstrapPortfolioForAccount(accountId, source);
+    const runtime = getOrCreatePortfolioRuntime(accountId, source);
 
     const initial = runtime.getSnapshot();
     if (initial != null) {

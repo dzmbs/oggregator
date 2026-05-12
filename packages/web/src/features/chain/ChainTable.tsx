@@ -38,6 +38,7 @@ interface NewChainTableProps {
   indexPrice: number | null;
   activeVenues: string[];
   myIv: number | null;
+  expiry: string;
 }
 
 function fmtGamma(v: number | null): string {
@@ -340,6 +341,7 @@ export default function NewChainTable({
   indexPrice,
   activeVenues,
   myIv,
+  expiry,
 }: NewChainTableProps) {
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const [quickTrade, setQuickTrade] = useState<QuickTradeInfo | null>(null);
@@ -383,12 +385,12 @@ export default function NewChainTable({
     getItemKey: (i) => strikes[i]?.strike ?? i,
   });
 
-  // Reset scroll flag when the strike set changes (expiry switch)
-  const strikeCount = strikes.length;
-  const firstStrike = strikes[0]?.strike;
+  // Reset scroll flag only on tenor switch — not on every live delta that
+  // adds/changes a strike, and not when a venue toggle reshapes the strike
+  // set. Otherwise the table re-scrolls to ATM mid-session.
   useEffect(() => {
     hasScrolledRef.current = false;
-  }, [strikeCount, firstStrike]);
+  }, [expiry]);
 
   // Scroll to ATM once per strike set, not on every live price tick
   useEffect(() => {

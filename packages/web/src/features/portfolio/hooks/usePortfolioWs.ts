@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 
 import { PortfolioWsServerMessageSchema } from '@oggregator/protocol';
 
+import type { PortfolioSource } from '../api';
 import { PORTFOLIO_QKEY } from './queries';
 
 type ConnectionState = 'closed' | 'connecting' | 'open' | 'retrying';
@@ -11,7 +12,9 @@ function backoffMs(attempt: number): number {
   return Math.min(1000 * 2 ** attempt + Math.random() * 500, 15_000);
 }
 
-export function usePortfolioWs(_forwardDays: number): { connectionState: ConnectionState; lastSeq: number } {
+export function usePortfolioWs(
+  source: PortfolioSource = 'manual',
+): { connectionState: ConnectionState; lastSeq: number } {
   const qc = useQueryClient();
   const [connectionState, setConnectionState] = useState<ConnectionState>('closed');
   const [lastSeq, setLastSeq] = useState(0);
@@ -31,7 +34,10 @@ export function usePortfolioWs(_forwardDays: number): { connectionState: Connect
       } catch (err) {
         console.error('localStorage access failed', err);
       }
-      const url = `${proto}//${window.location.host}/ws/portfolio${apiKey ? `?apiKey=${encodeURIComponent(apiKey)}` : ''}`;
+      const params = new URLSearchParams();
+      if (apiKey) params.set('apiKey', apiKey);
+      params.set('source', source);
+      const url = `${proto}//${window.location.host}/ws/portfolio?${params.toString()}`;
       const ws = new WebSocket(url);
       wsRef.current = ws;
 
@@ -48,22 +54,28 @@ export function usePortfolioWs(_forwardDays: number): { connectionState: Connect
           if (!parsed.success) return;
           const msg = parsed.data;
           if (msg.type === 'snapshot') {
-            qc.setQueryData(PORTFOLIO_QKEY.positions, {
+            qc.setQueryData(PORTFOLIO_QKEY.positions(source), {
               accountId: msg.metrics.accountId,
+              source,
               positions: msg.positions,
             });
-            qc.setQueryData(PORTFOLIO_QKEY.metrics(msg.metrics.forwardDays), {
+            qc.setQueryData(PORTFOLIO_QKEY.metrics(msg.metrics.forwardDays, source), {
               accountId: msg.metrics.accountId,
+              source,
               metrics: msg.metrics,
               positions: msg.positions,
             });
             setLastSeq(msg.seq);
           } else if (msg.type === 'delta') {
-            qc.setQueryData(PORTFOLIO_QKEY.metrics(msg.metrics.forwardDays), (prev: { positions?: unknown } | undefined) => ({
-              accountId: msg.metrics.accountId,
-              metrics: msg.metrics,
-              positions: prev?.positions ?? [],
-            }));
+            qc.setQueryData(
+              PORTFOLIO_QKEY.metrics(msg.metrics.forwardDays, source),
+              (prev: { positions?: unknown } | undefined) => ({
+                accountId: msg.metrics.accountId,
+                source,
+                metrics: msg.metrics,
+                positions: prev?.positions ?? [],
+              }),
+            );
             setLastSeq(msg.seq);
           }
         } catch {}
@@ -91,7 +103,7 @@ export function usePortfolioWs(_forwardDays: number): { connectionState: Connect
       wsRef.current = null;
       setConnectionState('closed');
     };
-  }, [qc]);
+  }, [qc, source]);
 
   return { connectionState, lastSeq };
 }

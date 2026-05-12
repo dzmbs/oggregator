@@ -2,6 +2,7 @@ import { useState } from 'react';
 
 import { useAppStore } from '@stores/app-store';
 
+import type { PortfolioSource } from './api';
 import PortfolioVegaCurve from './PortfolioVegaCurve';
 import PositionForm from './PositionForm';
 import PositionsTable from './PositionsTable';
@@ -11,6 +12,10 @@ import { usePortfolioWs } from './hooks/usePortfolioWs';
 import styles from './PortfolioView.module.css';
 
 const FORWARD_OPTIONS: number[] = [0, 1, 3, 7];
+const SOURCE_OPTIONS: { value: PortfolioSource; label: string }[] = [
+  { value: 'manual', label: 'Manual' },
+  { value: 'paper', label: 'Paper' },
+];
 
 function fmtUsdSigned(value: number | null | undefined): string {
   if (value == null || !Number.isFinite(value)) return '—';
@@ -27,9 +32,10 @@ function fmtNum(value: number | null | undefined, digits = 2): string {
 export default function PortfolioView() {
   const underlying = useAppStore((s) => s.underlying);
   const [forwardDays, setForwardDays] = useState(0);
-  const { connectionState, lastSeq } = usePortfolioWs(forwardDays);
-  const { data: positionsData } = usePortfolioPositions();
-  const { data: metricsData } = usePortfolioMetrics(forwardDays);
+  const [source, setSource] = useState<PortfolioSource>('manual');
+  const { connectionState, lastSeq } = usePortfolioWs(source);
+  const { data: positionsData } = usePortfolioPositions(source);
+  const { data: metricsData } = usePortfolioMetrics(forwardDays, source);
 
   const positions = positionsData?.positions ?? metricsData?.positions ?? [];
   const metrics = metricsData?.metrics ?? null;
@@ -39,6 +45,19 @@ export default function PortfolioView() {
       <div className={styles.header}>
         <h2 className={styles.title}>Portfolio</h2>
         <div className={styles.statusGroup}>
+          <div className={styles.toggleGroup} role="radiogroup" aria-label="Source">
+            {SOURCE_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                className={styles.toggle}
+                data-active={source === opt.value || undefined}
+                onClick={() => setSource(opt.value)}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
           <span className={styles.status} data-state={connectionState}>
             {connectionState} · seq {lastSeq}
           </span>
@@ -93,11 +112,21 @@ export default function PortfolioView() {
         <div className={styles.mainCol}>
           <PortfolioVegaCurve byStrike={metrics?.byStrike ?? []} />
           <div className={styles.tableWrap}>
-            <PositionsTable positions={positions} breakEven={metrics?.breakEven ?? []} />
+            <PositionsTable
+              positions={positions}
+              breakEven={metrics?.breakEven ?? []}
+              readOnly={source === 'paper'}
+            />
           </div>
         </div>
         <div className={styles.sidebar}>
-          <PositionForm defaultUnderlying={underlying} />
+          {source === 'manual' ? (
+            <PositionForm defaultUnderlying={underlying} />
+          ) : (
+            <div className={styles.readOnlyNote}>
+              Showing live paper-trading positions. Add or close legs from the <strong>Paper</strong> tab.
+            </div>
+          )}
           <ShockHeatmap grid={metrics?.shockGrid ?? []} />
         </div>
       </div>

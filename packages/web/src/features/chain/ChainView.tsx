@@ -30,14 +30,21 @@ export default function ChainView() {
   const expiries = expiriesData?.expiries ?? [];
   const expiryByVenue = expiriesData?.byVenue;
 
-  const { data: chain, isLoading, error } = useChainQuery(underlying, expiry, activeVenues);
-  const { data: marketStats } = useStats(underlying);
   const setFeedStatus = useAppStore((s) => s.setFeedStatus);
   const { connectionState, staleMs, failedVenues } = useChainWs({
     underlying,
     expiry,
     venues: activeVenues,
   });
+
+  // Once the WS is live it delivers a snapshot on every resubscribe (tenor /
+  // underlying / venue change), so the REST fetch is redundant and only races
+  // the WS write into the same cache key — causing a visible double-render on
+  // every tenor click. Keep REST as bootstrap / fallback when WS isn't live.
+  const { data: chain, isLoading, error } = useChainQuery(underlying, expiry, activeVenues, {
+    enabled: connectionState !== 'live',
+  });
+  const { data: marketStats } = useStats(underlying);
 
   const failedVenueIds = useMemo(() => failedVenues.map((f) => f.venue), [failedVenues]);
   useEffect(() => {
@@ -131,6 +138,7 @@ export default function ChainView() {
                 indexPrice={chain.stats.indexPriceUsd}
                 activeVenues={activeVenues}
                 myIv={myIvValid ? myIvFloat : null}
+                expiry={expiry}
               />
             )}
           </div>
@@ -197,6 +205,7 @@ export default function ChainView() {
               indexPrice={chain.stats.indexPriceUsd}
               activeVenues={activeVenues}
               myIv={myIvValid ? myIvFloat : null}
+              expiry={expiry}
             />
           )}
         </div>

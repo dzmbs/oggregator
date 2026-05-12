@@ -11,25 +11,27 @@ import {
   fetchPositions,
   removePosition,
   runScenarios,
+  type PortfolioSource,
 } from '../api';
 
 export const PORTFOLIO_QKEY = {
-  positions: ['portfolio', 'positions'] as const,
-  metrics: (forwardDays: number) => ['portfolio', 'metrics', forwardDays] as const,
+  positions: (source: PortfolioSource) => ['portfolio', 'positions', source] as const,
+  metrics: (forwardDays: number, source: PortfolioSource) =>
+    ['portfolio', 'metrics', forwardDays, source] as const,
 };
 
-export function usePortfolioPositions() {
+export function usePortfolioPositions(source: PortfolioSource = 'manual') {
   return useQuery({
-    queryKey: PORTFOLIO_QKEY.positions,
-    queryFn: fetchPositions,
+    queryKey: PORTFOLIO_QKEY.positions(source),
+    queryFn: () => fetchPositions(source),
     refetchInterval: 5_000,
   });
 }
 
-export function usePortfolioMetrics(forwardDays: number) {
+export function usePortfolioMetrics(forwardDays: number, source: PortfolioSource = 'manual') {
   return useQuery({
-    queryKey: PORTFOLIO_QKEY.metrics(forwardDays),
-    queryFn: () => fetchMetrics(forwardDays),
+    queryKey: PORTFOLIO_QKEY.metrics(forwardDays, source),
+    queryFn: () => fetchMetrics(forwardDays, source),
     refetchInterval: 5_000,
   });
 }
@@ -54,8 +56,8 @@ export function useRemovePosition() {
   });
 }
 
-export function useRunScenarios() {
+export function useRunScenarios(source: PortfolioSource = 'manual') {
   return useMutation({
-    mutationFn: (scenarios: VolShockScenario[]) => runScenarios(scenarios),
+    mutationFn: (scenarios: VolShockScenario[]) => runScenarios(scenarios, source),
   });
 }

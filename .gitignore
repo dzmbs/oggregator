@@ -49,3 +49,6 @@ docs/superpowers/specs/2026-04-22-forward-analysis-design.md
 .worktrees/
 docs/superpowers/
 .claude/scheduled_tasks.lock
+.superpowers/brainstorm/2-1778607033/state/server.pid
+.superpowers/brainstorm/2118714-1778607184/state/server.pid
+.superpowers/brainstorm/2118714-1778607184/state/server-info
