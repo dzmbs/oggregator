@@ -109,3 +109,13 @@ a {
     transform: translateX(-50%);
   }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .ticker-track {
+    animation: none !important;
+  }
+
+  * {
+    scroll-behavior: auto !important;
+  }
+}
