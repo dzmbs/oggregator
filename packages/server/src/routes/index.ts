@@ -18,6 +18,7 @@ import { spotsRoute } from './spots.js';
 import { wsChainRoute } from './ws-chain.js';
 import { paperRoutes, paperWsRoute } from './paper/index.js';
 import { paperAuthRoute } from './paper/auth.js';
+import { portfolioRoutes, portfolioWsRoute } from './portfolio/index.js';
 
 export function registerRoutes(app: FastifyInstance) {
   app.addHook('onRequest', async (_req, reply) => {
@@ -50,6 +51,8 @@ export function registerRoutes(app: FastifyInstance) {
   app.register(spotsRoute, { prefix: '/api' });
   app.register(paperRoutes, { prefix: '/api' });
   app.register(paperAuthRoute, { prefix: '/api' });
+  app.register(portfolioRoutes, { prefix: '/api' });
   app.register(wsChainRoute);
   app.register(paperWsRoute);
+  app.register(portfolioWsRoute);
 }

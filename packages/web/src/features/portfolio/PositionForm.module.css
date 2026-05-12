@@ -1,0 +1,63 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 8px;
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  font-size: 11px;
+  color: #888;
+}
+
+.field input,
+.field select {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid #2a2a2a;
+  border-radius: 4px;
+  padding: 6px 8px;
+  color: #e0e0e0;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+}
+
+.field input:focus,
+.field select:focus {
+  outline: none;
+  border-color: #50d2c1;
+}
+
+.error {
+  color: #f87171;
+  font-size: 11px;
+  padding: 4px 0;
+}
+
+.submit {
+  align-self: flex-start;
+  background: #00e997;
+  color: #000;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 16px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

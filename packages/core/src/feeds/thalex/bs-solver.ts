@@ -9,12 +9,12 @@ import type { OptionRight } from '../../types/common.js';
 
 const SQRT_2PI = Math.sqrt(2 * Math.PI);
 
-function pdf(x: number): number {
+export function pdf(x: number): number {
   return Math.exp(-0.5 * x * x) / SQRT_2PI;
 }
 
 // Abramowitz & Stegun 7.1.26 — error < 1.5e-7, enough for IV Newton steps.
-function cdf(x: number): number {
+export function cdf(x: number): number {
   const a1 = 0.254829592;
   const a2 = -0.284496736;
   const a3 = 1.421413741;
@@ -29,12 +29,12 @@ function cdf(x: number): number {
   return 0.5 * (1 + sign * y);
 }
 
-function d1(forward: number, strike: number, sigma: number, tYears: number): number {
+export function d1(forward: number, strike: number, sigma: number, tYears: number): number {
   const sqrtT = Math.sqrt(tYears);
   return (Math.log(forward / strike) + 0.5 * sigma * sigma * tYears) / (sigma * sqrtT);
 }
 
-function price76(
+export function price76(
   forward: number,
   strike: number,
   sigma: number,
@@ -48,7 +48,7 @@ function price76(
     : strike * cdf(-_d2) - forward * cdf(-_d1);
 }
 
-function vega76(forward: number, strike: number, sigma: number, tYears: number): number {
+export function vega76(forward: number, strike: number, sigma: number, tYears: number): number {
   return forward * Math.sqrt(tYears) * pdf(d1(forward, strike, sigma, tYears));
 }
 

@@ -28,6 +28,9 @@ const TradingView = lazy(() =>
 const AlphaView = lazy(() =>
   import('@features/alpha').then((m) => ({ default: m.AlphaView })),
 );
+const PortfolioView = lazy(() =>
+  import('@features/portfolio').then((m) => ({ default: m.PortfolioView })),
+);
 
 export default function App() {
   useServerVersion();
@@ -65,6 +68,7 @@ export default function App() {
             {activeTab === 'alpha' && <AlphaView />}
             {activeTab === 'architect' && <ArchitectView />}
             {activeTab === 'trading' && <TradingView />}
+            {activeTab === 'portfolio' && <PortfolioView />}
             {activeTab === 'surface' && <SurfaceView />}
             {activeTab === 'flow' && <FlowView />}
             {activeTab === 'analytics' && <AnalyticsView />}

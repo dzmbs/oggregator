@@ -1,0 +1,52 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.title {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.grid {
+  border-collapse: collapse;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+}
+
+.grid th,
+.grid td {
+  padding: 4px 6px;
+  text-align: center;
+  border: 1px solid #1a1a1a;
+  min-width: 50px;
+}
+
+.grid th {
+  color: #888;
+  font-weight: 500;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.grid td {
+  color: #e0e0e0;
+  font-size: 10px;
+}
+
+.legend {
+  font-size: 10px;
+  color: #666;
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+.empty {
+  padding: 24px;
+  text-align: center;
+  color: #666;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+}

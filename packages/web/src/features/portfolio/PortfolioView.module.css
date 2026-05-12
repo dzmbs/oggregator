@@ -1,0 +1,135 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  height: 100%;
+  overflow: auto;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.title {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 16px;
+  font-weight: 500;
+  color: #e0e0e0;
+  margin: 0;
+}
+
+.statusGroup {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.status {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: #888;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.status[data-state='open'] {
+  color: #4ade80;
+}
+
+.status[data-state='retrying'],
+.status[data-state='connecting'] {
+  color: #fbbf24;
+}
+
+.status[data-state='closed'] {
+  color: #f87171;
+}
+
+.toggleGroup {
+  display: inline-flex;
+  border: 1px solid #2a2a2a;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.toggle {
+  background: transparent;
+  border: none;
+  color: #888;
+  padding: 4px 10px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.toggle[data-active] {
+  background: #50d2c1;
+  color: #000;
+}
+
+.totalsRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+}
+
+.totalCard {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 6px;
+  border: 1px solid #1a1a1a;
+}
+
+.totalLabel {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.totalValue {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 14px;
+  color: #e0e0e0;
+}
+
+.bodyGrid {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 16px;
+  align-items: start;
+}
+
+.mainCol {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.tableWrap {
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 8px;
+  overflow: auto;
+  border: 1px solid #1a1a1a;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+@media (max-width: 900px) {
+  .bodyGrid {
+    grid-template-columns: 1fr;
+  }
+}
