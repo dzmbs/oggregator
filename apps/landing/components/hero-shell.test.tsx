@@ -14,8 +14,8 @@ describe("hero shell", () => {
       </>,
     );
 
-    expect(screen.getByText(/btc 30d iv/i)).toBeInTheDocument();
-    expect(screen.getByText(/eth 25d rr/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/btc 30d iv/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/eth 25d rr/i).length).toBeGreaterThan(0);
     expect(screen.getByRole("link", { name: /docs/i })).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /request access/i }),

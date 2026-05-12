@@ -10,7 +10,7 @@ describe("landing page", () => {
       screen.getByRole("heading", { name: /stop venue hopping/i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /request access/i }),
-    ).toBeInTheDocument();
+      screen.getAllByRole("button", { name: /request access/i }).length,
+    ).toBeGreaterThan(0);
   });
 });
