@@ -201,6 +201,11 @@ export function useChainWs({
   const pendingRef = useRef<PendingDelta[]>([]);
   const rafRef = useRef<number | null>(null);
 
+  // Last received snapshot across all cache keys. Used as a reconciliation
+  // baseline on tenor change so strikes whose content happens to match
+  // (deep OTM, all-null venues) keep their ref instead of getting a fresh one.
+  const lastSnapshotRef = useRef<EnrichedChainResponse | null>(null);
+
   const paramsRef = useRef({ underlying, expiry, venues });
   paramsRef.current = { underlying, expiry, venues };
 
@@ -289,12 +294,18 @@ export function useChainWs({
             msg.request.venues,
           );
           qc.setQueryData(key, (current: EnrichedChainResponse | undefined) => {
-            if (current == null) return msg.data;
+            // Reconcile against the cache for this exact key first (resync
+            // within same tenor); fall back to the most recent snapshot from
+            // any tenor so cross-tenor switches still benefit from content-
+            // equal strikes keeping their refs.
+            const baseline = current ?? lastSnapshotRef.current ?? undefined;
+            if (baseline == null) return msg.data;
             return {
               ...msg.data,
-              strikes: reconcileSnapshotStrikes(current.strikes, msg.data.strikes),
+              strikes: reconcileSnapshotStrikes(baseline.strikes, msg.data.strikes),
             };
           });
+          lastSnapshotRef.current = qc.getQueryData<EnrichedChainResponse>(key) ?? msg.data;
           store.set({ connectionState: 'live', staleMs: msg.meta.staleMs, lastSeq: msg.seq });
           break;
         }

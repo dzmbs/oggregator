@@ -17,6 +17,11 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  transition: opacity 120ms ease-out;
+}
+
+.tableArea[data-stale="true"] {
+  opacity: 0.55;
 }
 
 .tableControls {

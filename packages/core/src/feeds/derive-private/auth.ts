@@ -69,8 +69,8 @@ export function recoverSignerAddress(message: string, signatureHex: string): str
   const recoverable = new Uint8Array(65);
   recoverable[0] = recovery;
   recoverable.set(sigBytes.slice(0, 64), 1);
-  const pubKey = secp256k1.recoverPublicKey(recoverable, hash, { prehash: false });
-  const uncompressed = pubKey.length === 65 ? pubKey.slice(1) : pubKey;
-  const addressBytes = keccak_256(uncompressed).slice(12);
+  const compressed = secp256k1.recoverPublicKey(recoverable, hash, { prehash: false });
+  const uncompressed = secp256k1.Point.fromBytes(compressed).toBytes(false);
+  const addressBytes = keccak_256(uncompressed.slice(1)).slice(12);
   return `0x${bytesToHex(addressBytes)}`;
 }
