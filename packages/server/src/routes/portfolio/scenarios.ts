@@ -16,16 +16,18 @@ import {
   portfolioStore,
 } from '../../portfolio-services.js';
 
-function parseBody(input: unknown): { scenarios: VolShockScenario[] } | { error: string } {
-  if (typeof input !== 'object' || input == null) return { error: 'body must be an object' };
-  const scenarios = (input as { scenarios?: unknown }).scenarios;
+function parseScenarios(body: unknown): { scenarios: VolShockScenario[] } | { error: string; issues: unknown[] } {
+  if (typeof body !== 'object' || body == null) {
+    return { error: 'invalid_body', issues: [{ message: 'body must be an object' }] };
+  }
+  const scenarios = (body as { scenarios?: unknown }).scenarios;
   if (!Array.isArray(scenarios) || scenarios.length === 0) {
-    return { error: 'scenarios must be a non-empty array' };
+    return { error: 'invalid_body', issues: [{ message: 'scenarios must be a non-empty array' }] };
   }
   const parsed: VolShockScenario[] = [];
   for (const raw of scenarios) {
     const res = VolShockScenarioSchema.safeParse(raw);
-    if (!res.success) return { error: `invalid scenario: ${res.error.message}` };
+    if (!res.success) return { error: 'invalid_body', issues: res.error.issues };
     parsed.push(res.data);
   }
   return { scenarios: parsed };
@@ -37,9 +39,9 @@ function getAccountId(req: FastifyRequest): string {
 
 export async function portfolioScenariosRoute(app: FastifyInstance) {
   app.post('/portfolio/scenarios', async (req, reply) => {
-    const parsed = parseBody(req.body);
+    const parsed = parseScenarios(req.body);
     if ('error' in parsed) {
-      return reply.status(400).send({ error: 'invalid_body', message: parsed.error });
+      return reply.status(400).send({ error: parsed.error, issues: parsed.issues });
     }
     const accountId = getAccountId(req);
     await bootstrapPortfolioForAccount(accountId);
