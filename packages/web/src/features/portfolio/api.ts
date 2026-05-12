@@ -76,12 +76,73 @@ const PositionLegSchema: z.ZodType<PositionLeg> = z.object({
   entryIv: z.number().nullable(),
   entryTs: z.number(),
   venueHint: VenueIdSchema.nullable(),
-  source: z.enum(['manual', 'paper', 'thalex-private']),
+  source: z.enum([
+    'manual',
+    'paper',
+    'deribit',
+    'okx',
+    'binance',
+    'bybit',
+    'derive',
+    'coincall',
+    'thalex',
+  ]),
 }) as z.ZodType<PositionLeg>;
 
-export type PortfolioSource = 'manual' | 'paper';
+export type PortfolioSource =
+  | 'manual'
+  | 'paper'
+  | 'deribit'
+  | 'okx'
+  | 'binance'
+  | 'bybit'
+  | 'derive'
+  | 'coincall'
+  | 'thalex';
 
-const PortfolioSourceSchema = z.enum(['manual', 'paper']);
+const PortfolioSourceSchema = z.enum([
+  'manual',
+  'paper',
+  'deribit',
+  'okx',
+  'binance',
+  'bybit',
+  'derive',
+  'coincall',
+  'thalex',
+]);
+
+export interface DeriveConnectRequest {
+  walletAddress: string;
+  signerPrivateKey: string;
+  subaccountId: number;
+  env?: 'prod' | 'test';
+}
+
+export async function connectVenue(
+  venue: string,
+  body: DeriveConnectRequest,
+): Promise<{ venue: string; connected: boolean }> {
+  return postJson(
+    `/portfolio/venue-credentials/${venue}`,
+    body,
+    z.object({ venue: z.string(), connected: z.boolean() }),
+  );
+}
+
+export async function disconnectVenue(venue: string): Promise<{ venue: string; connected: boolean }> {
+  return deleteRequest(
+    `/portfolio/venue-credentials/${venue}`,
+    z.object({ venue: z.string(), connected: z.boolean() }),
+  );
+}
+
+export async function venueStatus(venue: string): Promise<{ venue: string; connected: boolean }> {
+  return getJson(
+    `/portfolio/venue-credentials/${venue}/status`,
+    z.object({ venue: z.string(), connected: z.boolean() }),
+  );
+}
 
 const PortfolioTotalsSchema = z.object({
   netDeltaUsd: z.number(),

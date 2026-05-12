@@ -15,6 +15,7 @@ const FORWARD_OPTIONS: number[] = [0, 1, 3, 7];
 const SOURCE_OPTIONS: { value: PortfolioSource; label: string }[] = [
   { value: 'manual', label: 'Manual' },
   { value: 'paper', label: 'Paper' },
+  { value: 'derive', label: 'Derive' },
 ];
 
 function fmtUsdSigned(value: number | null | undefined): string {

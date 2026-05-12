@@ -163,7 +163,7 @@ export const PRIVATE_ADAPTER_SPECS: Readonly<Record<VenueId, VenuePrivateAdapter
   },
   derive: {
     venue: 'derive',
-    status: 'planned',
+    status: 'available',
     wsEndpoint: 'wss://api.lyra.finance/ws',
     authScheme: 'eip712',
     subscribeMethod: 'subscribe',

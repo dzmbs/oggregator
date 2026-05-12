@@ -11,6 +11,7 @@ import {
 
 import { useAppStore } from '@stores/app-store';
 import { registerUser } from '@features/trading/api';
+import { connectVenue, disconnectVenue } from '@features/portfolio/api';
 import { VENUES } from '@lib/venue-meta';
 
 import styles from './AccountChip.module.css';
@@ -133,7 +134,7 @@ export default function AccountChip() {
     setMode('home');
   };
 
-  const onPasteVenue = () => {
+  const onPasteVenue = async () => {
     if (pasteTarget === 'paper') return;
     const venue = pasteTarget;
     const spec = PRIVATE_ADAPTER_SPECS[venue];
@@ -157,12 +158,42 @@ export default function AccountChip() {
       addedAt: Date.now(),
     };
     setVenueCreds(creds);
+
+    if (venue === 'derive') {
+      setBusy(true);
+      try {
+        const subaccountIdRaw = trimmedFields.subaccountId ?? '';
+        const subaccountId = Number(subaccountIdRaw);
+        if (!Number.isFinite(subaccountId) || subaccountId <= 0) {
+          throw new Error('Subaccount ID must be a positive integer');
+        }
+        await connectVenue('derive', {
+          walletAddress: trimmedFields.walletAddress ?? '',
+          signerPrivateKey: trimmedFields.privateKeyPem ?? '',
+          subaccountId,
+        });
+        refresh();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'connect failed');
+        setBusy(false);
+        return;
+      } finally {
+        setBusy(false);
+      }
+    }
+
     setError(null);
     setMode('home');
   };
 
-  const onRemoveVenue = (venue: VenueId) => {
+  const onRemoveVenue = async (venue: VenueId) => {
     removeVenueCreds(venue);
+    if (venue === 'derive') {
+      try {
+        await disconnectVenue('derive');
+        refresh();
+      } catch {}
+    }
   };
 
   const onLogout = () => {
