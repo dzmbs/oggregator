@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import type { PortfolioPnlCurve as PortfolioPnlCurveData } from '@oggregator/protocol';
 
@@ -60,11 +60,31 @@ function emptyMessage(status: PortfolioPnlCurveData['status']): string {
 }
 
 export default function PortfolioPnlCurve({ curve, forwardDays }: Props) {
+  const [stickyCurve, setStickyCurve] = useState<PortfolioPnlCurveData | null>(null);
+
+  useEffect(() => {
+    if (curve.status === 'ok' && curve.points.length > 0) {
+      setStickyCurve(curve);
+    } else if (curve.status === 'empty' || curve.status === 'mixed_underlyings') {
+      setStickyCurve(null);
+    } else if (stickyCurve != null && stickyCurve.underlying !== curve.underlying) {
+      setStickyCurve(null);
+    }
+  }, [curve, stickyCurve]);
+
+  const displayCurve =
+    curve.status === 'ok' && curve.points.length > 0
+      ? curve
+      : stickyCurve != null && stickyCurve.underlying === curve.underlying
+        ? stickyCurve
+        : curve;
+  const isStale = displayCurve !== curve;
+
   const chart = useMemo(() => {
-    if (curve.status !== 'ok' || curve.points.length === 0) return null;
-    const xMin = curve.points[0]?.underlyingPriceUsd ?? 0;
-    const xMax = curve.points[curve.points.length - 1]?.underlyingPriceUsd ?? 1;
-    const values = curve.points.flatMap((point) => [
+    if (displayCurve.status !== 'ok' || displayCurve.points.length === 0) return null;
+    const xMin = displayCurve.points[0]?.underlyingPriceUsd ?? 0;
+    const xMax = displayCurve.points[displayCurve.points.length - 1]?.underlyingPriceUsd ?? 1;
+    const values = displayCurve.points.flatMap((point) => [
       point.nowPnlUsd,
       point.expiryPnlUsd,
       point.forwardPnlUsd ?? point.nowPnlUsd,
@@ -89,14 +109,14 @@ export default function PortfolioPnlCurve({ curve, forwardDays }: Props) {
       zeroY: toY(0),
       xTicks: xTicks(xMin, xMax),
       yTicks: yTicks(yMin, yMax),
-      nowPath: linePath(curve.points, toX, toY, (point) => point.nowPnlUsd),
-      expiryPath: linePath(curve.points, toX, toY, (point) => point.expiryPnlUsd),
+      nowPath: linePath(displayCurve.points, toX, toY, (point) => point.nowPnlUsd),
+      expiryPath: linePath(displayCurve.points, toX, toY, (point) => point.expiryPnlUsd),
       forwardPath:
         forwardDays > 0
-          ? linePath(curve.points, toX, toY, (point) => point.forwardPnlUsd)
+          ? linePath(displayCurve.points, toX, toY, (point) => point.forwardPnlUsd)
           : '',
     };
-  }, [curve, forwardDays]);
+  }, [displayCurve, forwardDays]);
 
   return (
     <div className={styles.wrap}>
@@ -113,20 +133,21 @@ export default function PortfolioPnlCurve({ curve, forwardDays }: Props) {
       </div>
 
       <div className={styles.metaRow}>
-        <span className={styles.metricPill}>underlying {curve.underlying ?? '—'}</span>
-        <span className={styles.metricPill}>spot {fmtPrice(curve.currentSpotUsd)}</span>
+        <span className={styles.metricPill}>underlying {displayCurve.underlying ?? '—'}</span>
+        <span className={styles.metricPill}>spot {fmtPrice(displayCurve.currentSpotUsd)}</span>
         <span className={styles.metricPill}>
-          BE {curve.breakEvenPricesUsd.length === 0 ? '—' : curve.breakEvenPricesUsd.map((value) => fmtPrice(value)).join(' / ')}
+          BE {displayCurve.breakEvenPricesUsd.length === 0 ? '—' : displayCurve.breakEvenPricesUsd.map((value) => fmtPrice(value)).join(' / ')}
         </span>
-        {curve.maxProfitUsd != null && <span className={styles.metricPill}>max gain {fmtUsd(curve.maxProfitUsd)}</span>}
-        {curve.maxLossUsd != null && <span className={styles.metricPill}>max loss {fmtUsd(curve.maxLossUsd)}</span>}
+        {displayCurve.maxProfitUsd != null && <span className={styles.metricPill}>max gain {fmtUsd(displayCurve.maxProfitUsd)}</span>}
+        {displayCurve.maxLossUsd != null && <span className={styles.metricPill}>max loss {fmtUsd(displayCurve.maxLossUsd)}</span>}
+        {isStale && <span className={styles.stalePill}>stale · waiting for live marks</span>}
       </div>
 
       <div className={styles.chartWrap}>
         {chart == null ? (
           <div className={styles.empty}>{emptyMessage(curve.status)}</div>
         ) : (
-          <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className={styles.svg}>
+          <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className={`${styles.svg} ${isStale ? styles.svgStale : ''}`}>
             <rect
               x={PADDING.left}
               y={PADDING.top}
@@ -186,7 +207,7 @@ export default function PortfolioPnlCurve({ curve, forwardDays }: Props) {
               strokeWidth={1}
               strokeDasharray="4 4"
             />
-            {curve.breakEvenPricesUsd.map((value) => (
+            {displayCurve.breakEvenPricesUsd.map((value) => (
               <line
                 key={`be-${value}`}
                 x1={chart.toX(value)}
@@ -199,10 +220,10 @@ export default function PortfolioPnlCurve({ curve, forwardDays }: Props) {
                 opacity={0.95}
               />
             ))}
-            {curve.currentSpotUsd != null && (
+            {displayCurve.currentSpotUsd != null && (
               <line
-                x1={chart.toX(curve.currentSpotUsd)}
-                x2={chart.toX(curve.currentSpotUsd)}
+                x1={chart.toX(displayCurve.currentSpotUsd)}
+                x2={chart.toX(displayCurve.currentSpotUsd)}
                 y1={PADDING.top}
                 y2={HEIGHT - PADDING.bottom}
                 stroke="#f8fafc"

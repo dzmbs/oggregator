@@ -1,8 +1,35 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import type { BreakEvenIvRow, VegaByStrikeRow } from '@oggregator/protocol';
 
 import styles from './PortfolioVegaCurve.module.css';
+
+function hasUsefulGreeks(rows: VegaByStrikeRow[]): boolean {
+  for (const row of rows) {
+    if (row.delta !== 0 || row.vega !== 0 || row.gamma !== 0 || row.vanna !== 0 || row.volga !== 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function hasUsefulBreakEven(rows: BreakEvenIvRow[]): boolean {
+  for (const row of rows) {
+    if (row.currentIv != null || row.breakEvenIv != null) return true;
+  }
+  return false;
+}
+
+function sameLegSignature(left: VegaByStrikeRow[], right: VegaByStrikeRow[]): boolean {
+  if (left.length !== right.length) return false;
+  for (let i = 0; i < left.length; i += 1) {
+    const a = left[i];
+    const b = right[i];
+    if (a == null || b == null) return false;
+    if (a.expiry !== b.expiry || a.strike !== b.strike) return false;
+  }
+  return true;
+}
 
 type Mode = 'delta' | 'vega' | 'gamma' | 'vanna' | 'volga';
 
@@ -142,23 +169,59 @@ export default function PortfolioVegaCurve({ byStrike, breakEven }: Props) {
   const [mode, setMode] = useState<Mode>('vega');
   const [expiry, setExpiry] = useState<string | null>(null);
   const [selectedStrike, setSelectedStrike] = useState<number | null>(null);
+  const [stickyByStrike, setStickyByStrike] = useState<VegaByStrikeRow[] | null>(null);
+  const [stickyBreakEven, setStickyBreakEven] = useState<BreakEvenIvRow[] | null>(null);
   const meta = MODE_META[mode];
 
+  useEffect(() => {
+    if (byStrike.length === 0) {
+      setStickyByStrike(null);
+      return;
+    }
+    if (stickyByStrike != null && !sameLegSignature(byStrike, stickyByStrike)) {
+      setStickyByStrike(null);
+      return;
+    }
+    if (hasUsefulGreeks(byStrike)) {
+      setStickyByStrike(byStrike);
+    }
+  }, [byStrike, stickyByStrike]);
+
+  useEffect(() => {
+    if (breakEven.length === 0) {
+      setStickyBreakEven(null);
+      return;
+    }
+    if (hasUsefulBreakEven(breakEven)) {
+      setStickyBreakEven(breakEven);
+    }
+  }, [breakEven]);
+
+  const displayByStrike =
+    byStrike.length > 0 && (hasUsefulGreeks(byStrike) || stickyByStrike == null)
+      ? byStrike
+      : (stickyByStrike ?? byStrike);
+  const displayBreakEven =
+    breakEven.length > 0 && (hasUsefulBreakEven(breakEven) || stickyBreakEven == null)
+      ? breakEven
+      : (stickyBreakEven ?? breakEven);
+  const isStale = displayByStrike !== byStrike || displayBreakEven !== breakEven;
+
   const expiries = useMemo(
-    () => Array.from(new Set(byStrike.map((row) => row.expiry))).sort(),
-    [byStrike],
+    () => Array.from(new Set(displayByStrike.map((row) => row.expiry))).sort(),
+    [displayByStrike],
   );
   const activeExpiry = expiry ?? expiries[0] ?? null;
 
   const points = useMemo(() => {
     const filtered = activeExpiry
-      ? byStrike.filter((row) => row.expiry === activeExpiry)
-      : byStrike;
+      ? displayByStrike.filter((row) => row.expiry === activeExpiry)
+      : displayByStrike;
     return filtered
       .map((row) => ({ x: Number(row.strike), y: row[mode] }))
       .filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y))
       .sort((a, b) => a.x - b.x);
-  }, [byStrike, activeExpiry, mode]);
+  }, [displayByStrike, activeExpiry, mode]);
 
   const chart = useMemo(() => {
     if (points.length === 0) return null;
@@ -190,10 +253,10 @@ export default function PortfolioVegaCurve({ byStrike, breakEven }: Props) {
 
   const activeBreakEvenRows = useMemo(() => {
     if (activeExpiry == null || activeStrike == null) return [];
-    return breakEven
+    return displayBreakEven
       .filter((row) => row.expiry === activeExpiry && row.strike === activeStrike)
       .sort((left, right) => left.optionRight.localeCompare(right.optionRight));
-  }, [activeExpiry, activeStrike, breakEven]);
+  }, [activeExpiry, activeStrike, displayBreakEven]);
 
   return (
     <div className={styles.wrap}>
@@ -241,6 +304,7 @@ export default function PortfolioVegaCurve({ byStrike, breakEven }: Props) {
         <span className={styles.metricPill}>
           total {meta.label.toLowerCase()} {chart == null ? '—' : fmtSignedValue(chart.total)}
         </span>
+        {isStale && <span className={styles.stalePill}>stale · waiting for live marks</span>}
       </div>
       <div className={styles.explainer}>
         <strong>{meta.label}:</strong> {meta.explanation} {meta.positiveHint}
@@ -249,7 +313,7 @@ export default function PortfolioVegaCurve({ byStrike, breakEven }: Props) {
         {chart == null ? (
           <div className={styles.empty}>No data</div>
         ) : (
-          <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className={styles.svg}>
+          <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className={`${styles.svg} ${isStale ? styles.svgStale : ''}`}>
             <path
               d={areaPath(points, chart.zeroY, chart.toX, chart.toY)}
               fill={COLORS[mode]}

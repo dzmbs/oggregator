@@ -20,7 +20,6 @@ export function usePortfolioPositions(source: PortfolioSource = 'manual') {
   return useQuery({
     queryKey: PORTFOLIO_QKEY.positions(source),
     queryFn: () => fetchPositions(source),
-    refetchInterval: 5_000,
   });
 }
 
@@ -28,7 +27,6 @@ export function usePortfolioMetrics(forwardDays: number, source: PortfolioSource
   return useQuery({
     queryKey: PORTFOLIO_QKEY.metrics(forwardDays, source),
     queryFn: () => fetchMetrics(forwardDays, source),
-    refetchInterval: 5_000,
   });
 }
 

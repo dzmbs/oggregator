@@ -83,6 +83,20 @@
   background: rgba(15, 23, 42, 0.55);
 }
 
+.stalePill {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: #fbbf24;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(251, 191, 36, 0.4);
+  background: rgba(251, 191, 36, 0.08);
+}
+
+.svgStale {
+  opacity: 0.6;
+}
+
 .explainer {
   font-family: 'IBM Plex Mono', monospace;
   font-size: 11px;
