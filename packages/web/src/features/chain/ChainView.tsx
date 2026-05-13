@@ -1,8 +1,7 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 import { useAppStore } from '@stores/app-store';
 import { useChainQuery, useExpiries, useStats, usePrefetchChain } from './queries';
-import { useChainWs } from '@hooks/useChainWs';
 import { useOpenPalette } from '@components/layout';
 import { Spinner, EmptyState } from '@components/ui';
 import { useIsMobile } from '@hooks/useIsMobile';
@@ -24,18 +23,13 @@ export default function ChainView() {
   const toggleVenue = useAppStore((s) => s.toggleVenue);
   const setActiveVenues = useAppStore((s) => s.setActiveVenues);
   const myIv = useAppStore((s) => s.myIv);
+  const connectionState = useAppStore((s) => s.feedStatus.connectionState);
+  const failedVenues = useAppStore((s) => s.feedStatus.failedVenues);
   const openPalette = useOpenPalette();
 
   const { data: expiriesData } = useExpiries(underlying);
   const expiries = expiriesData?.expiries ?? [];
   const expiryByVenue = expiriesData?.byVenue;
-
-  const setFeedStatus = useAppStore((s) => s.setFeedStatus);
-  const { connectionState, staleMs, failedVenues } = useChainWs({
-    underlying,
-    expiry,
-    venues: activeVenues,
-  });
 
   // Once the WS is live it delivers a snapshot on every resubscribe (tenor /
   // underlying / venue change), so the REST fetch is redundant and only races
@@ -57,23 +51,6 @@ export default function ChainView() {
   const isStale = !chain && lastChainRef.current != null;
 
   const prefetchChain = usePrefetchChain(underlying, activeVenues);
-
-  const failedVenueIds = useMemo(() => failedVenues.map((f) => f.venue), [failedVenues]);
-  useEffect(() => {
-    setFeedStatus({
-      connectionState,
-      failedVenueCount: failedVenueIds.length,
-      failedVenueIds,
-      staleMs,
-      lastUpdateMs: connectionState === 'live' && staleMs != null ? Date.now() - staleMs : null,
-    });
-  }, [connectionState, failedVenueIds, staleMs, setFeedStatus]);
-
-  useEffect(() => {
-    if (expiries.length > 0 && !expiry) {
-      setExpiry(expiries[0]!);
-    }
-  }, [expiries, expiry, setExpiry]);
 
   // Only auto-reset venue selection when the underlying changes — not on every
   // expiry switch. Without this guard, manually toggling a venue off and then

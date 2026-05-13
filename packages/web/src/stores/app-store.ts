@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import {
   VENUE_IDS as PROTOCOL_VENUE_IDS,
   type VenueCredentials,
+  type VenueFailure,
   type VenueId,
   type WsConnectionState,
 } from '@oggregator/protocol';
@@ -18,6 +19,7 @@ export interface FeedStatus {
   connectionState: WsConnectionState;
   failedVenueCount: number;
   failedVenueIds: string[];
+  failedVenues: VenueFailure[];
   /** Age of the most recent snapshot in ms — proxy for data freshness. */
   staleMs: number | null;
   /** Epoch ms when the last live snapshot/delta arrived. */
@@ -75,6 +77,7 @@ export const useAppStore = create<AppState>((set) => ({
     connectionState: 'closed',
     failedVenueCount: 0,
     failedVenueIds: [],
+    failedVenues: [],
     staleMs: null,
     lastUpdateMs: null,
   },

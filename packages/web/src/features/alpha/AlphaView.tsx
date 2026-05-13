@@ -3,7 +3,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { useAppStore } from '@stores/app-store';
 import { ExpiryBar, useChainQuery, useExpiries, usePrefetchChain } from '@features/chain';
 import { useSurface } from '@features/surface/queries';
-import { useChainWs } from '@hooks/useChainWs';
 import { useOpenPalette } from '@components/layout';
 import { useIsMobile } from '@hooks/useIsMobile';
 import { Spinner, EmptyState } from '@components/ui';
@@ -24,7 +23,6 @@ export default function AlphaView() {
   const expiry = useAppStore((s) => s.expiry);
   const setExpiry = useAppStore((s) => s.setExpiry);
   const activeVenues = useAppStore((s) => s.activeVenues);
-  const setFeedStatus = useAppStore((s) => s.setFeedStatus);
   const openPalette = useOpenPalette();
 
   const { data: expiriesData } = useExpiries(underlying);
@@ -32,26 +30,6 @@ export default function AlphaView() {
   const prefetchChain = usePrefetchChain(underlying, activeVenues);
   const { data: chain, isLoading, error } = useChainQuery(underlying, expiry, activeVenues);
   const { data: surface } = useSurface(underlying, activeVenues);
-  const { connectionState, staleMs, failedVenues } = useChainWs({
-    underlying,
-    expiry,
-    venues: activeVenues,
-  });
-
-  useEffect(() => {
-    const failedVenueIds = failedVenues.map((f) => f.venue);
-    setFeedStatus({
-      connectionState,
-      failedVenueCount: failedVenues.length,
-      failedVenueIds,
-      staleMs,
-      lastUpdateMs: connectionState === 'live' && staleMs != null ? Date.now() - staleMs : null,
-    });
-  }, [connectionState, failedVenues, staleMs, setFeedStatus]);
-
-  useEffect(() => {
-    if (expiries.length > 0 && !expiry) setExpiry(expiries[0]!);
-  }, [expiries, expiry, setExpiry]);
 
   const isMobile = useIsMobile();
   const [kind, setKind] = useState<SpreadKind>('call-credit');
