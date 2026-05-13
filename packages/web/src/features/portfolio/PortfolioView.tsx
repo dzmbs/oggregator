@@ -1,11 +1,13 @@
 import { useMemo, useState } from 'react';
 
-import { PRIVATE_ADAPTER_SPECS, VENUE_IDS, type VenueId } from '@oggregator/protocol';
+import { PRIVATE_ADAPTER_SPECS, VENUE_IDS, type PortfolioPnlCurve as PortfolioPnlCurveData, type VenueId } from '@oggregator/protocol';
 
 import { useAppStore } from '@stores/app-store';
 import { VENUES } from '@lib/venue-meta';
 
 import type { PortfolioSource } from './api';
+import ExpiryBuckets from './ExpiryBuckets';
+import PortfolioPnlCurve from './PortfolioPnlCurve';
 import PortfolioVegaCurve from './PortfolioVegaCurve';
 import PositionForm from './PositionForm';
 import PositionsTable from './PositionsTable';
@@ -18,6 +20,17 @@ const FORWARD_OPTIONS: number[] = [0, 1, 3, 7];
 const SOURCE_STORAGE_KEY = 'portfolioSource';
 const FORWARD_STORAGE_KEY = 'portfolioForwardDays';
 const DEFAULT_SOURCE: PortfolioSource = 'manual';
+const EMPTY_PNL_CURVE: PortfolioPnlCurveData = {
+  status: 'empty',
+  underlying: null,
+  currentSpotUsd: null,
+  breakEvenPricesUsd: [],
+  maxProfitUsd: null,
+  maxLossUsd: null,
+  upsideBounded: false,
+  downsideBounded: false,
+  points: [],
+};
 
 function loadStoredSource(): PortfolioSource {
   try {
@@ -200,6 +213,7 @@ export default function PortfolioView() {
 
       <div className={styles.bodyGrid}>
         <div className={styles.mainCol}>
+          <PortfolioPnlCurve curve={metrics?.pnlCurve ?? EMPTY_PNL_CURVE} forwardDays={forwardDays} />
           <PortfolioVegaCurve byStrike={metrics?.byStrike ?? []} breakEven={metrics?.breakEven ?? []} />
           <div className={styles.tableWrap}>
             <PositionsTable
@@ -224,6 +238,7 @@ export default function PortfolioView() {
             </div>
           )}
           <ShockHeatmap grid={metrics?.shockGrid ?? []} />
+          <ExpiryBuckets rows={metrics?.byExpiry ?? []} />
         </div>
       </div>
     </div>

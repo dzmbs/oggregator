@@ -1,0 +1,81 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 8px;
+  border: 1px solid #1a1a1a;
+}
+
+.title {
+  color: #f8fafc;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #1f2937;
+  background: rgba(15, 23, 42, 0.4);
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.expiry,
+.dte,
+.stat,
+.empty {
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+.expiry {
+  color: #f8fafc;
+  font-size: 11px;
+}
+
+.dte {
+  color: #94a3b8;
+  font-size: 10px;
+}
+
+.stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.stat {
+  color: #cbd5e1;
+  font-size: 10px;
+}
+
+.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100px;
+  padding: 12px;
+  color: #94a3b8;
+  font-size: 11px;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 8px;
+  border: 1px dashed #243041;
+}

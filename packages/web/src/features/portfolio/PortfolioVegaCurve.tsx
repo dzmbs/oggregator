@@ -4,7 +4,7 @@ import type { BreakEvenIvRow, VegaByStrikeRow } from '@oggregator/protocol';
 
 import styles from './PortfolioVegaCurve.module.css';
 
-type Mode = 'vega' | 'vanna' | 'volga';
+type Mode = 'delta' | 'vega' | 'gamma' | 'vanna' | 'volga';
 
 interface ModeMeta {
   label: string;
@@ -19,7 +19,9 @@ interface Props {
 }
 
 const COLORS: Record<Mode, string> = {
+  delta: '#34d399',
   vega: '#a78bfa',
+  gamma: '#f97316',
   vanna: '#60a5fa',
   volga: '#fbbf24',
 };
@@ -27,11 +29,23 @@ const NEGATIVE_BAR_COLOR = '#f87171';
 const NEUTRAL_BAR_COLOR = '#334155';
 
 const MODE_META: Record<Mode, ModeMeta> = {
+  delta: {
+    label: 'Delta',
+    title: 'Directional exposure',
+    explanation: 'How much this strike bucket should gain or lose from a small move in the underlying.',
+    positiveHint: 'Positive delta benefits from spot rising; negative delta benefits from spot falling.',
+  },
   vega: {
     label: 'Vega',
     title: 'Vol sensitivity',
     explanation: 'How much this strike bucket should gain or lose from a 1-point rise in implied vol.',
     positiveHint: 'Positive vega benefits from higher vol; negative vega is short vol.',
+  },
+  gamma: {
+    label: 'Gamma',
+    title: 'Curvature',
+    explanation: 'How quickly this strike bucket delta changes when spot moves.',
+    positiveHint: 'Positive gamma gains from bigger spot swings; negative gamma is short convexity.',
   },
   vanna: {
     label: 'Vanna',
@@ -173,14 +187,14 @@ export default function PortfolioVegaCurve({ byStrike, breakEven }: Props) {
     <div className={styles.wrap}>
       <div className={styles.header}>
         <div className={styles.titleBlock}>
-          <span className={styles.title}>Risk curve</span>
+          <span className={styles.title}>Risk by strike</span>
           <span className={styles.subtitle}>
             {meta.label} • {meta.title}
           </span>
         </div>
         <div className={styles.controls}>
           <div className={styles.toggles}>
-            {(['vega', 'vanna', 'volga'] as Mode[]).map((m) => (
+            {(['delta', 'vega', 'gamma', 'vanna', 'volga'] as Mode[]).map((m) => (
               <button
                 key={m}
                 type="button"
