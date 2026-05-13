@@ -7,6 +7,7 @@ import { mintAuthToken } from './auth.js';
 import { thalexPortfolioToLegs } from './codec.js';
 import {
   ThalexLoginResultSchema,
+  ThalexPortfolioEntrySchema,
   ThalexPortfolioNotificationSchema,
   ThalexSubscribedChannelsSchema,
   type ThalexPortfolioEntry,
@@ -95,6 +96,7 @@ export class ThalexPrivateClient {
     if (this.disposed) return;
     await this.login();
     const subscribed = await this.privateSubscribe([...PRIVATE_CHANNELS]);
+    await this.refreshPortfolio();
     this.log.info({ channels: subscribed }, 'thalex private subscribed');
   }
 
@@ -140,6 +142,16 @@ export class ThalexPrivateClient {
   private async privateSubscribe(channels: string[]): Promise<string[]> {
     const result = await this.call('private/subscribe', { channels });
     return assertSubscribedChannels(result, channels);
+  }
+
+  private async refreshPortfolio(): Promise<void> {
+    const result = await this.call('private/portfolio', {});
+    const parsed = ThalexPortfolioEntrySchema.array().safeParse(result);
+    if (!parsed.success) {
+      throw new Error(`[thalex-private] private/portfolio returned an invalid payload: ${parsed.error.message}`);
+    }
+    this.applyPortfolio(parsed.data, true);
+    this.log.info({ positions: parsed.data.length }, 'thalex private portfolio bootstrap ok');
   }
 
   private call(method: string, params: Record<string, unknown>): Promise<unknown> {
