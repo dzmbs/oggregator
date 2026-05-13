@@ -120,10 +120,28 @@ function findStrike(snapshot: EnrichedChainResponse, strike: number): EnrichedSt
   return snapshot.strikes.find((s) => s.strike === strike) ?? null;
 }
 
-function average(values: Array<number | null | undefined>): number | null {
-  const filtered = values.filter((v): v is number => typeof v === 'number' && Number.isFinite(v));
-  if (filtered.length === 0) return null;
-  return filtered.reduce((acc, v) => acc + v, 0) / filtered.length;
+function median(values: number[]): number | null {
+  if (values.length === 0) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0
+    ? (sorted[mid - 1]! + sorted[mid]!) / 2
+    : sorted[mid]!;
+}
+
+// Median with MAD-based outlier rejection when N ≥ 3. Stale or one-sided
+// venue quotes pull the arithmetic mean around badly on illiquid strikes;
+// median + 3·MAD cull keeps the cross-venue aggregate steady when one feed
+// drifts away from consensus.
+function robustCentral(values: Array<number | null | undefined>): number | null {
+  const finite = values.filter((v): v is number => typeof v === 'number' && Number.isFinite(v));
+  if (finite.length === 0) return null;
+  if (finite.length <= 2) return median(finite);
+  const m = median(finite)!;
+  const mad = median(finite.map((v) => Math.abs(v - m)))!;
+  if (mad === 0) return m;
+  const kept = finite.filter((v) => Math.abs(v - m) <= 3 * mad);
+  return median(kept);
 }
 
 function emptyMark(): MarkContext {
@@ -217,17 +235,25 @@ function freshMark(leg: PositionLeg): MarkContext {
   const venueMark = (() => {
     if (strikeRow == null) return null;
     const side = leg.optionRight === 'call' ? strikeRow.call : strikeRow.put;
-    const quotes = Object.values(side.venues).filter(
+    const allQuotes = Object.values(side.venues).filter(
       (q): q is NonNullable<typeof q> => q != null,
     );
-    if (quotes.length === 0) return null;
+    if (allQuotes.length === 0) return null;
 
-    const markPriceUsd = average(quotes.map((q) => q.mid ?? null));
-    const iv = average(quotes.map((q) => q.markIv ?? null));
-    const delta = average(quotes.map((q) => q.delta ?? null));
-    const gamma = average(quotes.map((q) => q.gamma ?? null));
-    const vega = average(quotes.map((q) => q.vega ?? null));
-    const venueTheta = average(quotes.map((q) => q.theta ?? null));
+    // Prefer venues with a real two-sided book for mark/IV. One-sided quotes
+    // fall back to the exchange's published mark in enrichment, which is a
+    // different series with different cadence — mixing them into the same
+    // arithmetic average is most of the visible mark jitter on near-expiry
+    // OTM strikes.
+    const twoSided = allQuotes.filter((q) => q.bid != null && q.ask != null);
+    const priceQuotes = twoSided.length >= 1 ? twoSided : allQuotes;
+
+    const markPriceUsd = robustCentral(priceQuotes.map((q) => q.mid ?? null));
+    const iv = robustCentral(priceQuotes.map((q) => q.markIv ?? null));
+    const delta = robustCentral(allQuotes.map((q) => q.delta ?? null));
+    const gamma = robustCentral(allQuotes.map((q) => q.gamma ?? null));
+    const vega = robustCentral(allQuotes.map((q) => q.vega ?? null));
+    const venueTheta = robustCentral(allQuotes.map((q) => q.theta ?? null));
     const theta = venueTheta ?? thetaPerDay(forwardPriceUsd, leg.strike, iv, ty);
 
     if (iv == null && markPriceUsd == null && delta == null) return null;

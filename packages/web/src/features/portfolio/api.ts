@@ -194,6 +194,7 @@ const BreakEvenIvRowSchema = z.object({
   breakEvenIv: z.number().nullable(),
   ivCushionPct: z.number().nullable(),
   currentIvIsModel: z.boolean().optional(),
+  beNote: z.enum(['capped', 'below_intrinsic', 'above_upper']).optional(),
 });
 
 const ShockGridCellSchema = z.object({

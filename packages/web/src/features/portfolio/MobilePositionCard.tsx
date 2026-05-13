@@ -26,9 +26,28 @@ function fmtPct(value: number | null | undefined): string {
   return `${sign}${(value * 100).toFixed(2)}%`;
 }
 
+function beNoteLabel(note: BreakEvenIvRow['beNote']): string | null {
+  if (note === 'capped') return '>300%';
+  if (note === 'below_intrinsic') return '< intrinsic';
+  if (note === 'above_upper') return '> upper';
+  return null;
+}
+
+function beNoteTitle(note: BreakEvenIvRow['beNote']): string | undefined {
+  if (note === 'capped')
+    return 'position needs unrealistic vol to recover entry — time decay dominated';
+  if (note === 'below_intrinsic')
+    return 'entry below current no-arb floor (intrinsic); recovery requires spot move, not vol';
+  if (note === 'above_upper')
+    return 'entry above option upper bound; cannot be priced at any positive vol';
+  return undefined;
+}
+
 export default function MobilePositionCard({ leg, be, readOnly, onRemove, removing }: Props) {
   const isLong = leg.size > 0;
-  const cushion = be?.ivCushionPct ?? null;
+  const noteLabel = beNoteLabel(be?.beNote);
+  const noteTitle = beNoteTitle(be?.beNote);
+  const cushion = noteLabel != null ? null : be?.ivCushionPct ?? null;
   const cushionTone =
     cushion == null ? 'neutral' : cushion >= 0 ? 'positive' : 'negative';
 
@@ -80,9 +99,14 @@ export default function MobilePositionCard({ leg, be, readOnly, onRemove, removi
         </div>
         <div className={styles.cell}>
           <span className={styles.label}>BE IV</span>
-          <span className={styles.value}>{fmtIv(be?.breakEvenIv)}</span>
-          <span className={styles.sub} data-tone={cushionTone}>
-            {fmtPct(cushion)}
+          <span
+            className={`${styles.value} ${noteLabel != null ? styles.beNote : ''}`}
+            title={noteTitle}
+          >
+            {noteLabel ?? fmtIv(be?.breakEvenIv)}
+          </span>
+          <span className={styles.sub} data-tone={cushionTone} title={noteTitle}>
+            {noteLabel != null ? '—' : fmtPct(cushion)}
           </span>
         </div>
       </div>

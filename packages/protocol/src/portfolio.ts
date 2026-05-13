@@ -82,6 +82,7 @@ export const BreakEvenIvRowSchema = z.object({
   breakEvenIv: z.number().nonnegative().nullable(),
   ivCushionPct: z.number().nullable(),
   currentIvIsModel: z.boolean().optional(),
+  beNote: z.enum(['capped', 'below_intrinsic', 'above_upper']).optional(),
 });
 export type BreakEvenIvRow = z.infer<typeof BreakEvenIvRowSchema>;
 

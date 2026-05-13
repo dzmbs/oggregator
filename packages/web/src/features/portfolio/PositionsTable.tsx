@@ -29,6 +29,23 @@ function fmtPct(value: number | null | undefined): string {
   return `${sign}${(value * 100).toFixed(2)}%`;
 }
 
+function beNoteLabel(note: BreakEvenIvRow['beNote']): string | null {
+  if (note === 'capped') return '>300%';
+  if (note === 'below_intrinsic') return '< intrinsic';
+  if (note === 'above_upper') return '> upper';
+  return null;
+}
+
+function beNoteTitle(note: BreakEvenIvRow['beNote']): string | undefined {
+  if (note === 'capped')
+    return 'position needs unrealistic vol to recover entry — time decay dominated';
+  if (note === 'below_intrinsic')
+    return 'entry below current no-arb floor (intrinsic); recovery requires spot move, not vol';
+  if (note === 'above_upper')
+    return 'entry above option upper bound; cannot be priced at any positive vol';
+  return undefined;
+}
+
 export default function PositionsTable({
   positions,
   breakEven,
@@ -88,6 +105,8 @@ export default function PositionsTable({
               : be.ivCushionPct >= 0
                 ? styles.cushionPos
                 : styles.cushionNeg;
+          const noteLabel = beNoteLabel(be?.beNote);
+          const noteTitle = beNoteTitle(be?.beNote);
           return (
             <tr key={leg.legId}>
               <td>{leg.underlying}</td>
@@ -106,8 +125,15 @@ export default function PositionsTable({
               >
                 {fmtIv(be?.currentIv)}
               </td>
-              <td>{fmtIv(be?.breakEvenIv)}</td>
-              <td className={cushionClass}>{fmtPct(be?.ivCushionPct)}</td>
+              <td
+                className={noteLabel != null ? styles.beNote : undefined}
+                title={noteTitle}
+              >
+                {noteLabel ?? fmtIv(be?.breakEvenIv)}
+              </td>
+              <td className={cushionClass} title={noteTitle}>
+                {noteLabel != null ? '—' : fmtPct(be?.ivCushionPct)}
+              </td>
               <td>
                 {readOnly ? null : (
                   <button

@@ -92,22 +92,49 @@ export function aggregateGreeksByExpiry(
   return [...acc.values()].sort((a, b) => (a.expiry < b.expiry ? -1 : 1));
 }
 
+const BE_IV_CAP = 3.0;
+
 export function breakEvenIvCurve(legsWithMarks: LegWithMark[]): BreakEvenIvRow[] {
   return legsWithMarks.map(({ leg, mark }) => {
-    const breakEvenIv =
-      mark.forwardPriceUsd == null || mark.yearsToExpiry == null
-        ? null
-        : solveIv({
-            price: leg.entryPriceUsd,
-            forward: mark.forwardPriceUsd,
-            strike: leg.strike,
-            tYears: mark.yearsToExpiry,
-            right: leg.optionRight,
-            seed: mark.iv ?? leg.entryIv ?? null,
-          });
+    let breakEvenIv: number | null = null;
+    let beNote: 'capped' | 'below_intrinsic' | 'above_upper' | undefined;
+
+    if (
+      mark.forwardPriceUsd != null &&
+      mark.yearsToExpiry != null &&
+      mark.forwardPriceUsd > 0 &&
+      mark.yearsToExpiry > 0
+    ) {
+      const intrinsic =
+        leg.optionRight === 'call'
+          ? Math.max(0, mark.forwardPriceUsd - leg.strike)
+          : Math.max(0, leg.strike - mark.forwardPriceUsd);
+      const upper = leg.optionRight === 'call' ? mark.forwardPriceUsd : leg.strike;
+
+      if (leg.entryPriceUsd <= intrinsic) {
+        beNote = 'below_intrinsic';
+      } else if (leg.entryPriceUsd >= upper) {
+        beNote = 'above_upper';
+      } else {
+        const solved = solveIv({
+          price: leg.entryPriceUsd,
+          forward: mark.forwardPriceUsd,
+          strike: leg.strike,
+          tYears: mark.yearsToExpiry,
+          right: leg.optionRight,
+          seed: mark.iv ?? leg.entryIv ?? null,
+        });
+        if (solved != null && solved > BE_IV_CAP) {
+          breakEvenIv = BE_IV_CAP;
+          beNote = 'capped';
+        } else {
+          breakEvenIv = solved;
+        }
+      }
+    }
 
     const ivCushionPct =
-      mark.iv != null && breakEvenIv != null && breakEvenIv > 0
+      mark.iv != null && breakEvenIv != null && breakEvenIv > 0 && beNote == null
         ? (mark.iv - breakEvenIv) / breakEvenIv
         : null;
 
@@ -122,6 +149,7 @@ export function breakEvenIvCurve(legsWithMarks: LegWithMark[]): BreakEvenIvRow[]
       breakEvenIv,
       ivCushionPct,
       ...(mark.ivFromSvi === true ? { currentIvIsModel: true } : {}),
+      ...(beNote != null ? { beNote } : {}),
     };
   });
 }

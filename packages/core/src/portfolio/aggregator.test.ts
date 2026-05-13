@@ -142,6 +142,57 @@ describe('breakEvenIvCurve', () => {
     const rows = breakEvenIvCurve(withMarks);
     expect(rows[0]?.breakEvenIv).toBeNull();
   });
+
+  it("flags 'below_intrinsic' when entry sits below the no-arb floor", () => {
+    // Deep-ITM put: F=60k, K=70k → intrinsic = 10k. Entry 5k is below floor.
+    const leg = makeLeg({
+      strike: 70_000,
+      size: -1,
+      optionRight: 'put',
+      entryPriceUsd: 5_000,
+    });
+    const withMarks = attachMarks([leg], () => ({
+      underlyingPriceUsd: 60_000,
+      forwardPriceUsd: 60_000,
+      markPriceUsd: 10_500,
+      iv: 0.6,
+      delta: -0.95,
+      gamma: 0,
+      vega: 0,
+      theta: 0,
+      yearsToExpiry: 0.05,
+    }));
+    const rows = breakEvenIvCurve(withMarks);
+    expect(rows[0]?.beNote).toBe('below_intrinsic');
+    expect(rows[0]?.breakEvenIv).toBeNull();
+    expect(rows[0]?.ivCushionPct).toBeNull();
+  });
+
+  it("flags 'above_upper' when entry exceeds the upper no-arb bound", () => {
+    // Call upper bound is the forward. Entry > forward → no positive vol can
+    // price the call there. Symmetric to below_intrinsic.
+    const leg = makeLeg({
+      strike: 70_000,
+      size: 1,
+      optionRight: 'call',
+      entryPriceUsd: 65_000,
+    });
+    const withMarks = attachMarks([leg], () => ({
+      underlyingPriceUsd: 60_000,
+      forwardPriceUsd: 60_000,
+      markPriceUsd: 100,
+      iv: 0.6,
+      delta: 0.1,
+      gamma: 0,
+      vega: 0,
+      theta: 0,
+      yearsToExpiry: 0.05,
+    }));
+    const rows = breakEvenIvCurve(withMarks);
+    expect(rows[0]?.beNote).toBe('above_upper');
+    expect(rows[0]?.breakEvenIv).toBeNull();
+    expect(rows[0]?.ivCushionPct).toBeNull();
+  });
 });
 
 describe('computeTotals', () => {
