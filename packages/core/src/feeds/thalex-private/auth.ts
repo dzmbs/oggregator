@@ -1,4 +1,4 @@
-import { createSign, type KeyObject } from 'node:crypto';
+import { createPrivateKey, createSign, type KeyObject } from 'node:crypto';
 
 const DEFAULT_TOKEN_LIFETIME_SEC = 600;
 
@@ -7,6 +7,42 @@ export interface MintTokenInput {
   privateKeyPem: string | KeyObject;
   nowSec?: number;
   lifetimeSec?: number;
+}
+
+function normalizePemString(input: string): string {
+  let normalized = input.trim();
+  if (
+    (normalized.startsWith('"') && normalized.endsWith('"')) ||
+    (normalized.startsWith("'") && normalized.endsWith("'"))
+  ) {
+    normalized = normalized.slice(1, -1).trim();
+  }
+  return normalized.replace(/\r\n/g, '\n').replace(/\\n/g, '\n');
+}
+
+function parseSigningKey(privateKeyPem: string | KeyObject): KeyObject {
+  if (typeof privateKeyPem !== 'string') return privateKeyPem;
+
+  const normalized = normalizePemString(privateKeyPem);
+  if (normalized.includes('BEGIN ENCRYPTED PRIVATE KEY')) {
+    throw new Error('encrypted private keys are not supported; export an unencrypted RSA private key PEM');
+  }
+  if (!normalized.includes('BEGIN PRIVATE KEY') && !normalized.includes('BEGIN RSA PRIVATE KEY')) {
+    throw new Error('expected a PEM private key with BEGIN/END lines');
+  }
+
+  let key: KeyObject;
+  try {
+    key = createPrivateKey(normalized);
+  } catch {
+    throw new Error('invalid private key PEM; paste the full RSA private key block with real line breaks');
+  }
+
+  if (key.asymmetricKeyType !== 'rsa') {
+    throw new Error(`unsupported key type "${key.asymmetricKeyType ?? 'unknown'}"; Thalex requires an RSA private key`);
+  }
+
+  return key;
 }
 
 function base64UrlEncode(input: string | Uint8Array): string {
@@ -28,6 +64,6 @@ export function mintAuthToken({ kid, privateKeyPem, nowSec, lifetimeSec }: MintT
   const signer = createSign('RSA-SHA512');
   signer.update(signingInput);
   signer.end();
-  const signature = signer.sign(privateKeyPem);
+  const signature = signer.sign(parseSigningKey(privateKeyPem));
   return `${signingInput}.${base64UrlEncode(signature)}`;
 }

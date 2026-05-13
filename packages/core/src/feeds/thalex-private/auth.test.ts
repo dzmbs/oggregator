@@ -52,6 +52,24 @@ describe('mintAuthToken', () => {
     expect(() => mintAuthToken({ kid: 'k', privateKeyPem: keyObject, nowSec: 1 })).not.toThrow();
   });
 
+  it('accepts PEM strings with escaped newlines', () => {
+    const { privatePem } = generateRsaPemPair();
+    const escapedPem = privatePem.replace(/\n/g, '\\n');
+    expect(() => mintAuthToken({ kid: 'k', privateKeyPem: escapedPem, nowSec: 1 })).not.toThrow();
+  });
+
+  it('accepts quoted PEM strings', () => {
+    const { privatePem } = generateRsaPemPair();
+    const quotedPem = `"${privatePem}"`;
+    expect(() => mintAuthToken({ kid: 'k', privateKeyPem: quotedPem, nowSec: 1 })).not.toThrow();
+  });
+
+  it('rejects non-PEM strings with a clear error', () => {
+    expect(() => mintAuthToken({ kid: 'k', privateKeyPem: 'not-a-key', nowSec: 1 })).toThrow(
+      /expected a PEM private key/i,
+    );
+  });
+
   it('rejects empty kid or privateKey', () => {
     const { privatePem } = generateRsaPemPair();
     expect(() => mintAuthToken({ kid: '', privateKeyPem: privatePem })).toThrow();
