@@ -1,4 +1,5 @@
 import {
+  type ChainSurfaceProvider,
   InMemoryPositionStore,
   PortfolioRuntime,
   VENUE_IDS,
@@ -31,6 +32,15 @@ interface ChainRefHandle {
 
 const chainRefs = new Map<string, ChainRefHandle>();
 const pendingEnsure = new Map<string, Promise<void>>();
+const chainTickListeners = new Set<() => void>();
+
+function notifyChainTickListeners(): void {
+  for (const listener of chainTickListeners) {
+    try {
+      listener();
+    } catch {}
+  }
+}
 
 function chainKey(underlying: string, expiry: string): string {
   return `${underlying}:${expiry}`;
@@ -64,6 +74,8 @@ async function ensureChain(underlying: string, expiry: string): Promise<void> {
       onEvent: (event) => {
         if (event.type === 'snapshot') {
           handle.snapshot = event.data;
+          handle.lastUsedAt = Date.now();
+          notifyChainTickListeners();
         } else if (event.type === 'delta') {
           const prev = handle.snapshot;
           if (prev == null) return;
@@ -73,6 +85,8 @@ async function ensureChain(underlying: string, expiry: string): Promise<void> {
             strikes: event.patch.strikes,
             gex: event.patch.gex,
           };
+          handle.lastUsedAt = Date.now();
+          notifyChainTickListeners();
         }
       },
     };
@@ -164,6 +178,18 @@ export const portfolioMarkProvider: MarkProvider = (leg: PositionLeg) => {
   };
 };
 
+const portfolioChainSurface: ChainSurfaceProvider = {
+  getAtmStrike(underlying: string, expiry: string): number | null {
+    return chainRefs.get(chainKey(underlying, expiry))?.snapshot?.stats.atmStrike ?? null;
+  },
+  subscribeChainTicks(listener: () => void): () => void {
+    chainTickListeners.add(listener);
+    return () => {
+      chainTickListeners.delete(listener);
+    };
+  },
+};
+
 export async function ensureChainForLeg(leg: PositionLeg): Promise<void> {
   await ensureChain(leg.underlying, leg.expiry);
 }
@@ -213,6 +239,7 @@ export function getOrCreatePortfolioRuntime(
     accountId,
     store,
     markProvider: portfolioMarkProvider,
+    chainSurface: portfolioChainSurface,
   });
 
   const unsubscribe = store.subscribe((event) => {

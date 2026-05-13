@@ -151,7 +151,10 @@ export class ThalexPrivateClient {
       throw new Error(`[thalex-private] private/portfolio returned an invalid payload: ${parsed.error.message}`);
     }
     this.applyPortfolio(parsed.data, true);
-    this.log.info({ positions: parsed.data.length }, 'thalex private portfolio bootstrap ok');
+    this.log.info(
+      { positions: parsed.data.length, optionLegs: this.latestLegs.length },
+      'thalex private portfolio bootstrap ok',
+    );
   }
 
   private call(method: string, params: Record<string, unknown>): Promise<unknown> {

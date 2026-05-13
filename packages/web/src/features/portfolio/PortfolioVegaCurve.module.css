@@ -1,8 +1,8 @@
 .wrap {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  height: 280px;
+  gap: 10px;
+  min-height: 340px;
   background: rgba(255, 255, 255, 0.02);
   border-radius: 8px;
   border: 1px solid #1a1a1a;
@@ -14,6 +14,13 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  flex-wrap: wrap;
+}
+
+.titleBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .title {
@@ -22,6 +29,19 @@
   color: #888;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+}
+
+.subtitle {
+  color: #d1d5db;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .toggles {
@@ -47,6 +67,33 @@
   color: #000;
 }
 
+.metaRow {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.metricPill {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: #cbd5e1;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid #2a2a2a;
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.explainer {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #9ca3af;
+}
+
+.explainer strong {
+  color: #f8fafc;
+}
+
 .select {
   background: rgba(0, 0, 0, 0.3);
   border: 1px solid #2a2a2a;
@@ -59,6 +106,7 @@
 
 .chartWrap {
   flex: 1;
+  height: 220px;
   min-height: 0;
 }
 
@@ -82,4 +130,19 @@
   height: 100%;
   color: var(--text-dim);
   font-size: var(--text-xs);
+}
+
+@media (max-width: 768px) {
+  .wrap {
+    min-height: 360px;
+  }
+
+  .chartWrap {
+    height: 240px;
+  }
+
+  .controls {
+    width: 100%;
+    justify-content: space-between;
+  }
 }
