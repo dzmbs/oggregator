@@ -180,6 +180,18 @@ const UNDERLYING_RATIO_MAX = 1.03;
 // per-tick fit-noise wobble without meaningfully lagging real moves.
 const SVI_FIT_ALPHA = 0.3;
 
+// Per-leg merged-mark EMA weight. The venue-median path and the SVI synthetic
+// path are independently computed; when a leg flips from one to the other,
+// the displayed mark snaps. Smoothing the merge step decays that gap over
+// ~1.5s without meaningfully lagging real moves within either path.
+const MARK_EMA_ALPHA = 0.3;
+
+function emaNum(prev: number | null | undefined, fresh: number | null): number | null {
+  if (fresh == null) return prev ?? null;
+  if (prev == null) return fresh;
+  return prev + MARK_EMA_ALPHA * (fresh - prev);
+}
+
 function freshAndPlausible(q: VenueQuote, canonicalForward: number | null, now: number): boolean {
   if (q.asOfMs != null && now - q.asOfMs > QUOTE_STALENESS_MS) return false;
   if (
@@ -410,11 +422,14 @@ function freshMark(leg: PositionLeg): MarkContext {
   return { ...emptyMark(), underlyingPriceUsd, forwardPriceUsd, yearsToExpiry: ty };
 }
 
-// Stickiness rule: time-varying fields (yearsToExpiry) always come from
-// `fresh`; price/IV/greeks fall back to the last non-null value we ever
-// observed for this leg. When an MM pulls quotes the values hold steady
-// instead of flashing to "—" and back, and a missing strike at a tick
-// fills from cache.
+// Two-tier merge: underlying / forward / DTE come straight from the current
+// chain tick (no smoothing — these drive the greeks' real-time response to
+// spot). Per-leg synthesized fields (mark, IV, greeks) are EMA'd against the
+// last emitted value so that switching between the venue-median path and the
+// SVI synthetic path doesn't snap the displayed mark — the two paths are
+// independently computed and disagree by tens to hundreds of dollars on
+// illiquid strikes. Sticky-on-null is preserved inside emaNum (fresh=null
+// holds prev).
 export const portfolioMarkProvider: MarkProvider = (leg: PositionLeg) => {
   const fresh = freshMark(leg);
   const cached = lastSeenMark.get(leg.legId);
@@ -423,12 +438,12 @@ export const portfolioMarkProvider: MarkProvider = (leg: PositionLeg) => {
   const merged: MarkContext = {
     underlyingPriceUsd: fresh.underlyingPriceUsd ?? cached?.underlyingPriceUsd ?? null,
     forwardPriceUsd: fresh.forwardPriceUsd ?? cached?.forwardPriceUsd ?? null,
-    markPriceUsd: fresh.markPriceUsd ?? cached?.markPriceUsd ?? null,
-    iv: fresh.iv ?? cached?.iv ?? null,
-    delta: fresh.delta ?? cached?.delta ?? null,
-    gamma: fresh.gamma ?? cached?.gamma ?? null,
-    vega: fresh.vega ?? cached?.vega ?? null,
-    theta: fresh.theta ?? cached?.theta ?? null,
+    markPriceUsd: emaNum(cached?.markPriceUsd, fresh.markPriceUsd),
+    iv: emaNum(cached?.iv, fresh.iv),
+    delta: emaNum(cached?.delta, fresh.delta),
+    gamma: emaNum(cached?.gamma, fresh.gamma),
+    vega: emaNum(cached?.vega, fresh.vega),
+    theta: emaNum(cached?.theta, fresh.theta),
     yearsToExpiry: fresh.yearsToExpiry,
     ...(ivFromSvi ? { ivFromSvi: true } : {}),
   };

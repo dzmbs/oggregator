@@ -1,15 +1,21 @@
 "use client";
 
 import { motion, useReducedMotion } from "framer-motion";
-import type { ReactNode } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 
 export function SectionReveal({
   children,
 }: Readonly<{ children: ReactNode }>) {
   const prefersReducedMotion = useReducedMotion();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   if (
     prefersReducedMotion ||
+    !mounted ||
     typeof window === "undefined" ||
     typeof window.IntersectionObserver === "undefined"
   ) {
