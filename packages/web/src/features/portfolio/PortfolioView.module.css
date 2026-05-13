@@ -104,6 +104,22 @@
   border-radius: 0 4px 4px 0;
 }
 
+.venueError {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: #fca5a5;
+  padding: 8px 10px;
+  background: rgba(239, 68, 68, 0.06);
+  border-left: 2px solid #f87171;
+  border-radius: 0 4px 4px 0;
+  word-break: break-word;
+}
+
+.venueError strong {
+  color: #fecaca;
+  margin-right: 4px;
+}
+
 .totalsRow {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));

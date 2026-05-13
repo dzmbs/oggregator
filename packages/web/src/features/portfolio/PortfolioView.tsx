@@ -111,6 +111,7 @@ export default function PortfolioView() {
   const wsLive = connectionState === 'open' && lastSeq > 0;
   const { data: positionsData } = usePortfolioPositions(source, { wsLive });
   const { data: metricsData } = usePortfolioMetrics(forwardDays, source, { wsLive });
+  const [venueConnectError, setVenueConnectError] = useState<string | null>(null);
 
   const sourceOptions = useMemo(() => [...BASE_SOURCES, ...venueSourceOptions()], []);
   const activeNote = sourceOptions.find((o) => o.value === source)?.note ?? '';
@@ -147,13 +148,22 @@ export default function PortfolioView() {
 
     const reconnectSelectedVenue = async () => {
       try {
-        if (source !== 'derive' && source !== 'thalex') return;
+        if (source !== 'derive' && source !== 'thalex') {
+          setVenueConnectError(null);
+          return;
+        }
 
         const creds = venueCreds[source];
-        if (creds == null) return;
+        if (creds == null) {
+          setVenueConnectError(null);
+          return;
+        }
 
         const status = await venueStatus(source);
-        if (cancelled || status.connected) return;
+        if (cancelled || status.connected) {
+          setVenueConnectError(null);
+          return;
+        }
 
         if (source === 'derive') {
           const walletAddress = creds.fields.walletAddress;
@@ -180,10 +190,13 @@ export default function PortfolioView() {
         }
 
         if (!cancelled) {
+          setVenueConnectError(null);
           await qc.invalidateQueries({ queryKey: ['portfolio'] });
         }
       } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
         console.warn('portfolio venue reconnect failed', err);
+        if (!cancelled) setVenueConnectError(message);
       }
     };
 
@@ -241,6 +254,11 @@ export default function PortfolioView() {
       </div>
 
       <div className={styles.sourceNote}>{activeNote}</div>
+      {venueConnectError != null && (
+        <div className={styles.venueError}>
+          <strong>{sourceLabel} connect failed:</strong> {venueConnectError}
+        </div>
+      )}
 
       <div className={styles.totalsRow}>
         <div className={styles.totalCard}>
