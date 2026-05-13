@@ -6,7 +6,7 @@ import type {
 } from '@oggregator/protocol';
 
 import { price76, solveIv } from '../feeds/thalex/bs-solver.js';
-import { vanna76, volga76 } from './greeks-extra.js';
+import { vannaPct76, volgaPct76 } from './greeks-extra.js';
 import type { MarkContext, MarkProvider, PositionLeg } from './types.js';
 
 interface LegWithMark {
@@ -44,8 +44,8 @@ export function aggregateGreeksByStrike(legsWithMarks: LegWithMark[]): VegaByStr
       contracts: 0,
     };
 
-    const vanna = vanna76(mark.forwardPriceUsd, leg.strike, mark.iv, mark.yearsToExpiry) ?? 0;
-    const volga = volga76(mark.forwardPriceUsd, leg.strike, mark.iv, mark.yearsToExpiry) ?? 0;
+    const vanna = vannaPct76(mark.forwardPriceUsd, leg.strike, mark.iv, mark.yearsToExpiry) ?? 0;
+    const volga = volgaPct76(mark.forwardPriceUsd, leg.strike, mark.iv, mark.yearsToExpiry) ?? 0;
 
     row.delta += (mark.delta ?? 0) * leg.size;
     row.vega += (mark.vega ?? 0) * leg.size;
@@ -171,9 +171,9 @@ export function computeTotals(legsWithMarks: LegWithMark[]): PortfolioTotals {
     totals.netVegaUsd += (mark.vega ?? 0) * leg.size;
     totals.netThetaUsd += (mark.theta ?? 0) * leg.size;
     totals.netVannaUsd +=
-      (vanna76(mark.forwardPriceUsd, leg.strike, mark.iv, mark.yearsToExpiry) ?? 0) * leg.size;
+      (vannaPct76(mark.forwardPriceUsd, leg.strike, mark.iv, mark.yearsToExpiry) ?? 0) * leg.size;
     totals.netVolgaUsd +=
-      (volga76(mark.forwardPriceUsd, leg.strike, mark.iv, mark.yearsToExpiry) ?? 0) * leg.size;
+      (volgaPct76(mark.forwardPriceUsd, leg.strike, mark.iv, mark.yearsToExpiry) ?? 0) * leg.size;
     if (mark.markPriceUsd != null) {
       totals.unrealizedPnlUsd += (mark.markPriceUsd - leg.entryPriceUsd) * leg.size;
     }

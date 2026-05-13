@@ -120,6 +120,28 @@ function findStrike(snapshot: EnrichedChainResponse, strike: number): EnrichedSt
   return snapshot.strikes.find((s) => s.strike === strike) ?? null;
 }
 
+// Per-field sanity gates: drop venue quote fields that fall outside the band
+// of "plausible for any real option" before aggregation. A single venue
+// publishing iv=99, vega=1e6, or a crossed bid/ask shouldn't be allowed to
+// touch the cross-venue median even if it's the only quote available. Bounds
+// are deliberately wide — these are tripwires for malformed feeds, not
+// market-color filters.
+function sane(v: number | null | undefined, lo: number, hi: number): number | null {
+  if (v == null || !Number.isFinite(v)) return null;
+  return v >= lo && v <= hi ? v : null;
+}
+const saneIv = (v: number | null | undefined) => sane(v, 0.001, 10);
+const saneDelta = (v: number | null | undefined) => sane(v, -1.05, 1.05);
+const saneGamma = (v: number | null | undefined) => sane(v, 0, 1);
+const saneVegaPct = (v: number | null | undefined) => sane(v, 0, 10_000);
+const saneTheta = (v: number | null | undefined) => sane(v, -100_000, 100_000);
+function sanePrice(v: number | null | undefined, forward: number | null): number | null {
+  if (v == null || !Number.isFinite(v) || v <= 0) return null;
+  if (forward == null) return v;
+  // Option premium above 2× forward is unphysical for any vanilla call/put.
+  return v < forward * 2 ? v : null;
+}
+
 function median(values: number[]): number | null {
   if (values.length === 0) return null;
   const sorted = [...values].sort((a, b) => a - b);
@@ -209,6 +231,10 @@ export function sviMark(
 ): MarkContext | null {
   const iv = sviIv(fit, Math.log(leg.strike / forwardPriceUsd), tYears);
   if (!(Number.isFinite(iv) && iv > 0)) return null;
+  // vega76 is per-σ=1.0 (Black-76 native); every venue feed publishes vega
+  // per-σ=0.01 (per 1 vol-point). Scale down so SVI legs aggregate on the
+  // same axis as venue-quoted legs — otherwise sum-by-expiry flips 100× when
+  // a leg in that expiry drops to the SVI fallback.
   return {
     underlyingPriceUsd,
     forwardPriceUsd,
@@ -216,7 +242,7 @@ export function sviMark(
     iv,
     delta: delta76(forwardPriceUsd, leg.strike, iv, tYears, leg.optionRight),
     gamma: gamma76(forwardPriceUsd, leg.strike, iv, tYears),
-    vega: vega76(forwardPriceUsd, leg.strike, iv, tYears),
+    vega: vega76(forwardPriceUsd, leg.strike, iv, tYears) / 100,
     theta: thetaPerDay(forwardPriceUsd, leg.strike, iv, tYears),
     yearsToExpiry: tYears,
     ivFromSvi: true,
@@ -245,15 +271,17 @@ function freshMark(leg: PositionLeg): MarkContext {
     // different series with different cadence — mixing them into the same
     // arithmetic average is most of the visible mark jitter on near-expiry
     // OTM strikes.
-    const twoSided = allQuotes.filter((q) => q.bid != null && q.ask != null);
+    const twoSided = allQuotes.filter(
+      (q) => q.bid != null && q.ask != null && q.bid > 0 && q.ask >= q.bid,
+    );
     const priceQuotes = twoSided.length >= 1 ? twoSided : allQuotes;
 
-    const markPriceUsd = robustCentral(priceQuotes.map((q) => q.mid ?? null));
-    const iv = robustCentral(priceQuotes.map((q) => q.markIv ?? null));
-    const delta = robustCentral(allQuotes.map((q) => q.delta ?? null));
-    const gamma = robustCentral(allQuotes.map((q) => q.gamma ?? null));
-    const vega = robustCentral(allQuotes.map((q) => q.vega ?? null));
-    const venueTheta = robustCentral(allQuotes.map((q) => q.theta ?? null));
+    const markPriceUsd = robustCentral(priceQuotes.map((q) => sanePrice(q.mid, forwardPriceUsd)));
+    const iv = robustCentral(priceQuotes.map((q) => saneIv(q.markIv)));
+    const delta = robustCentral(allQuotes.map((q) => saneDelta(q.delta)));
+    const gamma = robustCentral(allQuotes.map((q) => saneGamma(q.gamma)));
+    const vega = robustCentral(allQuotes.map((q) => saneVegaPct(q.vega)));
+    const venueTheta = robustCentral(allQuotes.map((q) => saneTheta(q.theta)));
     const theta = venueTheta ?? thetaPerDay(forwardPriceUsd, leg.strike, iv, ty);
 
     if (iv == null && markPriceUsd == null && delta == null) return null;

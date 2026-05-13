@@ -104,6 +104,20 @@ describe('portfolio-services SVI fallback', () => {
     expect(Math.abs(reprice - mark!.markPriceUsd!)).toBeLessThan(1e-6);
   });
 
+  it('emits vega in per-1%-σ convention to match venue feeds', () => {
+    // vega76 is per-σ=1.0; venues publish per-σ=0.01 (per vol-point). SVI mark
+    // must match the venue convention so per-expiry sums don't flip 100× when
+    // a leg falls through to the smile fallback.
+    const snap = makeSnapshot('ETH', '2026-06-26', FORWARD, smile);
+    const fit = getSmileFit('ETH', '2026-06-26', snap, FORWARD, T);
+    const leg = makeLeg(2200, 'call');
+    const mark = sviMark(leg, FORWARD, FORWARD, T, fit!);
+    // ATM ETH F=2200, T≈0.0822 → per-σ vega76 ≈ 2200·√T·pdf(0) ≈ 252.
+    // Per-1% scale should be ~2.5 — vega should NEVER be in the 100s here.
+    expect(mark!.vega!).toBeLessThan(10);
+    expect(mark!.vega!).toBeGreaterThan(0);
+  });
+
   it('returns null when not enough liquid strikes for an SVI fit', () => {
     const sparse = [
       { strike: 2200, iv: 0.5 },
