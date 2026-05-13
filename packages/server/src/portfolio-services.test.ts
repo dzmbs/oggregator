@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { price76, type EnrichedChainResponse, type PositionLeg } from '@oggregator/core';
+import {
+  price76,
+  type EnrichedChainResponse,
+  type PositionLeg,
+  type SviParams,
+} from '@oggregator/core';
 
 import { buildSviFitPoints, getSmileFit, sviMark } from './portfolio-services.js';
 
@@ -126,5 +131,41 @@ describe('portfolio-services SVI fallback', () => {
     const snap = makeSnapshot('ETH', '2026-06-26', FORWARD, sparse);
     const fit = getSmileFit('ETH', '2026-06-26', snap, FORWARD, T);
     expect(fit).toBeNull();
+  });
+
+  it('trims a single absurd IV from the calibration grid before fitting', () => {
+    // One venue publishes a wildly broken IV at a single strike — the fit
+    // points should drop it via the median+MAD filter so the SVI fit isn't
+    // distorted across the whole expiry.
+    const polluted = [
+      { strike: 2000, iv: 0.62 },
+      { strike: 2100, iv: 0.58 },
+      { strike: 2200, iv: 0.55 },
+      { strike: 2300, iv: 0.56 },
+      { strike: 2400, iv: 4.5 },
+      { strike: 2500, iv: 0.65 },
+    ];
+    const snap = makeSnapshot('ETH', '2026-06-26', FORWARD, polluted);
+    const points = buildSviFitPoints(snap, FORWARD);
+    expect(points.find((p) => Math.abs(p.iv - 4.5) < 0.01)).toBeUndefined();
+    expect(points.length).toBe(5);
+  });
+
+  it('returns null when SVI extrapolates beyond the SVI_IV_MAX band', () => {
+    // Force a degenerate fit by handing it a calibration grid that prices a
+    // far-extreme strike at an unrealistic IV. The sticky cache should take
+    // over instead of broadcasting a 300%+ model IV.
+    // SVI w(k) = a + b·(rho·(k−m) + √((k−m)² + sigma²)). At k=0 → w=0.201,
+    // iv=√(w/T)≈1.42 (passes the 2.0 gate). At k=log(3500/2200)≈0.464 the
+    // linear-wing term dominates → w≈1.87, iv≈4.3 (fails the gate).
+    const blowUp: SviParams = { a: 0.001, b: 2, rho: 0.99, m: 0, sigma: 0.1 };
+    const leg = makeLeg(2200, 'call');
+    // ATM strike should be fine on this fit (k ≈ 0).
+    const ok = sviMark(leg, FORWARD, FORWARD, T, blowUp);
+    expect(ok).not.toBeNull();
+    // Far wing — fit explodes; gate kicks in.
+    const farLeg = makeLeg(3500, 'call');
+    const blown = sviMark(farLeg, FORWARD, FORWARD, T, blowUp);
+    expect(blown).toBeNull();
   });
 });

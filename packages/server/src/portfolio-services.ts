@@ -130,17 +130,36 @@ function sane(v: number | null | undefined, lo: number, hi: number): number | nu
   if (v == null || !Number.isFinite(v)) return null;
   return v >= lo && v <= hi ? v : null;
 }
-const saneIv = (v: number | null | undefined) => sane(v, 0.001, 10);
+const saneIv = (v: number | null | undefined) => sane(v, 0.05, 5);
 const saneDelta = (v: number | null | undefined) => sane(v, -1.05, 1.05);
 const saneGamma = (v: number | null | undefined) => sane(v, 0, 1);
 const saneVegaPct = (v: number | null | undefined) => sane(v, 0, 10_000);
 const saneTheta = (v: number | null | undefined) => sane(v, -100_000, 100_000);
-function sanePrice(v: number | null | undefined, forward: number | null): number | null {
+
+// Per-side no-arb price bounds. Calls are bounded by [max(F-K, 0), F]; puts
+// by [max(K-F, 0), K]. We add a 5% slack on both ends so venue mid/mark
+// rounding doesn't trip the gate, while still rejecting clearly impossible
+// premiums (e.g. a 2250 put quoted at $577 when F≈$2200 / K=2250).
+function sanePriceForLeg(
+  v: number | null | undefined,
+  forward: number | null,
+  strike: number,
+  right: 'call' | 'put',
+): number | null {
   if (v == null || !Number.isFinite(v) || v <= 0) return null;
   if (forward == null) return v;
-  // Option premium above 2× forward is unphysical for any vanilla call/put.
-  return v < forward * 2 ? v : null;
+  const intrinsic = right === 'call' ? Math.max(0, forward - strike) : Math.max(0, strike - forward);
+  const upper = right === 'call' ? forward : strike;
+  return v >= intrinsic * 0.95 && v <= upper * 1.05 ? v : null;
 }
+
+// SVI smile extrapolation can blow up at strikes far from the calibration
+// grid. Even with input trimming, the model can still emit absurd IVs at the
+// extreme wings — gate the output to a band wide enough for real crypto vol
+// regimes (2022 DVOL highs ≈ 150%) but tight enough that runaway fits return
+// null and the sticky cache takes over instead of broadcasting garbage.
+const SVI_IV_MIN = 0.05;
+const SVI_IV_MAX = 2.0;
 
 function median(values: number[]): number | null {
   if (values.length === 0) return null;
@@ -193,16 +212,25 @@ const smileFits = new Map<string, { snapshot: EnrichedChainResponse; params: Svi
 const SVI_MIN_POINTS = 5;
 
 export function buildSviFitPoints(snapshot: EnrichedChainResponse, forward: number): SviFitPoint[] {
-  const points: SviFitPoint[] = [];
+  const raw: SviFitPoint[] = [];
   for (const row of snapshot.strikes) {
     if (!(row.strike > 0)) continue;
     // Prefer the OTM side per Gatheral — avoids ITM call/put quote crossing.
     const side = row.strike >= forward ? row.call : row.put;
-    const iv = side.bestIv;
-    if (iv == null || !Number.isFinite(iv) || iv <= 0) continue;
-    points.push({ k: Math.log(row.strike / forward), iv });
+    const iv = saneIv(side.bestIv);
+    if (iv == null) continue;
+    raw.push({ k: Math.log(row.strike / forward), iv });
   }
-  return points;
+  // Median + MAD trim on the calibration IVs. A single venue mis-publishing
+  // a strike's IV propagates into the fit and warps the smile across the
+  // whole expiry, so we drop any input that sits more than 5·MAD from the
+  // calibration grid's center before fitSvi runs.
+  if (raw.length < 4) return raw;
+  const ivs = raw.map((p) => p.iv);
+  const m = median(ivs)!;
+  const mad = median(ivs.map((v) => Math.abs(v - m)))!;
+  if (mad === 0) return raw;
+  return raw.filter((p) => Math.abs(p.iv - m) <= 5 * mad);
 }
 
 export function getSmileFit(
@@ -230,7 +258,7 @@ export function sviMark(
   fit: SviParams,
 ): MarkContext | null {
   const iv = sviIv(fit, Math.log(leg.strike / forwardPriceUsd), tYears);
-  if (!(Number.isFinite(iv) && iv > 0)) return null;
+  if (!(Number.isFinite(iv) && iv >= SVI_IV_MIN && iv <= SVI_IV_MAX)) return null;
   // vega76 is per-σ=1.0 (Black-76 native); every venue feed publishes vega
   // per-σ=0.01 (per 1 vol-point). Scale down so SVI legs aggregate on the
   // same axis as venue-quoted legs — otherwise sum-by-expiry flips 100× when
@@ -276,7 +304,9 @@ function freshMark(leg: PositionLeg): MarkContext {
     );
     const priceQuotes = twoSided.length >= 1 ? twoSided : allQuotes;
 
-    const markPriceUsd = robustCentral(priceQuotes.map((q) => sanePrice(q.mid, forwardPriceUsd)));
+    const markPriceUsd = robustCentral(
+      priceQuotes.map((q) => sanePriceForLeg(q.mid, forwardPriceUsd, leg.strike, leg.optionRight)),
+    );
     const iv = robustCentral(priceQuotes.map((q) => saneIv(q.markIv)));
     const delta = robustCentral(allQuotes.map((q) => saneDelta(q.delta)));
     const gamma = robustCentral(allQuotes.map((q) => saneGamma(q.gamma)));
