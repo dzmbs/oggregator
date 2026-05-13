@@ -1,11 +1,13 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+
+import { useQueryClient } from '@tanstack/react-query';
 
 import { PRIVATE_ADAPTER_SPECS, VENUE_IDS, type PortfolioPnlCurve as PortfolioPnlCurveData, type VenueId } from '@oggregator/protocol';
 
 import { useAppStore } from '@stores/app-store';
 import { VENUES } from '@lib/venue-meta';
 
-import type { PortfolioSource } from './api';
+import { connectVenue, venueStatus, type PortfolioSource } from './api';
 import ExpiryBuckets from './ExpiryBuckets';
 import PortfolioPnlCurve from './PortfolioPnlCurve';
 import PortfolioVegaCurve from './PortfolioVegaCurve';
@@ -101,6 +103,8 @@ function fmtNum(value: number | null | undefined, digits = 2): string {
 
 export default function PortfolioView() {
   const underlying = useAppStore((s) => s.underlying);
+  const venueCreds = useAppStore((s) => s.venueCreds);
+  const qc = useQueryClient();
   const [forwardDays, setForwardDays] = useState(loadStoredForwardDays);
   const [source, setSource] = useState<PortfolioSource>(loadStoredSource);
   const { connectionState, lastSeq } = usePortfolioWs(source);
@@ -136,6 +140,58 @@ export default function PortfolioView() {
       localStorage.setItem(FORWARD_STORAGE_KEY, String(days));
     } catch {}
   };
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const reconnectSelectedVenue = async () => {
+      try {
+        if (source !== 'derive' && source !== 'thalex') return;
+
+        const creds = venueCreds[source];
+        if (creds == null) return;
+
+        const status = await venueStatus(source);
+        if (cancelled || status.connected) return;
+
+        if (source === 'derive') {
+          const walletAddress = creds.fields.walletAddress;
+          const signerPrivateKey = creds.fields.privateKeyPem;
+          const subaccountId = Number(creds.fields.subaccountId);
+          if (!walletAddress || !signerPrivateKey || !Number.isFinite(subaccountId) || subaccountId <= 0) {
+            return;
+          }
+          await connectVenue('derive', {
+            walletAddress,
+            signerPrivateKey,
+            subaccountId,
+          });
+        } else {
+          const kid = creds.fields.kid;
+          const privateKeyPem = creds.fields.privateKeyPem;
+          const account = creds.fields.account?.trim();
+          if (!kid || !privateKeyPem) return;
+          await connectVenue('thalex', {
+            kid,
+            privateKeyPem,
+            ...(account ? { account } : {}),
+          });
+        }
+
+        if (!cancelled) {
+          await qc.invalidateQueries({ queryKey: ['portfolio'] });
+        }
+      } catch (err) {
+        console.warn('portfolio venue reconnect failed', err);
+      }
+    };
+
+    void reconnectSelectedVenue();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [qc, source, venueCreds]);
 
   return (
     <div className={styles.wrap}>
