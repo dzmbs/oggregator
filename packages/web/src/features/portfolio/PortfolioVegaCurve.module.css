@@ -1,8 +1,8 @@
 .wrap {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  min-height: 340px;
+  gap: 8px;
+  min-height: 0;
   background: rgba(255, 255, 255, 0.02);
   border-radius: 8px;
   border: 1px solid #1a1a1a;
@@ -94,39 +94,23 @@
   color: #f8fafc;
 }
 
-.breakEvenPanel {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 10px;
-  border: 1px solid #1f2937;
-  border-radius: 8px;
-  background: rgba(15, 23, 42, 0.45);
-}
-
-.breakEvenHeader {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.breakEvenTitle {
-  color: #f8fafc;
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 11px;
-}
-
-.breakEvenSubtitle,
 .breakEvenEmpty {
   color: #94a3b8;
   font-family: 'IBM Plex Mono', monospace;
   font-size: 10px;
 }
 
-.breakEvenRows {
+.breakEvenInline {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  align-items: center;
+}
+
+.breakEvenLabel {
+  color: #f8fafc;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
 }
 
 .breakEvenChip {
@@ -158,7 +142,7 @@
 
 .chartWrap {
   flex: 1;
-  height: 220px;
+  height: 200px;
   min-height: 0;
 }
 
@@ -185,12 +169,8 @@
 }
 
 @media (max-width: 768px) {
-  .wrap {
-    min-height: 360px;
-  }
-
   .chartWrap {
-    height: 240px;
+    height: 220px;
   }
 
   .controls {

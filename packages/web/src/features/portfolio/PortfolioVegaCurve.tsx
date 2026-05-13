@@ -88,6 +88,30 @@ function strikeTicks(points: Array<{ x: number }>): number[] {
   return [...indexes].sort((left, right) => left - right).map((index) => points[index]!.x);
 }
 
+function linePath(points: Array<{ x: number; y: number }>, toX: (x: number) => number, toY: (y: number) => number): string {
+  return points
+    .map((point, index) => `${index === 0 ? 'M' : 'L'} ${toX(point.x)} ${toY(point.y)}`)
+    .join(' ');
+}
+
+function areaPath(
+  points: Array<{ x: number; y: number }>,
+  zeroY: number,
+  toX: (x: number) => number,
+  toY: (y: number) => number,
+): string {
+  if (points.length === 0) return '';
+  const first = points[0];
+  const last = points[points.length - 1];
+  if (first == null || last == null) return '';
+  return [
+    `M ${toX(first.x)} ${zeroY}`,
+    ...points.map((point, index) => `${index === 0 ? 'L' : 'L'} ${toX(point.x)} ${toY(point.y)}`),
+    `L ${toX(last.x)} ${zeroY}`,
+    'Z',
+  ].join(' ');
+}
+
 export default function PortfolioVegaCurve({ byStrike, breakEven }: Props) {
   const [mode, setMode] = useState<Mode>('vega');
   const [expiry, setExpiry] = useState<string | null>(null);
@@ -124,8 +148,6 @@ export default function PortfolioVegaCurve({ byStrike, breakEven }: Props) {
     const ySpan = yMax - yMin || 1;
     const innerW = WIDTH - PADDING.left - PADDING.right;
     const innerH = HEIGHT - PADDING.top - PADDING.bottom;
-    const barWidth = Math.max(12, Math.min(56, innerW / Math.max(points.length, 1) - 10));
-
     const toX = (x: number) => PADDING.left + ((x - xMin) / xSpan) * innerW;
     const toY = (y: number) => PADDING.top + (1 - (y - yMin) / ySpan) * innerH;
     const zeroY = toY(0);
@@ -133,7 +155,7 @@ export default function PortfolioVegaCurve({ byStrike, breakEven }: Props) {
     const yTicks = [yMin, -maxAbsY / 2, 0, maxAbsY / 2, yMax];
     const total = points.reduce((sum, point) => sum + point.y, 0);
 
-    return { barWidth, total, zeroY, xTicks, yTicks, toX, toY };
+    return { total, zeroY, xTicks, yTicks, toX, toY };
   }, [points]);
 
   const activeStrike = points.some((point) => point.x === selectedStrike)
@@ -151,7 +173,7 @@ export default function PortfolioVegaCurve({ byStrike, breakEven }: Props) {
     <div className={styles.wrap}>
       <div className={styles.header}>
         <div className={styles.titleBlock}>
-          <span className={styles.title}>Risk by strike</span>
+          <span className={styles.title}>Risk curve</span>
           <span className={styles.subtitle}>
             {meta.label} • {meta.title}
           </span>
@@ -197,33 +219,16 @@ export default function PortfolioVegaCurve({ byStrike, breakEven }: Props) {
       <div className={styles.explainer}>
         <strong>{meta.label}:</strong> {meta.explanation} {meta.positiveHint}
       </div>
-      {activeStrike != null && (
-        <div className={styles.breakEvenPanel}>
-          <div className={styles.breakEvenHeader}>
-            <span className={styles.breakEvenTitle}>Selected strike {fmtStrike(activeStrike)}</span>
-            <span className={styles.breakEvenSubtitle}>Break-even IV lives in the table and here for the selected strike.</span>
-          </div>
-          {activeBreakEvenRows.length === 0 ? (
-            <div className={styles.breakEvenEmpty}>No break-even rows for this strike yet.</div>
-          ) : (
-            <div className={styles.breakEvenRows}>
-              {activeBreakEvenRows.map((row) => (
-                <div key={row.legId} className={styles.breakEvenChip}>
-                  <span className={styles.breakEvenRight}>{row.optionRight === 'call' ? 'Call' : 'Put'}</span>
-                  <span>live {fmtIv(row.currentIv)}</span>
-                  <span>BE {fmtIv(row.breakEvenIv)}</span>
-                  <span>cushion {fmtPct(row.ivCushionPct)}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
       <div className={styles.chartWrap}>
         {chart == null ? (
           <div className={styles.empty}>No data</div>
         ) : (
           <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className={styles.svg}>
+            <path
+              d={areaPath(points, chart.zeroY, chart.toX, chart.toY)}
+              fill={COLORS[mode]}
+              fillOpacity={0.14}
+            />
             <line
               x1={PADDING.left}
               x2={WIDTH - PADDING.right}
@@ -260,45 +265,93 @@ export default function PortfolioVegaCurve({ byStrike, breakEven }: Props) {
             {chart.xTicks.map((t) => {
               const x = chart.toX(t);
               return (
-                <text
-                  key={`x-${t}`}
-                  x={x}
-                  y={HEIGHT - PADDING.bottom + 16}
-                  fontSize={10}
-                  fill="#888"
-                  textAnchor="middle"
-                >
-                  {fmtStrike(t)}
-                </text>
+                <g key={`x-${t}`}>
+                  <line
+                    x1={x}
+                    x2={x}
+                    y1={PADDING.top}
+                    y2={HEIGHT - PADDING.bottom}
+                    stroke="#131a25"
+                    strokeWidth={1}
+                  />
+                  <text
+                    x={x}
+                    y={HEIGHT - PADDING.bottom + 16}
+                    fontSize={10}
+                    fill="#888"
+                    textAnchor="middle"
+                  >
+                    {fmtStrike(t)}
+                  </text>
+                </g>
               );
             })}
+            {activeStrike != null && (
+              <line
+                x1={chart.toX(activeStrike)}
+                x2={chart.toX(activeStrike)}
+                y1={PADDING.top}
+                y2={HEIGHT - PADDING.bottom}
+                stroke="#f8fafc"
+                strokeWidth={1}
+                strokeDasharray="4 4"
+                opacity={0.85}
+              />
+            )}
+            <path
+              d={linePath(points, chart.toX, chart.toY)}
+              fill="none"
+              stroke={COLORS[mode]}
+              strokeWidth={2.5}
+              strokeLinejoin="round"
+              strokeLinecap="round"
+            />
             {points.map((p) => (
               <g key={`p-${p.x}`}>
                 <title>{`Strike ${p.x.toLocaleString()} • ${meta.label} ${fmtSignedValue(p.y)}`}</title>
-                <rect
-                  x={chart.toX(p.x) - chart.barWidth / 2}
-                  y={Math.min(chart.zeroY, chart.toY(p.y))}
-                  width={chart.barWidth}
-                  height={Math.max(2, Math.abs(chart.toY(p.y) - chart.zeroY))}
-                  rx={2}
-                  fill={p.y > 0 ? COLORS[mode] : p.y < 0 ? NEGATIVE_BAR_COLOR : NEUTRAL_BAR_COLOR}
-                  fillOpacity={0.92}
-                  onMouseEnter={() => setSelectedStrike(p.x)}
-                />
                 <circle
                   cx={chart.toX(p.x)}
                   cy={chart.toY(p.y)}
-                  r={2.5}
-                  fill="#f8fafc"
+                  r={activeStrike === p.x ? 4 : 3}
+                  fill={p.y > 0 ? COLORS[mode] : p.y < 0 ? NEGATIVE_BAR_COLOR : NEUTRAL_BAR_COLOR}
+                  stroke="#f8fafc"
+                  strokeWidth={activeStrike === p.x ? 1.5 : 1}
                   onMouseEnter={() => setSelectedStrike(p.x)}
+                  onClick={() => setSelectedStrike(p.x)}
+                />
+                <rect
+                  x={chart.toX(p.x) - 12}
+                  y={PADDING.top}
+                  width={24}
+                  height={HEIGHT - PADDING.top - PADDING.bottom}
+                  fill="transparent"
+                  onMouseEnter={() => setSelectedStrike(p.x)}
+                  onClick={() => setSelectedStrike(p.x)}
                 />
               </g>
             ))}
           </svg>
         )}
       </div>
+      {activeStrike != null && (
+        <div className={styles.breakEvenInline}>
+          <span className={styles.breakEvenLabel}>Strike {fmtStrike(activeStrike)}</span>
+          {activeBreakEvenRows.length === 0 ? (
+            <span className={styles.breakEvenEmpty}>No break-even IV rows for this strike.</span>
+          ) : (
+            activeBreakEvenRows.map((row) => (
+              <span key={row.legId} className={styles.breakEvenChip}>
+                <span className={styles.breakEvenRight}>{row.optionRight === 'call' ? 'Call' : 'Put'}</span>
+                <span>live {fmtIv(row.currentIv)}</span>
+                <span>BE {fmtIv(row.breakEvenIv)}</span>
+                <span>cushion {fmtPct(row.ivCushionPct)}</span>
+              </span>
+            ))
+          )}
+        </div>
+      )}
       <div className={styles.hint}>
-        x-axis: strike • y-axis: size-weighted {meta.label.toLowerCase()} • bars above zero help that exposure, below zero hurt it.
+        x-axis: strike • y-axis: size-weighted {meta.label.toLowerCase()} • the line shows how that exposure bends across strikes, above zero helps and below zero hurts.
       </div>
     </div>
   );
