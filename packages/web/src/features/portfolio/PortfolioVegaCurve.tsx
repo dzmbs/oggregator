@@ -73,10 +73,22 @@ function fmtStrike(v: number): string {
   });
 }
 
+function trimTrailingZeros(value: string): string {
+  return value.replace(/(\.\d*?[1-9])0+$/u, '$1').replace(/\.0+$/u, '');
+}
+
 function fmtValue(v: number): string {
-  if (Math.abs(v) >= 1) return v.toFixed(2);
-  if (Math.abs(v) >= 0.01) return v.toFixed(3);
-  return v.toExponential(1);
+  const abs = Math.abs(v);
+  if (abs === 0) return '0';
+  if (abs >= 1_000) {
+    return v.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  }
+  if (abs >= 1) return trimTrailingZeros(v.toFixed(2));
+  if (abs >= 0.1) return trimTrailingZeros(v.toFixed(3));
+  if (abs >= 0.01) return trimTrailingZeros(v.toFixed(4));
+  if (abs >= 0.001) return trimTrailingZeros(v.toFixed(5));
+  if (abs >= 0.0001) return trimTrailingZeros(v.toFixed(6));
+  return v.toExponential(2);
 }
 
 function fmtSignedValue(v: number): string {

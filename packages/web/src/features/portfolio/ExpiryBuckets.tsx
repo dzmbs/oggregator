@@ -6,9 +6,30 @@ interface Props {
   rows: ExpiryBucketRow[];
 }
 
+function trimTrailingZeros(value: string): string {
+  return value.replace(/(\.\d*?[1-9])0+$/u, '$1').replace(/\.0+$/u, '');
+}
+
 function fmtSigned(value: number, digits = 2): string {
   const sign = value >= 0 ? '+' : '-';
-  return `${sign}${Math.abs(value).toFixed(digits)}`;
+  return `${sign}${trimTrailingZeros(Math.abs(value).toFixed(digits))}`;
+}
+
+function fmtContracts(value: number): string {
+  const abs = Math.abs(value);
+  if (abs === 0) return '+0';
+  if (Number.isInteger(value)) return fmtSigned(value, 0);
+  if (abs >= 10) return fmtSigned(value, 2);
+  if (abs >= 1) return fmtSigned(value, 3);
+  return fmtSigned(value, 4);
+}
+
+function fmtGamma(value: number): string {
+  const abs = Math.abs(value);
+  if (abs === 0) return '+0';
+  if (abs >= 0.01) return fmtSigned(value, 4);
+  if (abs >= 0.0001) return fmtSigned(value, 6);
+  return `${value >= 0 ? '+' : '-'}${abs.toExponential(2)}`;
 }
 
 export default function ExpiryBuckets({ rows }: Props) {
@@ -27,9 +48,9 @@ export default function ExpiryBuckets({ rows }: Props) {
               <span className={styles.dte}>{row.dte}d</span>
             </div>
             <div className={styles.stats}>
-              <span className={styles.stat}>contracts {fmtSigned(row.contracts, 0)}</span>
+              <span className={styles.stat}>contracts {fmtContracts(row.contracts)}</span>
               <span className={styles.stat}>vega {fmtSigned(row.vega, 3)}</span>
-              <span className={styles.stat}>gamma {fmtSigned(row.gamma, 4)}</span>
+              <span className={styles.stat}>gamma {fmtGamma(row.gamma)}</span>
               <span className={styles.stat}>theta {fmtSigned(row.theta, 2)}</span>
             </div>
           </div>
