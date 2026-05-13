@@ -3,7 +3,8 @@ name: vite-react-ts-2026
 description: >
   Apply this skill when building or reviewing Vite + React + TypeScript projects —
   dashboards, SPAs, real-time UIs, data-heavy tools, and internal apps. Covers
-  official Vite 8 + React 19 patterns, project structure, component conventions,
+  official Vite + React 19 patterns, with Vite 8 examples as the default baseline,
+  plus guidance for staying aligned with the repo's installed Vite major, project structure, component conventions,
   state management split (server vs client), hooks, env vars, build config,
   and what to never do. Tailored for data-heavy, auth-gated, real-time applications
   like trading dashboards — not SEO-first marketing sites.
@@ -14,7 +15,11 @@ description: >
 This skill is for SPAs: dashboards, internal tools, real-time data apps, anything
 that lives behind auth and doesn't care about SEO. This is NOT for Next.js SSR apps.
 
-Sources: vite.dev official docs (v8), react.dev (React 19), TanStack Query v5 docs.
+Sources: vite.dev official docs, react.dev (React 19), TanStack Query v5 docs.
+
+Version note:
+- Use the repo's installed Vite major first. This skill uses Vite 8 examples as the default reference point, but do not rewrite working Vite 5/6/7 repo config just to match the examples.
+- Treat the examples here as structure and policy guidance unless the task explicitly includes a Vite upgrade.
 
 ---
 

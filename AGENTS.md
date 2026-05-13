@@ -7,17 +7,19 @@ pnpm test           # all tests
 pnpm precommit      # typecheck + test (gate)
 ```
 
-**After changing `packages/core/src/`:** the server imports from `core/dist/`, not `src/`. You must rebuild and restart or changes won't take effect:
+**After changing `packages/core/src/` or `packages/protocol/src/`:** rebuild the package so consumers pick up fresh `dist/` output:
 ```bash
 pnpm --filter @oggregator/core build   # tsc → dist/
-# then restart pnpm dev
+pnpm --filter @oggregator/protocol build
 ```
-`pnpm dev` prebuilds core at startup, but a running server won't pick up source changes without a rebuild + restart.
+`pnpm dev` prebuilds both packages at startup. Long-running consumers may need a restart after the rebuild if they already loaded stale output.
 
 ```
-packages/core/      Feeds + types + enrichment (see its CLAUDE.md)
-packages/server/    Fastify REST + WS API, readiness, SPA serving (see its CLAUDE.md)
-packages/web/       React dashboard (see its CLAUDE.md)
+packages/protocol/  Shared Zod schemas and WS/API contracts
+packages/core/      Feeds, portfolio analytics, runtimes, enrichment (see its CLAUDE.md)
+packages/server/    Fastify REST + WS API, paper trading, portfolio routes (see its CLAUDE.md)
+packages/web/       React dashboard, trading UI, portfolio UI (see its CLAUDE.md)
+packages/trading/   Paper trading domain services and persistence ports
 packages/db/        Optional Postgres trade store + migrations
 packages/ingest/    Optional persistence worker that records live + institutional trades
 references/         Official API docs per venue
@@ -29,12 +31,17 @@ Structural changes to core/server/ingest should preserve the runtime-first archi
 
 Zod at I/O boundaries. No `any`. No vendor SDKs. Pino logging. IV stored as fractions (0–1+). `pnpm precommit` must pass.
 
-# We are in a server now 
- ogg-backend.service is running as a user service. That's the one to restart.
-Found it. Restart the user service:
-systemctl --user restart ogg-backend.service
-Then check status:
-systemctl --user status ogg-backend.service
+## Local service ops
 
-To deploy:
-cd /home/aladhi/aladhi/OAgrr-aladhi && pnpm --filter @oggregator/web build
+`ogg-backend.service` runs as a user service on this machine.
+
+```bash
+systemctl --user restart ogg-backend.service
+systemctl --user status ogg-backend.service
+```
+
+To build the web package directly:
+
+```bash
+pnpm --filter @oggregator/web build
+```

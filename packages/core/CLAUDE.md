@@ -17,7 +17,8 @@ pnpm test:run       # vitest single pass (CI)
 src/
   feeds/{venue}/    ws-client.ts, codec.ts, planner.ts, state.ts, health.ts, types.ts
   feeds/shared/     BaseAdapter, SdkBaseAdapter, JsonRpcWsClient, TopicWsClient
-  runtime/          chain, spot, trades, block-trades
+  portfolio/        position store, greeks aggregation, scenarios, pnl curve
+  runtime/          chain, spot, trades, block-trades, portfolio
   core/             canonical types, aggregator, enrichment, registry, symbol
   services/         dvol only
   types/common.ts   VenueId, OptionRight, DataSource, UnixMs
@@ -35,17 +36,22 @@ src/
 
 - **Enrichment is pure computation** — `core/enrichment.ts` transforms raw ComparisonRows into analytics (ATM IV, 25Δ skew, GEX, IV surface, term structure). No network calls, no mutation. All stats are derived from data already in the QuoteStore.
 
+- **Portfolio analytics stay pure at the edge of positions + marks** — `portfolio/aggregator.ts`, `portfolio/scenarios.ts`, and `portfolio/pnl-curve.ts` operate on stored legs plus injected mark data. Runtime wiring, account scoping, and push cadence stay in `runtime/portfolio/`.
+
 - **IV convention: fractions (0–1+)** — Deribit sends percentages (50.18 = 50.18%), converted via `ivToFraction()` in the adapter. All other venues send fractions natively. Frontend `fmtIv()` does `value × 100` for display.
 
 - **Fee estimation with cap** — `estimateFees()` in `sdk-base.ts` uses `min(rate × underlying, cap × optionPrice)`. Cap prevents absurd fees on cheap OTM options (e.g. 12.5% cap: a $5 option pays max $0.625 fee, not $21).
 
 - **Tests are doc-driven** — fixtures copied verbatim from `references/options-docs/`. If a test fails, check the docs — the exchange may have changed their API.
-- **Runtimes are the public product surface** — `ChainRuntime`, `SpotRuntime`, `TradeRuntime`, and `BlockTradeRuntime` are the core APIs downstream consumers should use. Server/web protocol shaping stays outside core.
+- **Runtimes are the public product surface** — `ChainRuntime`, `SpotRuntime`, `TradeRuntime`, `BlockTradeRuntime`, and `PortfolioRuntime` are the core APIs downstream consumers should use. Server/web protocol shaping stays outside core.
 
 ## Where things are
 
 - Canonical types: `core/types.ts`
 - Enrichment (stats, GEX, surface): `core/enrichment.ts`
+- Portfolio totals/greeks/break-even: `portfolio/aggregator.ts`
+- Portfolio payoff curve: `portfolio/pnl-curve.ts`
+- Portfolio runtime push loop: `runtime/portfolio/portfolio-runtime.ts`
 - Per-venue Zod schemas: `feeds/{venue}/types.ts`
 - Inverse→USD conversion: `feeds/shared/sdk-base.ts` → `normPrice()`
 - IV normalization: `feeds/shared/base.ts` → `ivToFraction()`

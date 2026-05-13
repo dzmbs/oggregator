@@ -8,15 +8,20 @@ Multi-venue crypto options aggregator. Deribit, OKX, Binance, Bybit, Derive via 
 pnpm dev            # server (:3100) + web (:5173) concurrently
 pnpm typecheck      # tsc --noEmit all packages
 pnpm test           # vitest single pass
+pnpm build          # build all workspaces
 pnpm precommit      # typecheck + test — must pass before commit
 ```
 
 ## Monorepo
 
 ```
-packages/core/      Feeds, types, normalization, enrichment (see its CLAUDE.md)
-packages/server/    Fastify REST API (see its CLAUDE.md)
-packages/web/       React + Vite dashboard (see its CLAUDE.md)
+packages/protocol/  Shared Zod schemas and WS/API contracts
+packages/core/      Feeds, portfolio analytics, runtimes, normalization, enrichment (see its CLAUDE.md)
+packages/server/    Fastify REST + WS API, paper trading, portfolio routes (see its CLAUDE.md)
+packages/web/       React + Vite dashboard, portfolio UI, trading UI (see its CLAUDE.md)
+packages/trading/   Paper trading domain services and persistence ports
+packages/db/        Optional Postgres storage + migrations
+packages/ingest/    Optional persistence worker for live and institutional trades
 references/         Official API docs and upstream reference repos
 ```
 
@@ -33,11 +38,14 @@ references/         Official API docs and upstream reference repos
 ## Reference docs — read before starting relevant work
 
 - `references/options-docs/{venue}/` — verified API response samples and field mappings
-- `packages/core/README.md` and `packages/core/CLAUDE.md` — read before making structural changes to core/server/ingest runtimes or external-consumer architecture
-- `.pi/skills/typescript-2026/SKILL.md` — TypeScript coding standard
-- `.pi/skills/comment-cleanup/SKILL.md` — comment conventions
-- `.pi/skills/vite-react-ts-2026/SKILL.md` — frontend coding standard
-- `.pi/skills/vitest-2026/SKILL.md` — testing standard
+- `packages/core/README.md` and `packages/core/CLAUDE.md` — read before changing venue adapters, runtimes, or shared analytics
+- `packages/server/CLAUDE.md` — read before changing REST/WS routes or readiness behavior
+- `packages/web/CLAUDE.md` — read before changing dashboard state, transport, or feature structure
+- `packages/trading/README.md` — read before changing paper trading semantics or persistence assumptions
+- `.claude/skills/typescript-2026/SKILL.md` — TypeScript coding standard
+- `.claude/skills/comment-cleanup/SKILL.md` — comment conventions
+- `.claude/skills/vite-react-ts-2026/SKILL.md` — frontend coding standard
+- `.claude/skills/vitest-2026/SKILL.md` — testing standard
 
 
 # CODE POLICY
