@@ -14,7 +14,6 @@ import { logger } from '../../utils/logger.js';
 import {
   aggregateGreeksByExpiry,
   aggregateGreeksByStrike,
-  attachMarks,
   breakEvenIvCurve,
   computeTotals,
 } from '../../portfolio/aggregator.js';
@@ -128,6 +127,8 @@ export class PortfolioRuntime {
   private lastSnapshot: PortfolioSnapshotEvent | null = null;
   private disposed = false;
 
+  private readonly firstSeenIv = new Map<string, number>();
+
   constructor(options: PortfolioRuntimeOptions) {
     this.accountId = options.accountId;
     this.store = options.store;
@@ -190,8 +191,44 @@ export class PortfolioRuntime {
   }
 
   private buildMetrics(): { positions: PositionLeg[]; metrics: PortfolioMetrics } {
-    const positions = this.store.list(this.accountId);
-    const withMarks = attachMarks(positions, this.markProvider);
+    const rawPositions = this.store.list(this.accountId);
+    const rawMarks = rawPositions.map((leg) => this.markProvider(leg));
+
+    // Capture the first live IV we see per leg as an entryIv proxy for
+    // venue-imported positions (which never carry historical entry IV).
+    // Once captured the value sticks, so the "entry IV" column doesn't
+    // drift with the live mark.
+    for (let i = 0; i < rawPositions.length; i += 1) {
+      const leg = rawPositions[i];
+      if (leg == null || leg.entryIv != null) continue;
+      const mark = rawMarks[i];
+      if (
+        mark != null &&
+        mark.iv != null &&
+        Number.isFinite(mark.iv) &&
+        mark.iv > 0 &&
+        !this.firstSeenIv.has(leg.legId)
+      ) {
+        this.firstSeenIv.set(leg.legId, mark.iv);
+      }
+    }
+
+    const liveIds = new Set(rawPositions.map((leg) => leg.legId));
+    for (const id of [...this.firstSeenIv.keys()]) {
+      if (!liveIds.has(id)) this.firstSeenIv.delete(id);
+    }
+
+    const positions = rawPositions.map((leg) => {
+      if (leg.entryIv != null) return leg;
+      const cached = this.firstSeenIv.get(leg.legId);
+      return cached != null ? { ...leg, entryIv: cached } : leg;
+    });
+
+    const withMarks = positions.map((leg, i) => {
+      const mark = rawMarks[i];
+      if (mark == null) throw new Error('mark missing for leg');
+      return { leg, mark };
+    });
     const nowMs = this.now() + this.forwardDays * 86_400_000;
 
     let totals: PortfolioTotals;

@@ -140,29 +140,35 @@ function yearsToExpiry(expiry: string, nowMs: number): number | null {
   return secs / (365 * 24 * 60 * 60);
 }
 
-export const portfolioMarkProvider: MarkProvider = (leg: PositionLeg) => {
+const lastSeenMark = new Map<string, MarkContext>();
+
+function freshMark(leg: PositionLeg): MarkContext {
   const snapshot = chainRefs.get(chainKey(leg.underlying, leg.expiry))?.snapshot ?? null;
-  if (snapshot == null) return emptyMark();
+  const ty = yearsToExpiry(leg.expiry, Date.now());
+  if (snapshot == null) return { ...emptyMark(), yearsToExpiry: ty };
 
   const strikeRow = findStrike(snapshot, leg.strike);
-  if (strikeRow == null) return emptyMark();
+  const forwardPriceUsd = snapshot.stats.forwardPriceUsd ?? snapshot.stats.indexPriceUsd ?? null;
+  const underlyingPriceUsd = snapshot.stats.indexPriceUsd ?? forwardPriceUsd;
+
+  if (strikeRow == null) {
+    return { ...emptyMark(), underlyingPriceUsd, forwardPriceUsd, yearsToExpiry: ty };
+  }
 
   const side = leg.optionRight === 'call' ? strikeRow.call : strikeRow.put;
   const quotes = Object.values(side.venues).filter(
     (q): q is NonNullable<typeof q> => q != null,
   );
-  if (quotes.length === 0) return emptyMark();
+  if (quotes.length === 0) {
+    return { ...emptyMark(), underlyingPriceUsd, forwardPriceUsd, yearsToExpiry: ty };
+  }
 
-  const forwardPriceUsd = snapshot.stats.forwardPriceUsd ?? snapshot.stats.indexPriceUsd ?? null;
-  const underlyingPriceUsd = snapshot.stats.indexPriceUsd ?? forwardPriceUsd;
   const markPriceUsd = average(quotes.map((q) => q.mid ?? null));
   const iv = average(quotes.map((q) => q.markIv ?? null));
   const delta = average(quotes.map((q) => q.delta ?? null));
   const gamma = average(quotes.map((q) => q.gamma ?? null));
   const vega = average(quotes.map((q) => q.vega ?? null));
   const venueTheta = average(quotes.map((q) => q.theta ?? null));
-  const ty = yearsToExpiry(leg.expiry, Date.now());
-
   const theta = venueTheta ?? thetaPerDay(forwardPriceUsd, leg.strike, iv, ty);
 
   return {
@@ -176,6 +182,34 @@ export const portfolioMarkProvider: MarkProvider = (leg: PositionLeg) => {
     theta,
     yearsToExpiry: ty,
   };
+}
+
+// Stickiness rule: time-varying fields (yearsToExpiry) always come from
+// `fresh`; price/IV/greeks fall back to the last non-null value we ever
+// observed for this leg. When an MM pulls quotes the values hold steady
+// instead of flashing to "—" and back, and a missing strike at a tick
+// fills from cache.
+export const portfolioMarkProvider: MarkProvider = (leg: PositionLeg) => {
+  const fresh = freshMark(leg);
+  const cached = lastSeenMark.get(leg.legId);
+
+  const merged: MarkContext = {
+    underlyingPriceUsd: fresh.underlyingPriceUsd ?? cached?.underlyingPriceUsd ?? null,
+    forwardPriceUsd: fresh.forwardPriceUsd ?? cached?.forwardPriceUsd ?? null,
+    markPriceUsd: fresh.markPriceUsd ?? cached?.markPriceUsd ?? null,
+    iv: fresh.iv ?? cached?.iv ?? null,
+    delta: fresh.delta ?? cached?.delta ?? null,
+    gamma: fresh.gamma ?? cached?.gamma ?? null,
+    vega: fresh.vega ?? cached?.vega ?? null,
+    theta: fresh.theta ?? cached?.theta ?? null,
+    yearsToExpiry: fresh.yearsToExpiry,
+  };
+
+  if (merged.markPriceUsd != null || merged.iv != null || merged.delta != null) {
+    lastSeenMark.set(leg.legId, merged);
+  }
+
+  return merged;
 };
 
 const portfolioChainSurface: ChainSurfaceProvider = {
