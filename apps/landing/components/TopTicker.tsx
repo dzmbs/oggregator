@@ -3,13 +3,13 @@ import { tickerItems, type TickerItem } from "@/lib/demo-data";
 const directionClass: Record<TickerItem["direction"], string> = {
   up: "text-emerald-300",
   down: "text-rose-300",
-  flat: "text-zinc-500",
+  flat: "text-[var(--landing-accent)]",
 };
 
 export function TopTicker() {
   return (
-    <div className="border-b border-[color:var(--landing-border)] bg-black/30 backdrop-blur-sm">
-      <div className="mx-auto flex w-full max-w-7xl items-center overflow-x-auto px-4 py-2 [scrollbar-width:none] sm:px-6">
+    <div className="border-b border-[color:var(--landing-border)] bg-[rgba(4,6,10,0.72)] backdrop-blur-xl">
+      <div className="landing-container flex items-center overflow-x-auto px-4 py-2.5 [scrollbar-width:none] sm:px-6">
         {tickerItems.map((item, index) => (
           <div
             key={item.label}

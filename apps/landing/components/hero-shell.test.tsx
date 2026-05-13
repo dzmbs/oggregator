@@ -1,29 +1,35 @@
 import { render, screen } from "@testing-library/react";
 
-import { HeroStatement } from "./HeroStatement";
+import { HeroTerminalSection } from "./HeroTerminalSection";
 import { LandingHeader } from "./LandingHeader";
 import { TopTicker } from "./TopTicker";
 
 describe("hero shell", () => {
-  it("renders crypto-options ticker items and both header actions", () => {
+  it("renders live ticker items, navigation, and the terminal hero", () => {
     render(
       <>
         <TopTicker />
         <LandingHeader />
-        <HeroStatement />
+        <HeroTerminalSection />
       </>,
     );
 
     expect(screen.getByText(/btc 30d iv/i)).toBeInTheDocument();
-    expect(screen.getByText(/eth 25d rr/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /docs/i })).toBeInTheDocument();
+    expect(screen.getByText(/latency budget/i)).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /request access/i }),
+      screen.getByRole("link", { name: /how it works/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getAllByRole("link", { name: /request access/i }).length,
+    ).toBeGreaterThan(0);
+    expect(
+      screen.getByRole("link", { name: /view terminal/i }),
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        /live iv\. cross-venue liquidity\. desk-grade context\./i,
+        /institutional-grade options terminal/i,
       ),
     ).toBeInTheDocument();
+    expect(screen.getByText(/aggregate chain/i)).toBeInTheDocument();
   });
 });

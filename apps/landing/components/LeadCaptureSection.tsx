@@ -1,17 +1,18 @@
-'use client';
+"use client";
 
-import * as React from 'react';
+import { useState, type FormEvent } from "react";
 
-import { leadSchema } from '@/lib/lead-schema';
+import { landingCopy } from "@/lib/copy";
+import { leadSchema } from "@/lib/lead-schema";
 
-const leadSource = 'landing-hero';
+const leadSource = "landing-hero";
 
 export function LeadCaptureSection() {
-  const [email, setEmail] = React.useState('');
-  const [status, setStatus] = React.useState<'idle' | 'loading' | 'success' | 'error'>('idle');
-  const [errorMessage, setErrorMessage] = React.useState('');
+  const [email, setEmail] = useState("");
+  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [errorMessage, setErrorMessage] = useState("");
 
-  async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const parsed = leadSchema.safeParse({
@@ -20,58 +21,59 @@ export function LeadCaptureSection() {
     });
 
     if (!parsed.success) {
-      setStatus('error');
-      setErrorMessage('Enter a valid work email address.');
+      setStatus("error");
+      setErrorMessage("Enter a valid work email address.");
       return;
     }
 
-    setStatus('loading');
-    setErrorMessage('');
+    setStatus("loading");
+    setErrorMessage("");
 
     try {
-      const response = await fetch('/api/leads', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
+      const response = await fetch("/api/leads", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
         body: JSON.stringify(parsed.data),
       });
 
       if (!response.ok) {
-        setStatus('error');
-        setErrorMessage('Submission failed. Try again shortly.');
+        setStatus("error");
+        setErrorMessage("Submission failed. Try again shortly.");
         return;
       }
 
-      setStatus('success');
-      setErrorMessage('');
-      setEmail('');
+      setStatus("success");
+      setErrorMessage("");
+      setEmail("");
     } catch {
-      setStatus('error');
-      setErrorMessage('Submission failed. Try again shortly.');
+      setStatus("error");
+      setErrorMessage("Submission failed. Try again shortly.");
     }
   }
 
-  const isSubmitting = status === 'loading';
+  const isSubmitting = status === "loading";
 
   return (
-    <section className="mx-auto max-w-7xl px-6 py-24 sm:px-10">
-      <div className="grid gap-10 rounded-[2.5rem] border border-white/6 bg-[var(--landing-panel)] px-8 py-10 shadow-[0_25px_80px_rgba(0,0,0,0.28)] lg:grid-cols-[1.05fr_0.95fr] lg:px-12 lg:py-14">
+    <section id="access" className="landing-container px-6 py-20 sm:px-10 sm:py-24">
+      <div className="landing-panel grid gap-10 rounded-[2rem] px-8 py-10 shadow-[0_28px_100px_rgba(0,0,0,0.3)] lg:grid-cols-[1.02fr_0.98fr] lg:px-10 lg:py-12">
         <div className="max-w-2xl">
-          <p className="font-[var(--font-mono)] text-[11px] uppercase tracking-[0.34em] text-[var(--landing-accent)]">
-            Request access
-          </p>
-          <h2 className="mt-5 font-[var(--font-heading)] text-5xl font-black leading-[0.92] tracking-[-0.06em] md:text-7xl">
-            Keep the desk loop tight.
-          </h2>
-          <p className="mt-8 text-lg leading-8 text-zinc-400">
-            Receive measured product updates, release notes, and early access notices for the
-            options aggregation workflow.
-          </p>
-          <p className="mt-4 text-lg leading-8 text-zinc-400">
-            We only use this channel for platform updates and onboarding into the Oggregator funnel.
-          </p>
+          <p className="landing-kicker">{landingCopy.cta.eyebrow}</p>
+          <h2 className="landing-section-title mt-5 max-w-[10ch]">{landingCopy.cta.title}</h2>
+          <p className="landing-section-copy mt-7">{landingCopy.cta.description}</p>
+
+          <div className="mt-8 flex flex-wrap gap-3">
+            {landingCopy.cta.trust.map((item) => (
+              <span
+                key={item}
+                className="rounded-full border border-white/8 bg-white/[0.04] px-4 py-2 font-[var(--font-mono)] text-[10px] uppercase tracking-[0.22em] text-zinc-300"
+              >
+                {item}
+              </span>
+            ))}
+          </div>
         </div>
 
-        <div className="rounded-[2rem] border border-white/6 bg-[var(--landing-panel-strong)] p-6">
+        <div className="landing-panel-strong rounded-[1.6rem] p-6">
           <form className="flex h-full flex-col gap-5" noValidate onSubmit={onSubmit}>
             <div>
               <label
@@ -87,8 +89,8 @@ export function LeadCaptureSection() {
                 autoComplete="email"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
-                className="mt-3 min-h-14 w-full rounded-full border border-white/10 bg-white/5 px-5 text-base text-[var(--landing-text)] outline-none transition focus:border-[var(--landing-accent)] placeholder:text-zinc-500"
-                placeholder="desk@fund.com"
+                className="mt-3 min-h-14 w-full rounded-full border border-white/10 bg-white/[0.05] px-5 text-base text-[var(--landing-text)] outline-none transition focus:border-[var(--landing-accent)] placeholder:text-zinc-500"
+                placeholder={landingCopy.cta.placeholder}
                 disabled={isSubmitting}
                 aria-describedby="landing-email-status"
                 required
@@ -100,29 +102,29 @@ export function LeadCaptureSection() {
               className="min-h-14 rounded-full border border-[var(--landing-accent)] bg-[var(--landing-accent)] px-6 font-[var(--font-mono)] text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-950 transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-70"
               disabled={isSubmitting}
             >
-              {isSubmitting ? 'Submitting' : 'Request Access'}
+              {isSubmitting ? "Submitting" : landingCopy.cta.eyebrow}
             </button>
 
             <p className="text-sm leading-6 text-zinc-500">
-              Serious inquiries only. No broadcast list, no market noise.
+              {landingCopy.cta.helper}
             </p>
 
             <p
               id="landing-email-status"
               aria-live="polite"
               className={
-                status === 'success'
-                  ? 'text-sm text-emerald-400'
-                  : status === 'error'
-                    ? 'text-sm text-rose-400'
-                    : 'text-sm text-zinc-500'
+                status === "success"
+                  ? "text-sm text-emerald-400"
+                  : status === "error"
+                    ? "text-sm text-rose-400"
+                    : "text-sm text-zinc-500"
               }
             >
-              {status === 'success'
-                ? 'You are on the list. We will reach out with product updates and access.'
-                : status === 'error'
+              {status === "success"
+                ? "You are on the list. We will reach out with onboarding details and release updates."
+                : status === "error"
                   ? errorMessage
-                  : 'Desk-grade product updates, routed with restraint.'}
+                  : "Desk-grade product updates, routed with restraint."}
             </p>
           </form>
         </div>

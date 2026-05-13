@@ -1,32 +1,50 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 
-import { BringYourOwnDataSection } from "./BringYourOwnDataSection";
-import { DeskWorkflowSection } from "./DeskWorkflowSection";
-import { MarketContextSection } from "./MarketContextSection";
-import { TestimonialsGrid } from "./TestimonialsGrid";
+import { FaqSection } from "./FaqSection";
+import { FeatureBentoSection } from "./FeatureBentoSection";
+import { HowItWorksSection } from "./HowItWorksSection";
 
 describe("proof sections", () => {
-  it("renders the approved proof headlines and desk signals", () => {
+  it("renders workflow and feature proof for the terminal", () => {
     render(
       <>
-        <MarketContextSection />
-        <DeskWorkflowSection />
-        <BringYourOwnDataSection />
-        <TestimonialsGrid />
+        <HowItWorksSection />
+        <FeatureBentoSection />
       </>,
     );
 
     expect(
-      screen.getByRole("heading", { name: /market context,/i }),
+      screen.getByRole("heading", {
+        name: /from fragmented feeds to one execution-ready terminal/i,
+      }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /built for desks/i }),
+      screen.getByRole("heading", { name: /^ingest$/i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /bring your own data/i }),
+      screen.getByRole("heading", {
+        name: /fast enough for flow\. structured enough for conviction\./i,
+      }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/btc 30d atm iv/i)).toBeInTheDocument();
-    expect(screen.getByText(/bestVenueSelection/i)).toBeInTheDocument();
-    expect(screen.getByText(/crypto vol desk/i)).toBeInTheDocument();
+    expect(screen.getByText(/venue-level route scoring/i)).toBeInTheDocument();
+    expect(screen.getByText(/custom command execution/i)).toBeInTheDocument();
+  });
+
+  it("opens and closes FAQ items", () => {
+    render(<FaqSection />);
+
+    expect(
+      screen.getByText(/the platform is designed for multi-exchange options aggregation/i),
+    ).toBeInTheDocument();
+
+    const button = screen.getByRole("button", {
+      name: /how fast is the feed and routing update cycle/i,
+    });
+
+    fireEvent.click(button);
+
+    expect(
+      screen.getByText(/the terminal is tuned for sub-second visibility/i),
+    ).toBeInTheDocument();
   });
 });

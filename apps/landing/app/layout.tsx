@@ -18,9 +18,9 @@ const monoFont = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Oggregator — Crypto options routing, context, and access",
+  title: "Oggregator — Options terminal for fragmented markets",
   description:
-    "A Percept-style public landing site for Oggregator. Request access to cross-venue crypto options context and routing.",
+    "High-performance option aggregation terminal for serious traders. Aggregate live venue data, normalize context, and route with precision from one workspace.",
 };
 
 export default function RootLayout({

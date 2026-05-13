@@ -1,27 +1,36 @@
-import { heroCopy } from "@/lib/copy";
+import { landingCopy } from "@/lib/copy";
 
 export function LandingHeader() {
   return (
-    <header className="mx-auto flex w-full max-w-[120rem] items-center justify-between px-6 py-10 sm:px-10">
-      <a
-        href="/"
-        className="font-[var(--font-mono)] text-2xl uppercase tracking-[0.18em] text-zinc-300"
-      >
-        Oggregator
-      </a>
-      <div className="flex items-center gap-3">
+    <header className="sticky top-0 z-30 border-b border-white/6 bg-[rgba(6,8,13,0.68)] backdrop-blur-xl">
+      <div className="landing-container flex items-center justify-between gap-6 px-6 py-4 sm:px-10">
         <a
-          href="#docs"
-          className="rounded-full border border-white/10 bg-white/[0.04] px-6 py-3 font-[var(--font-mono)] text-[11px] font-medium uppercase tracking-[0.24em] text-zinc-100 transition hover:border-[var(--landing-accent)] hover:text-[var(--landing-text)]"
+          href="#hero"
+          className="font-[var(--font-mono)] text-lg uppercase tracking-[0.34em] text-zinc-200 sm:text-xl"
         >
-          {heroCopy.docs}
+          {landingCopy.nav.home}
         </a>
-        <button
-          type="button"
-          className="rounded-full border border-[var(--landing-accent-soft)] bg-[rgba(255,255,255,0.05)] px-6 py-3 font-[var(--font-mono)] text-[11px] font-medium uppercase tracking-[0.24em] text-zinc-100 transition hover:border-[var(--landing-accent)] hover:bg-[rgba(215,122,82,0.08)]"
-        >
-          {heroCopy.cta}
-        </button>
+
+        <div className="hidden items-center gap-6 md:flex">
+          <a className="landing-nav-link" href="#how-it-works">
+            {landingCopy.nav.workflow}
+          </a>
+          <a className="landing-nav-link" href="#features">
+            {landingCopy.nav.features}
+          </a>
+          <a className="landing-nav-link" href="#faq">
+            {landingCopy.nav.faq}
+          </a>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <span className="hidden rounded-full border border-white/8 bg-white/[0.04] px-3 py-2 font-[var(--font-mono)] text-[10px] uppercase tracking-[0.24em] text-zinc-400 sm:inline-flex">
+            Live / institutional preview
+          </span>
+          <a href="#access" className="landing-button-primary !px-5 !py-3">
+            {landingCopy.nav.cta}
+          </a>
+        </div>
       </div>
     </header>
   );
