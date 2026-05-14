@@ -59,3 +59,23 @@ export const THALEX_MARKET_WS_URL = 'wss://thalex.com/ws/api/v2';
 export const THALEX_REST_URL = 'https://thalex.com/api/v2';
 export const THALEX_INSTRUMENTS = '/public/instruments';
 export const THALEX_SYSTEM_INFO = '/public/system_info';
+
+// ── Gate.io ──────────────────────────────────────────────────────
+// Public market data requires no auth. Testnet swaps the WS host for
+// wss://ws-testnet.gate.com/v4/ws/options/usdt.
+//   REST spec:  https://www.gate.com/docs/developers/apiv4/en/
+//   WS spec:    https://www.gate.com/docs/developers/options/ws/en/
+//   Model defs: https://github.com/gateio/gateapi-python/tree/master/docs
+//
+// Gate options are USDT-settled (linear). Only the USDT WS host is wired
+// here — the inverse BTC host (op-ws.gateio.live/v4/ws/btc) is intentionally
+// omitted because no aggregator code currently consumes inverse options.
+export const GATEIO_OPTIONS_WS_URL = 'wss://op-ws.gateio.live/v4/ws/usdt';
+export const GATEIO_REST_BASE_URL = 'https://api.gateio.ws';
+export const GATEIO_OPTIONS_UNDERLYINGS = '/api/v4/options/underlyings';
+export const GATEIO_OPTIONS_EXPIRATIONS = '/api/v4/options/expirations';
+export const GATEIO_OPTIONS_CONTRACTS = '/api/v4/options/contracts';
+export const GATEIO_OPTIONS_TICKERS = '/api/v4/options/tickers';
+export const GATEIO_OPTIONS_UNDERLYING_TICKER = '/api/v4/options/underlying/tickers';
+export const GATEIO_OPTIONS_ORDER_BOOK = '/api/v4/options/order_book';
+export const GATEIO_OPTIONS_TRADES = '/api/v4/options/trades';
