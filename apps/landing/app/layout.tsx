@@ -2,13 +2,20 @@ import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import type { ReactNode } from "react";
 import type { Metadata } from "next";
-import { IBM_Plex_Mono, Inter_Tight } from "next/font/google";
+import { IBM_Plex_Mono, IBM_Plex_Sans, IBM_Plex_Sans_Condensed } from "next/font/google";
 
 import "./globals.css";
 
-const displayFont = Inter_Tight({
+const bodyFont = IBM_Plex_Sans({
+  subsets: ["latin"],
+  variable: "--font-sans",
+  weight: ["400", "500"],
+});
+
+const displayFont = IBM_Plex_Sans_Condensed({
   subsets: ["latin"],
   variable: "--font-display",
+  weight: ["400", "500", "600"],
 });
 
 const monoFont = IBM_Plex_Mono({
@@ -30,7 +37,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${displayFont.variable} ${monoFont.variable}`}>
+      <body className={`${bodyFont.variable} ${displayFont.variable} ${monoFont.variable}`}>
         {children}
         <Analytics />
         <SpeedInsights />

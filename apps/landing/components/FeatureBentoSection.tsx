@@ -36,7 +36,7 @@ export function FeatureBentoSection() {
                 <p className="font-[var(--font-mono)] text-[10px] uppercase tracking-[0.24em] text-zinc-500">
                   {card.eyebrow}
                 </p>
-                <h3 className="mt-4 max-w-[14ch] text-3xl font-black tracking-[-0.05em] text-[var(--landing-text)]">
+                <h3 className="landing-display-value mt-4 max-w-[14ch] text-3xl">
                   {card.title}
                 </h3>
               </div>

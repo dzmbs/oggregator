@@ -1,18 +1,19 @@
 @import "tailwindcss";
 
 :root {
-  --landing-bg: #0a0a0a;
-  --landing-bg-top: #111111;
-  --landing-panel: rgba(17, 17, 17, 0.86);
-  --landing-panel-strong: rgba(17, 17, 17, 0.96);
-  --landing-text: #f6fefd;
-  --landing-muted: #878c8f;
-  --landing-muted-strong: #bebfc0;
+  --landing-bg: #080b0d;
+  --landing-bg-top: #10161a;
+  --landing-panel: rgba(12, 16, 18, 0.86);
+  --landing-panel-strong: rgba(9, 12, 15, 0.96);
+  --landing-text: #d3dadf;
+  --landing-text-strong: #edf4f6;
+  --landing-muted: #76808a;
+  --landing-muted-strong: #aab4bc;
   --landing-accent: #50d2c1;
   --landing-accent-violet: #88b6ff;
   --landing-accent-soft: rgba(80, 210, 193, 0.14);
-  --landing-border: rgba(31, 41, 55, 0.72);
-  --landing-border-strong: rgba(58, 66, 72, 0.9);
+  --landing-border: rgba(40, 52, 60, 0.72);
+  --landing-border-strong: rgba(67, 79, 88, 0.9);
   --landing-success: #00e997;
   --landing-loss: #cb3855;
   --landing-warning: #fef9a0;
@@ -28,11 +29,11 @@ body {
 }
 
 body {
-  font-family: var(--font-display), sans-serif;
+  font-family: var(--font-sans), sans-serif;
   background-image:
-    radial-gradient(circle at 14% 0%, rgba(80, 210, 193, 0.12), transparent 30%),
-    radial-gradient(circle at 84% 10%, rgba(136, 182, 255, 0.1), transparent 24%),
-    linear-gradient(180deg, #141414 0%, #101112 18%, var(--landing-bg) 100%);
+    radial-gradient(circle at 14% 0%, rgba(80, 210, 193, 0.1), transparent 30%),
+    radial-gradient(circle at 84% 10%, rgba(136, 182, 255, 0.08), transparent 24%),
+    linear-gradient(180deg, #12171b 0%, #0d1115 18%, var(--landing-bg) 100%);
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
 }
@@ -89,8 +90,8 @@ body {
   padding: 0.7rem 1rem;
   border: 1px solid var(--landing-border-strong);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.03);
-  color: var(--landing-text);
+  background: rgba(255, 255, 255, 0.025);
+  color: var(--landing-text-strong);
 }
 
 .landing-kicker {
@@ -102,14 +103,31 @@ body {
   font-family: var(--font-heading), sans-serif;
   font-size: clamp(2.8rem, 5vw, 4.8rem);
   line-height: 0.94;
-  letter-spacing: -0.065em;
-  color: var(--landing-text);
+  font-weight: 500;
+  letter-spacing: -0.05em;
+  color: var(--landing-text-strong);
 }
 
 .landing-section-copy {
   color: var(--landing-muted-strong);
   font-size: 1.05rem;
   line-height: 1.9;
+}
+
+.landing-display-title,
+.landing-display-value {
+  font-family: var(--font-heading), sans-serif;
+  font-weight: 500;
+  color: var(--landing-text-strong);
+}
+
+.landing-display-title {
+  line-height: 0.9;
+  letter-spacing: -0.055em;
+}
+
+.landing-display-value {
+  letter-spacing: -0.035em;
 }
 
 .landing-nav-link {
@@ -158,7 +176,7 @@ body {
 .landing-button-secondary {
   border: 1px solid var(--landing-border-strong);
   background: rgba(255, 255, 255, 0.03);
-  color: var(--landing-text);
+  color: var(--landing-text-strong);
 }
 
 .landing-button-primary:hover,

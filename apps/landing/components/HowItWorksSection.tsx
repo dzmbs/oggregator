@@ -27,7 +27,7 @@ export function HowItWorksSection() {
                   {step.title}
                 </span>
               </div>
-              <h3 className="mt-6 text-3xl font-black tracking-[-0.05em] text-[var(--landing-text)]">
+              <h3 className="landing-display-value mt-6 text-3xl">
                 {step.title}
               </h3>
               <p className="mt-4 text-base leading-7 text-[var(--landing-muted-strong)]">

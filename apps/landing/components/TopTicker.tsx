@@ -18,7 +18,7 @@ export function TopTicker() {
             } ${index === 0 ? "pl-0" : ""}`}
           >
             <span className="text-zinc-500">{item.label}</span>
-            <span className="text-zinc-100">{item.value}</span>
+            <span className="text-zinc-200">{item.value}</span>
             <span className={directionClass[item.direction]}>{item.change}</span>
           </div>
         ))}

@@ -51,10 +51,10 @@ export function TerminalMockup() {
                     {metric.label}
                   </p>
                   <p
-                    className={`mt-2 font-[var(--font-heading)] text-2xl font-black tracking-[-0.05em] ${
+                    className={`landing-display-value mt-2 text-2xl ${
                       metric.tone === "accent"
                         ? "text-[var(--landing-accent)]"
-                        : "text-[var(--landing-text)]"
+                        : "text-[var(--landing-text-strong)]"
                     }`}
                   >
                     {metric.value}
@@ -91,7 +91,7 @@ export function TerminalMockup() {
                     key={row.symbol}
                     className="grid grid-cols-[1.8fr_0.7fr_0.6fr_0.8fr_0.8fr] gap-3 rounded-[1rem] border border-white/6 bg-black/20 px-3 py-3 text-sm text-zinc-200 transition duration-300 hover:border-[rgba(80,210,193,0.3)] hover:bg-white/[0.05]"
                   >
-                    <span className="truncate font-[var(--font-mono)] text-[11px] text-zinc-100">
+                    <span className="truncate font-[var(--font-mono)] text-[11px] text-zinc-200">
                       {row.symbol}
                     </span>
                     <span>{row.midIv}</span>
@@ -115,7 +115,7 @@ export function TerminalMockup() {
                     Executable venue confidence and transport cost
                   </p>
                 </div>
-                <p className="font-[var(--font-heading)] text-3xl font-black tracking-[-0.05em] text-[var(--landing-accent)]">
+                <p className="landing-display-value text-3xl text-[var(--landing-accent)]">
                   +14 bps
                 </p>
               </div>

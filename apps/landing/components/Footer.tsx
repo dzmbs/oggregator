@@ -5,7 +5,7 @@ export function Footer() {
     <footer className="landing-container border-t border-white/6 px-6 py-8 sm:px-10">
       <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="font-[var(--font-mono)] text-sm uppercase tracking-[0.32em] text-zinc-300">
+          <p className="font-[var(--font-heading)] text-sm font-medium uppercase tracking-[0.3em] text-zinc-300">
             Oggregator
           </p>
           <p className="mt-2 text-sm text-zinc-500">{landingCopy.footer.strapline}</p>

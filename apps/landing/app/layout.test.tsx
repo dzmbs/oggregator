@@ -5,7 +5,8 @@ import RootLayout from "./layout";
 
 vi.mock("next/font/google", () => ({
   IBM_Plex_Mono: () => ({ variable: "font-mono" }),
-  Inter_Tight: () => ({ variable: "font-display" }),
+  IBM_Plex_Sans: () => ({ variable: "font-sans" }),
+  IBM_Plex_Sans_Condensed: () => ({ variable: "font-display" }),
 }));
 
 vi.mock("@vercel/analytics/react", () => ({

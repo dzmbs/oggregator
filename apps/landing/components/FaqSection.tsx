@@ -38,7 +38,7 @@ export function FaqSection() {
                       <span className="rounded-full border border-white/8 bg-white/[0.04] px-3 py-1 font-[var(--font-mono)] text-[10px] uppercase tracking-[0.22em] text-zinc-400">
                         0{index + 1}
                       </span>
-                      <span className="text-lg font-semibold tracking-[-0.02em] text-[var(--landing-text)]">
+                      <span className="font-[var(--font-heading)] text-lg font-medium tracking-[-0.03em] text-[var(--landing-text-strong)]">
                         {item.question}
                       </span>
                     </div>

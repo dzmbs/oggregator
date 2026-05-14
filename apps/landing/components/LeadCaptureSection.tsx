@@ -89,7 +89,7 @@ export function LeadCaptureSection() {
                 autoComplete="email"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
-                className="mt-3 min-h-14 w-full rounded-full border border-[color:var(--landing-border)] bg-white/[0.05] px-5 text-base text-[var(--landing-text)] outline-none transition focus:border-[var(--landing-accent)] placeholder:text-zinc-500"
+                className="mt-3 min-h-14 w-full rounded-full border border-[color:var(--landing-border)] bg-white/[0.05] px-5 text-base text-[var(--landing-text-strong)] outline-none transition focus:border-[var(--landing-accent)] placeholder:text-zinc-500"
                 placeholder={landingCopy.cta.placeholder}
                 disabled={isSubmitting}
                 aria-describedby="landing-email-status"

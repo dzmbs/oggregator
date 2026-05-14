@@ -6,7 +6,7 @@ export function LandingHeader() {
       <div className="landing-container flex items-center justify-between gap-6 px-6 py-4 sm:px-10">
         <a
           href="#hero"
-          className="font-[var(--font-mono)] text-lg uppercase tracking-[0.34em] text-zinc-200 sm:text-xl"
+          className="font-[var(--font-heading)] text-base font-medium uppercase tracking-[0.32em] text-zinc-300 sm:text-lg"
         >
           {landingCopy.nav.home}
         </a>

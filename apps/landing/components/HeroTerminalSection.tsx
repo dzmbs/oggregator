@@ -11,7 +11,7 @@ export function HeroTerminalSection() {
             <span className="h-2 w-2 rounded-full bg-[var(--landing-accent)] shadow-[0_0_18px_rgba(80,210,193,0.8)]" />
             {landingCopy.hero.eyebrow}
           </div>
-          <h1 className="mt-6 max-w-[12ch] text-[clamp(3.8rem,8vw,7.3rem)] font-black leading-[0.9] tracking-[-0.08em] text-[var(--landing-text)]">
+          <h1 className="landing-display-title mt-6 max-w-[12ch] text-[clamp(3.8rem,8vw,7.3rem)]">
             {landingCopy.hero.headline}
           </h1>
           <p className="mt-6 max-w-xl text-lg leading-8 text-[var(--landing-muted-strong)] sm:text-xl">
@@ -38,7 +38,7 @@ export function HeroTerminalSection() {
               {landingCopy.hero.proofPoints.map((point) => (
                 <div
                   key={point}
-                  className="rounded-[1rem] border border-white/6 bg-black/20 px-3 py-3 font-[var(--font-mono)] text-[11px] uppercase tracking-[0.22em] text-zinc-200"
+                  className="rounded-[1rem] border border-white/6 bg-black/20 px-3 py-3 font-[var(--font-mono)] text-[11px] uppercase tracking-[0.22em] text-zinc-300"
                 >
                   {point}
                 </div>
