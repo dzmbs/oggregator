@@ -5,7 +5,7 @@ import { LandingHeader } from './LandingHeader';
 import { TopTicker } from './TopTicker';
 
 describe('hero shell', () => {
-  it('renders live ticker items, navigation, and the terminal hero', () => {
+  it('renders live ticker items, navigation, and the spatial surface hero', () => {
     render(
       <>
         <TopTicker />
@@ -18,12 +18,11 @@ describe('hero shell', () => {
     expect(screen.getByText(/latency budget/i)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /how it works/i })).toBeInTheDocument();
     expect(screen.getAllByRole('link', { name: /request access/i }).length).toBeGreaterThan(0);
-    expect(screen.getByRole('link', { name: /view terminal/i })).toBeInTheDocument();
-    expect(screen.getByText(/institutional-grade options terminal/i)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /explore surface/i })).toBeInTheDocument();
+    expect(screen.getByText(/spatial options intelligence/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/interactive 3d volatility surface/i)).toBeInTheDocument();
     expect(
-      screen.getByRole('img', {
-        name: /real portfolio terminal showing live greeks, p&l curve, and skew risk/i,
-      }),
+      screen.getByRole('img', { name: /3d volatility surface with depth-based telemetry/i }),
     ).toBeInTheDocument();
   });
 });

@@ -75,6 +75,19 @@ body {
   box-shadow: 0 28px 96px rgba(0, 0, 0, 0.42);
 }
 
+.landing-surface-shell {
+  backdrop-filter: blur(28px);
+}
+
+.landing-hud-panel {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, rgba(15, 20, 24, 0.72), rgba(9, 12, 16, 0.58));
+  backdrop-filter: blur(22px);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.22);
+  border-radius: 1.15rem;
+  padding: 0.95rem;
+}
+
 .landing-chip,
 .landing-kicker {
   font-family: var(--font-mono), monospace;

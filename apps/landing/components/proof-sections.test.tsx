@@ -5,7 +5,7 @@ import { FeatureBentoSection } from './FeatureBentoSection';
 import { HowItWorksSection } from './HowItWorksSection';
 
 describe('proof sections', () => {
-  it('renders workflow and feature proof for the terminal', () => {
+  it('renders workflow and feature proof for the spatial experience', () => {
     render(
       <>
         <HowItWorksSection />
@@ -15,22 +15,18 @@ describe('proof sections', () => {
 
     expect(
       screen.getByRole('heading', {
-        name: /from fragmented feeds to one execution-ready terminal/i,
+        name: /one surface, three disclosure depths\./i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: /^ingest$/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /^overview$/i })).toBeInTheDocument();
     expect(
       screen.getByRole('heading', {
-        name: /fast enough for flow\. structured enough for conviction\./i,
+        name: /modes, overlays, and clutter control\./i,
       }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole('img', {
-        name: /cross-venue options chain view showing bids, asks, iv, and strikes across venues/i,
-      }),
-    ).toBeInTheDocument();
-    expect(screen.getByText(/focused on the live cross-venue book/i)).toBeInTheDocument();
-    expect(screen.getByText(/custom command execution/i)).toBeInTheDocument();
+    expect(screen.getByText(/one object, four ways to read it/i)).toBeInTheDocument();
+    expect(screen.getByText(/progressive disclosure by proximity/i)).toBeInTheDocument();
+    expect(screen.getByText(/liquidity mode/i)).toBeInTheDocument();
   });
 
   it('opens and closes FAQ items', () => {
