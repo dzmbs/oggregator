@@ -594,13 +594,27 @@ function logCoincallFilteredAtStartup(underlying: string): void {
   );
 }
 
-// Coincall `lastTrade` is per-instrument — no bulk underlying channel. Fetch the
-// active instrument list once per base and cache the promise across reconnects.
-const coincallInstrumentCache = new Map<string, Promise<string[]>>();
+// Coincall `lastTrade` is per-instrument — no bulk underlying channel. Cache the
+// active instrument list per base with a TTL so reconnects dedupe but the runtime
+// picks up newly-listed daily expiries (and recovers from a transient empty/error
+// result) within at most one TTL window.
+const COINCALL_INSTRUMENT_TTL_MS = 15 * 60 * 1000;
 
-function fetchCoincallInstrumentsForBase(base: string): Promise<string[]> {
+interface CoincallInstrumentCacheEntry {
+  promise: Promise<string[]>;
+  expiresAt: number;
+}
+
+const coincallInstrumentCache = new Map<string, CoincallInstrumentCacheEntry>();
+
+export function clearCoincallInstrumentCache(): void {
+  coincallInstrumentCache.clear();
+}
+
+export function fetchCoincallInstrumentsForBase(base: string): Promise<string[]> {
+  const now = Date.now();
   const cached = coincallInstrumentCache.get(base);
-  if (cached) return cached;
+  if (cached && cached.expiresAt > now) return cached.promise;
 
   const promise = (async () => {
     try {
@@ -650,7 +664,7 @@ function fetchCoincallInstrumentsForBase(base: string): Promise<string[]> {
     }
   })();
 
-  coincallInstrumentCache.set(base, promise);
+  coincallInstrumentCache.set(base, { promise, expiresAt: now + COINCALL_INSTRUMENT_TTL_MS });
   return promise;
 }
 

@@ -3,6 +3,8 @@ import { EventEmitter } from 'node:events';
 import {
   TradeRuntime,
   VENUE_STREAMS,
+  clearCoincallInstrumentCache,
+  fetchCoincallInstrumentsForBase,
   getDeribitTradeCurrency,
   getDeribitUnderlyingFromInstrument,
   normalizeTradeUnderlying,
@@ -235,6 +237,105 @@ describe('TradeRuntime — start() resolves before seeding finishes', () => {
     expect(order).not.toContain('seed');
 
     runtime.dispose();
+  });
+});
+
+describe('TradeRuntime — coincall instrument cache TTL', () => {
+  const fetchSpy = vi.fn();
+
+  function instrumentsResponse(active: string[], inactive: string[] = []): Response {
+    const body = {
+      code: 0,
+      msg: 'Success',
+      data: [
+        ...active.map((symbolName) => ({ symbolName, isActive: true })),
+        ...inactive.map((symbolName) => ({ symbolName, isActive: false })),
+      ],
+    };
+    return new Response(JSON.stringify(body), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    });
+  }
+
+  beforeEach(() => {
+    clearCoincallInstrumentCache();
+    vi.stubGlobal('fetch', fetchSpy);
+    fetchSpy.mockReset();
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+    clearCoincallInstrumentCache();
+  });
+
+  it('deduplicates concurrent calls within the TTL window', async () => {
+    fetchSpy.mockResolvedValue(instrumentsResponse(['BTCUSD-1JUN26-70000-C']));
+
+    const [a, b] = await Promise.all([
+      fetchCoincallInstrumentsForBase('BTC'),
+      fetchCoincallInstrumentsForBase('BTC'),
+    ]);
+
+    expect(a).toEqual(['BTCUSD-1JUN26-70000-C']);
+    expect(b).toEqual(['BTCUSD-1JUN26-70000-C']);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('serves cached results while inside the TTL window', async () => {
+    fetchSpy
+      .mockResolvedValueOnce(instrumentsResponse(['BTCUSD-1JUN26-70000-C']))
+      .mockResolvedValueOnce(instrumentsResponse(['BTCUSD-1JUN26-70000-C', 'BTCUSD-2JUN26-72000-C']));
+
+    await fetchCoincallInstrumentsForBase('BTC');
+    vi.setSystemTime(Date.now() + 14 * 60_000);
+    const second = await fetchCoincallInstrumentsForBase('BTC');
+
+    expect(second).toEqual(['BTCUSD-1JUN26-70000-C']);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('refetches after the TTL window expires (picks up new daily expiries)', async () => {
+    fetchSpy
+      .mockResolvedValueOnce(instrumentsResponse(['BTCUSD-1JUN26-70000-C']))
+      .mockResolvedValueOnce(instrumentsResponse(['BTCUSD-1JUN26-70000-C', 'BTCUSD-2JUN26-72000-C']));
+
+    await fetchCoincallInstrumentsForBase('BTC');
+    vi.setSystemTime(Date.now() + 16 * 60_000);
+    const refreshed = await fetchCoincallInstrumentsForBase('BTC');
+
+    expect(refreshed).toEqual(['BTCUSD-1JUN26-70000-C', 'BTCUSD-2JUN26-72000-C']);
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('retries an empty-result base after the TTL — the prior poison is the bug this fixes', async () => {
+    fetchSpy
+      .mockResolvedValueOnce(instrumentsResponse([])) // simulates TRX/LTC/MATIC right now: code:0 data:[]
+      .mockResolvedValueOnce(instrumentsResponse(['TRXUSD-1JUN26-0.30-C']));
+
+    const initial = await fetchCoincallInstrumentsForBase('TRX');
+    expect(initial).toEqual([]);
+
+    vi.setSystemTime(Date.now() + 16 * 60_000);
+    const refreshed = await fetchCoincallInstrumentsForBase('TRX');
+    expect(refreshed).toEqual(['TRXUSD-1JUN26-0.30-C']);
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('retries after a failed fetch once the TTL expires', async () => {
+    fetchSpy
+      .mockRejectedValueOnce(new Error('coincall 502'))
+      .mockResolvedValueOnce(instrumentsResponse(['BTCUSD-1JUN26-70000-C']));
+
+    const initial = await fetchCoincallInstrumentsForBase('BTC');
+    expect(initial).toEqual([]);
+
+    vi.setSystemTime(Date.now() + 16 * 60_000);
+    const refreshed = await fetchCoincallInstrumentsForBase('BTC');
+    expect(refreshed).toEqual(['BTCUSD-1JUN26-70000-C']);
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
 });
 
