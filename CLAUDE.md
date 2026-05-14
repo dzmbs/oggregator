@@ -1,6 +1,6 @@
 # oggregator
 
-Multi-venue crypto options aggregator. Deribit, OKX, Binance, Bybit, Derive via direct WebSocket → normalized cross-venue chain → enriched analytics → REST API → React dashboard.
+Multi-venue crypto options aggregator. Deribit, OKX, Binance, Bybit, Derive, Coincall, Thalex, Gate.io via direct WebSocket → normalized cross-venue chain → enriched analytics → REST API → React dashboard. Authoritative venue list: `VENUE_IDS` in `packages/protocol/src/ws.ts`.
 
 ## Commands
 

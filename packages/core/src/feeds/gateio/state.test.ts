@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { CachedInstrument, LiveQuote } from '../shared/sdk-base.js';
 import {
+  applyGateioVolume,
   buildGateioInstrument,
+  createGateioVolumeWindow,
+  gateioPruneVolumeWindow,
+  gateioRecordTrade,
   mergeGateioRestTicker,
   mergeGateioTrade,
   mergeGateioUnderlyingTicker,
@@ -149,6 +153,38 @@ describe('mergeGateioTrade', () => {
     expect(out.lastPrice).toBe(2715);
     expect(out.timestamp).toBe(1747000000_000);
   });
+
+  it('applies volume24h = contracts × multiplier and volume24hUsd × underlyingPrice', () => {
+    const prev: LiveQuote = { ...emptyQuote(), underlyingPrice: 80_000 };
+    const out = mergeGateioTrade(
+      prev,
+      { price: '2715.00', timestampMs: 1747000000_000 },
+      { volumeContracts: 150, contractSize: 0.01 },
+    );
+    expect(out.volume24h).toBeCloseTo(1.5, 8);
+    expect(out.volume24hUsd).toBeCloseTo(120_000, 4);
+  });
+
+  it('leaves volume24hUsd null when underlyingPrice unknown', () => {
+    const out = mergeGateioTrade(
+      emptyQuote(),
+      { price: '2715.00', timestampMs: 1747000000_000 },
+      { volumeContracts: 150, contractSize: 0.01 },
+    );
+    expect(out.volume24h).toBeCloseTo(1.5, 8);
+    expect(out.volume24hUsd).toBeNull();
+  });
+
+  it('preserves prior volume when contractSize is null', () => {
+    const prev: LiveQuote = { ...emptyQuote(), volume24h: 0.7, volume24hUsd: 56_000 };
+    const out = mergeGateioTrade(
+      prev,
+      { price: '2715.00', timestampMs: 1 },
+      { volumeContracts: 100, contractSize: null },
+    );
+    expect(out.volume24h).toBe(0.7);
+    expect(out.volume24hUsd).toBe(56_000);
+  });
 });
 
 describe('mergeGateioUnderlyingTicker', () => {
@@ -156,5 +192,76 @@ describe('mergeGateioUnderlyingTicker', () => {
     const out = mergeGateioUnderlyingTicker(emptyQuote(), '79555.55', 1);
     expect(out.indexPrice).toBe(79555.55);
     expect(out.underlyingPrice).toBe(79555.55);
+  });
+
+  it('recomputes volume24hUsd from new indexPrice when volume24h is known', () => {
+    const prev: LiveQuote = { ...emptyQuote(), volume24h: 2.5, volume24hUsd: 200_000 };
+    const out = mergeGateioUnderlyingTicker(prev, '90000.00', 1);
+    expect(out.volume24hUsd).toBeCloseTo(225_000, 4);
+  });
+
+  it('leaves volume24hUsd unchanged when volume24h is null', () => {
+    const prev: LiveQuote = { ...emptyQuote(), volume24hUsd: 123 };
+    const out = mergeGateioUnderlyingTicker(prev, '90000.00', 1);
+    expect(out.volume24hUsd).toBe(123);
+  });
+});
+
+describe('gateio 24h volume window', () => {
+  const ONE_DAY = 24 * 60 * 60 * 1000;
+
+  it('starts empty', () => {
+    const w = createGateioVolumeWindow();
+    expect(w.totalContracts).toBe(0);
+    expect(w.trades).toEqual([]);
+  });
+
+  it('accumulates sizes while within 24h', () => {
+    const w = createGateioVolumeWindow();
+    const now = 1747000000_000;
+    gateioRecordTrade(w, { tsMs: now - 60_000, size: 10 }, now);
+    gateioRecordTrade(w, { tsMs: now - 30_000, size: 25 }, now);
+    expect(w.totalContracts).toBe(35);
+  });
+
+  it('drops trades older than 24h when a new trade lands', () => {
+    const w = createGateioVolumeWindow();
+    const now = 1747000000_000;
+    gateioRecordTrade(w, { tsMs: now - ONE_DAY - 1_000, size: 100 }, now - ONE_DAY - 1_000);
+    gateioRecordTrade(w, { tsMs: now, size: 7 }, now);
+    expect(w.totalContracts).toBe(7);
+  });
+
+  it('prunes to zero when pruning past the window with no new trade', () => {
+    const w = createGateioVolumeWindow();
+    const t0 = 1747000000_000;
+    gateioRecordTrade(w, { tsMs: t0, size: 42 }, t0);
+    expect(w.totalContracts).toBe(42);
+    const total = gateioPruneVolumeWindow(w, t0 + ONE_DAY + 1);
+    expect(total).toBe(0);
+    expect(w.trades).toEqual([]);
+  });
+
+  it('ignores zero-size or zero-timestamp trades', () => {
+    const w = createGateioVolumeWindow();
+    const now = 1747000000_000;
+    gateioRecordTrade(w, { tsMs: now, size: 0 }, now);
+    gateioRecordTrade(w, { tsMs: 0, size: 5 }, now);
+    expect(w.totalContracts).toBe(0);
+  });
+});
+
+describe('applyGateioVolume', () => {
+  it('writes volume24h and volume24hUsd when contractSize + underlyingPrice known', () => {
+    const prev: LiveQuote = { ...emptyQuote(), underlyingPrice: 80_000 };
+    const out = applyGateioVolume(prev, 150, 0.01);
+    expect(out.volume24h).toBeCloseTo(1.5, 8);
+    expect(out.volume24hUsd).toBeCloseTo(120_000, 4);
+  });
+
+  it('is a no-op when contractSize is null', () => {
+    const prev: LiveQuote = { ...emptyQuote(), volume24h: 0.5, volume24hUsd: 40_000 };
+    const out = applyGateioVolume(prev, 999, null);
+    expect(out).toBe(prev);
   });
 });

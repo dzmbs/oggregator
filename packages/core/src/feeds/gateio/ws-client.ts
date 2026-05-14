@@ -27,11 +27,16 @@ import {
   type GateioFrame,
 } from './planner.js';
 import {
+  applyGateioVolume,
   buildGateioInstrument,
+  createGateioVolumeWindow,
+  gateioPruneVolumeWindow,
+  gateioRecordTrade,
   mergeGateioRestTicker,
   mergeGateioTrade,
   mergeGateioUnderlyingTicker,
   mergeGateioWsContractTicker,
+  type GateioVolumeWindow,
 } from './state.js';
 
 const log = feedLogger('gateio');
@@ -70,6 +75,7 @@ export class GateioWsAdapter extends SdkBaseAdapter {
   private connectingPromise: Promise<void> | null = null;
   private readonly subscriptions = createGateioSubscriptionState();
   private readonly instrumentsByUnderlyingName = new Map<string, CachedInstrument[]>();
+  private readonly volumeWindows = new Map<string, GateioVolumeWindow>();
   private lastWsError: GateioWsError | null = null;
   private restOk = false;
   private restLatencyMs = 0;
@@ -152,8 +158,35 @@ export class GateioWsAdapter extends SdkBaseAdapter {
 
   private ensureHealthLoop(): void {
     if (this.healthTimer == null) {
-      this.healthTimer = setInterval(() => this.emitHealth(), HEALTH_CHECK_INTERVAL_MS);
+      this.healthTimer = setInterval(() => {
+        this.emitHealth();
+        this.pruneVolumeWindows();
+      }, HEALTH_CHECK_INTERVAL_MS);
     }
+  }
+
+  private pruneVolumeWindows(): void {
+    if (this.volumeWindows.size === 0) return;
+    const now = Date.now();
+    const updates: Array<{ exchangeSymbol: string; quote: LiveQuote }> = [];
+    for (const [id, window] of this.volumeWindows) {
+      const before = window.totalContracts;
+      const after = gateioPruneVolumeWindow(window, now);
+      if (window.trades.length === 0) {
+        this.volumeWindows.delete(id);
+      }
+      if (after !== before) {
+        const inst = this.instrumentMap.get(id);
+        const prev = this.quoteStore.get(id);
+        if (inst != null && prev != null) {
+          updates.push({
+            exchangeSymbol: id,
+            quote: applyGateioVolume(prev, after, inst.contractSize),
+          });
+        }
+      }
+    }
+    if (updates.length > 0) this.emitQuoteUpdates(updates);
   }
 
   private async fetchTickerSnapshot(underlying: string): Promise<void> {
@@ -290,12 +323,30 @@ export class GateioWsAdapter extends SdkBaseAdapter {
       }
       case 'trade': {
         const updates: Array<{ exchangeSymbol: string; quote: LiveQuote }> = [];
+        const now = Date.now();
         for (const trade of msg.data) {
           const id = trade.contract;
-          if (!this.instrumentMap.has(id)) continue;
+          const inst = this.instrumentMap.get(id);
+          if (inst == null) continue;
           const prev = this.quoteStore.get(id) ?? this.emptyQuote();
           const timestampMs = trade.create_time_ms ?? trade.create_time * 1000;
-          const quote = mergeGateioTrade(prev, { price: trade.price, timestampMs });
+
+          let window = this.volumeWindows.get(id);
+          if (window == null) {
+            window = createGateioVolumeWindow();
+            this.volumeWindows.set(id, window);
+          }
+          const volumeContracts = gateioRecordTrade(
+            window,
+            { tsMs: timestampMs, size: trade.size },
+            now,
+          );
+
+          const quote = mergeGateioTrade(
+            prev,
+            { price: trade.price, timestampMs },
+            { volumeContracts, contractSize: inst.contractSize },
+          );
           this.lastUpdateAt = quote.timestamp;
           updates.push({ exchangeSymbol: id, quote });
         }
@@ -379,6 +430,7 @@ export class GateioWsAdapter extends SdkBaseAdapter {
       clearInterval(this.healthTimer);
       this.healthTimer = null;
     }
+    this.volumeWindows.clear();
     await this.unsubscribeAll();
     await this.wsClient?.disconnect();
     this.wsClient = null;

@@ -2,10 +2,53 @@ import type { CachedInstrument, LiveQuote } from '../shared/sdk-base.js';
 import type { GateioContract, GateioTicker } from './types.js';
 import { parseGateioSymbol } from './types.js';
 
+const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
+
 function num(raw: string | number | undefined | null): number | null {
   if (raw == null || raw === '') return null;
   const n = Number(raw);
   return Number.isFinite(n) ? n : null;
+}
+
+// Gate.io's REST `/options/tickers` and WS `options.contract_tickers` channel do
+// not expose a 24h volume field per contract. Volume is derived from the
+// `options.trades` stream by accumulating sizes in a 24h sliding window.
+export interface GateioVolumeWindow {
+  trades: Array<{ tsMs: number; size: number }>;
+  totalContracts: number;
+}
+
+export function createGateioVolumeWindow(): GateioVolumeWindow {
+  return { trades: [], totalContracts: 0 };
+}
+
+function pruneVolumeWindow(window: GateioVolumeWindow, now: number): void {
+  const cutoff = now - TWENTY_FOUR_HOURS_MS;
+  while (window.trades.length > 0 && window.trades[0]!.tsMs < cutoff) {
+    const dropped = window.trades.shift()!;
+    window.totalContracts -= dropped.size;
+  }
+  if (window.trades.length === 0 || window.totalContracts < 0) {
+    window.totalContracts = window.trades.reduce((s, t) => s + t.size, 0);
+  }
+}
+
+export function gateioRecordTrade(
+  window: GateioVolumeWindow,
+  trade: { tsMs: number; size: number },
+  now: number,
+): number {
+  if (trade.size > 0 && trade.tsMs > 0) {
+    window.trades.push(trade);
+    window.totalContracts += trade.size;
+  }
+  pruneVolumeWindow(window, now);
+  return window.totalContracts;
+}
+
+export function gateioPruneVolumeWindow(window: GateioVolumeWindow, now: number): number {
+  pruneVolumeWindow(window, now);
+  return window.totalContracts;
 }
 
 function positiveOrNull(raw: number | undefined | null): number | null {
@@ -86,14 +129,28 @@ export function mergeGateioWsContractTicker(
   return applyTickerFields(prev, ticker, timestampMs);
 }
 
+export interface GateioTradeVolume {
+  volumeContracts: number;
+  contractSize: number | null;
+}
+
 export function mergeGateioTrade(
   prev: LiveQuote,
   trade: { price: string; timestampMs: number },
+  volume: GateioTradeVolume | null = null,
 ): LiveQuote {
   const lastPrice = num(trade.price);
+  let volume24h = prev.volume24h;
+  let volume24hUsd = prev.volume24hUsd;
+  if (volume != null && volume.contractSize != null) {
+    volume24h = volume.volumeContracts * volume.contractSize;
+    volume24hUsd = prev.underlyingPrice != null ? volume24h * prev.underlyingPrice : null;
+  }
   return {
     ...prev,
     lastPrice: lastPrice ?? prev.lastPrice,
+    volume24h,
+    volume24hUsd,
     timestamp: trade.timestampMs > 0 ? trade.timestampMs : prev.timestamp,
   };
 }
@@ -109,6 +166,21 @@ export function mergeGateioUnderlyingTicker(
     ...prev,
     indexPrice: price,
     underlyingPrice: price,
+    volume24hUsd: prev.volume24h != null ? prev.volume24h * price : prev.volume24hUsd,
     timestamp: timestampMs > 0 ? timestampMs : prev.timestamp,
+  };
+}
+
+export function applyGateioVolume(
+  prev: LiveQuote,
+  volumeContracts: number,
+  contractSize: number | null,
+): LiveQuote {
+  if (contractSize == null) return prev;
+  const volume24h = volumeContracts * contractSize;
+  return {
+    ...prev,
+    volume24h,
+    volume24hUsd: prev.underlyingPrice != null ? volume24h * prev.underlyingPrice : prev.volume24hUsd,
   };
 }

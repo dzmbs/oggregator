@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { EventEmitter } from 'node:events';
 import {
   TradeRuntime,
+  VENUE_STREAMS,
   getDeribitTradeCurrency,
   getDeribitUnderlyingFromInstrument,
   normalizeTradeUnderlying,
@@ -221,9 +222,11 @@ describe('TradeRuntime — start() resolves before seeding finishes', () => {
       resolved = true;
     });
 
-    // 6 venues (deribit/okx/bybit/binance/derive/thalex) × 2 underlyings.
-    // Coincall is skipped because COINCALL_API_KEY is not set in the test env.
-    expect(order.filter((entry) => entry === 'connect').length).toBe(12);
+    // 7 venues (deribit/okx/bybit/binance/derive/thalex/gateio) × 2 underlyings.
+    // Coincall is gated by COINCALL_API_KEY/SECRET — vitest does not auto-load
+    // .env, so the production keys aren't visible inside the test process even
+    // when present at the repo root. The runtime correctly skips coincall here.
+    expect(order.filter((entry) => entry === 'connect').length).toBe(14);
 
     await Promise.resolve();
     await promise;
@@ -232,5 +235,122 @@ describe('TradeRuntime — start() resolves before seeding finishes', () => {
     expect(order).not.toContain('seed');
 
     runtime.dispose();
+  });
+});
+
+describe('TradeRuntime — gateio VENUE_STREAMS entry', () => {
+  function getGateioStream() {
+    const stream = VENUE_STREAMS.find((s) => s.venue === 'gateio');
+    if (!stream) throw new Error('gateio stream not registered');
+    return stream;
+  }
+
+  it('parses a signed-size trade frame as side=sell with magnitude size', () => {
+    const stream = getGateioStream();
+    const frame = {
+      time: 1778748883,
+      channel: 'options.trades',
+      event: 'update',
+      result: [
+        {
+          size: -3,
+          id: 99,
+          create_time: 1778748883,
+          contract: 'BTC_USDT-20260605-79000-P',
+          price: '2432',
+        },
+      ],
+    };
+    const out = stream.parse(frame, 'BTC');
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({
+      venue: 'gateio',
+      side: 'sell',
+      size: 3,
+      price: 2432,
+      instrument: 'BTC_USDT-20260605-79000-P',
+      underlying: 'BTC',
+      isBlock: false,
+      timestamp: 1778748883_000,
+    });
+  });
+
+  it('parses a positive-size trade as side=buy and prefers create_time_ms when present', () => {
+    const stream = getGateioStream();
+    const frame = {
+      time: 1778765126,
+      channel: 'options.trades',
+      event: 'update',
+      result: [
+        {
+          size: 2,
+          id: 99,
+          create_time: 1778765126,
+          create_time_ms: 1778765126_777,
+          contract: 'BTC_USDT-20260517-81500-C',
+          price: '388',
+        },
+      ],
+    };
+    const out = stream.parse(frame, 'BTC');
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({ side: 'buy', size: 2, timestamp: 1778765126_777 });
+  });
+
+  it('filters trades whose contract is for a different underlying', () => {
+    const stream = getGateioStream();
+    const frame = {
+      time: 1,
+      channel: 'options.trades',
+      event: 'update',
+      result: [
+        { size: 1, id: 1, create_time: 1, contract: 'ETH_USDT-20260605-2000-C', price: '50' },
+        { size: 1, id: 2, create_time: 1, contract: 'BTC_USDT-20260605-70000-C', price: '100' },
+      ],
+    };
+    expect(stream.parse(frame, 'BTC')).toHaveLength(1);
+    expect(stream.parse(frame, 'ETH')).toHaveLength(1);
+  });
+
+  it('ignores subscribe acks, errors, and non-trade channels', () => {
+    const stream = getGateioStream();
+    expect(
+      stream.parse(
+        { time: 1, channel: 'options.trades', event: 'subscribe', result: { status: 'success' } },
+        'BTC',
+      ),
+    ).toEqual([]);
+    expect(
+      stream.parse(
+        { time: 1, channel: 'options.trades', event: 'update', error: { code: 1, message: 'x' } },
+        'BTC',
+      ),
+    ).toEqual([]);
+    expect(
+      stream.parse(
+        { time: 1, channel: 'options.contract_tickers', event: 'update', result: [] },
+        'BTC',
+      ),
+    ).toEqual([]);
+  });
+
+  it('drops zero-size trades and unparseable prices', () => {
+    const stream = getGateioStream();
+    const frame = {
+      time: 1,
+      channel: 'options.trades',
+      event: 'update',
+      result: [
+        { size: 0, id: 1, create_time: 1, contract: 'BTC_USDT-20260605-70000-C', price: '100' },
+        {
+          size: 1,
+          id: 2,
+          create_time: 1,
+          contract: 'BTC_USDT-20260605-70000-C',
+          price: 'not-a-number',
+        },
+      ],
+    };
+    expect(stream.parse(frame, 'BTC')).toEqual([]);
   });
 });

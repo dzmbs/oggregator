@@ -10,12 +10,16 @@ import {
   COINCALL_REST_BASE_URL,
   DERIBIT_WS_URL,
   DERIVE_WS_URL,
+  GATEIO_OPTIONS_CONTRACTS,
+  GATEIO_OPTIONS_WS_URL,
+  GATEIO_REST_BASE_URL,
   OKX_INSTRUMENT_FAMILY_TRADES,
   OKX_REST_BASE_URL,
   OKX_WS_URL,
   THALEX_MARKET_WS_URL,
 } from '../../feeds/shared/endpoints.js';
 import { buildSignedWsUrl } from '../../feeds/coincall/ws-client.js';
+import { GateioWsEnvelopeSchema, GateioWsTradeSchema } from '../../feeds/gateio/types.js';
 import type { VenueId } from '../../types/common.js';
 import { startEventLoopLagMonitor } from '../../utils/event-loop-lag.js';
 import { feedLogger } from '../../utils/logger.js';
@@ -59,6 +63,7 @@ export class TradeRuntime {
           continue;
         }
         if (stream.venue === 'coincall' && !isCoincallTradeUnderlyingSupported(underlying)) {
+          logCoincallFilteredAtStartup(underlying);
           continue;
         }
         if (stream.venue === 'thalex' && !isThalexTradeUnderlyingSupported(underlying)) {
@@ -505,6 +510,26 @@ const COINCALL_TRADE_UNDERLYINGS = new Set([
 // Thalex lists only BTC + ETH options. Matches feeds/thalex/ws-client.ts.
 const THALEX_TRADE_UNDERLYINGS = new Set(['BTC', 'ETH']);
 
+const GateioTradeListSchema = GateioWsTradeSchema.array();
+const GATEIO_TRADE_BATCH = 50;
+const GATEIO_PING_INTERVAL_MS = 15_000;
+const GATEIO_REST_TIMEOUT_MS = 10_000;
+
+async function fetchGateioContractNames(underlying: string): Promise<string[]> {
+  const url = new URL(GATEIO_OPTIONS_CONTRACTS, GATEIO_REST_BASE_URL);
+  url.searchParams.set('underlying', `${underlying}_USDT`);
+  const res = await fetch(url, { signal: AbortSignal.timeout(GATEIO_REST_TIMEOUT_MS) });
+  if (!res.ok) throw new Error(`gateio: contracts ${res.status}`);
+  const data = (await res.json()) as Array<{ name: string; is_active?: boolean }>;
+  return data.filter((c) => c.is_active !== false).map((c) => c.name);
+}
+
+function chunkArray<T>(items: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
+}
+
 // recent_trades.<UNDERLYING>.options payload: each trade is a tuple
 // [price, size, side, timestamp_seconds, instrument_name, implied_taker].
 const ThalexTradeTupleSchema = z.tuple([
@@ -549,6 +574,26 @@ function isCoincallTradeUnderlyingSupported(underlying: string): boolean {
   return COINCALL_TRADE_UNDERLYINGS.has(normalizeTradeUnderlying(underlying));
 }
 
+const coincallStartupFilterLogged = new Set<string>();
+
+function logCoincallFilteredAtStartup(underlying: string): void {
+  const normalized = normalizeTradeUnderlying(underlying);
+  if (coincallStartupFilterLogged.has(normalized)) return;
+  coincallStartupFilterLogged.add(normalized);
+
+  if (!process.env['COINCALL_API_KEY'] || !process.env['COINCALL_API_SECRET']) {
+    log.warn(
+      { venue: 'coincall', underlying: normalized },
+      'coincall trade stream disabled — COINCALL_API_KEY / COINCALL_API_SECRET missing',
+    );
+    return;
+  }
+  log.info(
+    { venue: 'coincall', underlying: normalized },
+    'coincall trade stream skipped — underlying not in COINCALL_TRADE_UNDERLYINGS allowlist',
+  );
+}
+
 // Coincall `lastTrade` is per-instrument — no bulk underlying channel. Fetch the
 // active instrument list once per base and cache the promise across reconnects.
 const coincallInstrumentCache = new Map<string, Promise<string[]>>();
@@ -562,15 +607,45 @@ function fetchCoincallInstrumentsForBase(base: string): Promise<string[]> {
       const res = await fetch(`${COINCALL_REST_BASE_URL}${COINCALL_INSTRUMENTS}/${base}`, {
         signal: AbortSignal.timeout(10_000),
       });
-      const body = (await res.json()) as { code?: number; data?: unknown };
-      if (body.code !== 0 || !Array.isArray(body.data)) return [];
+      const body = (await res.json()) as { code?: number; msg?: string; data?: unknown };
+      if (body.code !== 0) {
+        log.warn(
+          { venue: 'coincall', base, code: body.code, msg: body.msg },
+          'coincall getInstruments returned non-success code — no trades for this base',
+        );
+        return [];
+      }
+      if (!Array.isArray(body.data)) {
+        log.warn(
+          { venue: 'coincall', base },
+          'coincall getInstruments returned non-array data — no trades for this base',
+        );
+        return [];
+      }
       const active: string[] = [];
+      let total = 0;
       for (const item of body.data) {
+        total++;
         const parsed = CoincallInstrumentEntrySchema.safeParse(item);
         if (parsed.success && parsed.data.isActive) active.push(parsed.data.symbolName);
       }
+      if (active.length === 0) {
+        log.warn(
+          { venue: 'coincall', base, totalListed: total },
+          'coincall has no active option instruments for base — live trade tape will receive no trades for this underlying',
+        );
+      } else {
+        log.info(
+          { venue: 'coincall', base, active: active.length, totalListed: total },
+          'coincall option instruments fetched',
+        );
+      }
       return active;
-    } catch {
+    } catch (err) {
+      log.warn(
+        { venue: 'coincall', base, err: String(err) },
+        'coincall getInstruments fetch failed — no trades for this base',
+      );
       return [];
     }
   })();
@@ -683,7 +758,7 @@ function deribitRpcSeed(currency: string): Promise<TradeEvent[]> {
   });
 }
 
-const VENUE_STREAMS: VenueStream[] = [
+export const VENUE_STREAMS: VenueStream[] = [
   {
     venue: 'deribit',
     url: DERIBIT_WS_URL,
@@ -1241,6 +1316,88 @@ const VENUE_STREAMS: VenueStream[] = [
         });
       }
       return trades;
+    },
+  },
+  {
+    venue: 'gateio',
+    url: GATEIO_OPTIONS_WS_URL,
+    // Gate.io requires an app-level JSON ping every 15s on this socket
+    // (per references/options-docs/gateio/summary.json + feeds/gateio/ws-client.ts).
+    // WS-level pings alone are not enough.
+    startKeepalive(ws) {
+      return setInterval(() => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(
+            JSON.stringify({ time: Math.floor(Date.now() / 1000), channel: 'options.ping' }),
+          );
+        }
+      }, GATEIO_PING_INTERVAL_MS);
+    },
+    connect(ws, underlying) {
+      const base = normalizeTradeUnderlying(underlying);
+      // options.trades is per-contract — fetch the live contract list and
+      // chunk-subscribe (50 per frame). REST happens async after `open`; trades
+      // start flowing on whichever batch lands first.
+      void fetchGateioContractNames(base)
+        .then((contracts) => {
+          if (ws.readyState !== WebSocket.OPEN) return;
+          const time = Math.floor(Date.now() / 1000);
+          for (const batch of chunkArray(contracts, GATEIO_TRADE_BATCH)) {
+            ws.send(
+              JSON.stringify({
+                time,
+                channel: 'options.trades',
+                event: 'subscribe',
+                payload: batch,
+              }),
+            );
+          }
+        })
+        .catch((err: unknown) => {
+          log.warn(
+            { venue: 'gateio', underlying: base, err: String(err) },
+            'gateio trade contract enumeration failed',
+          );
+        });
+    },
+    parse(msg, underlying) {
+      const envelope = GateioWsEnvelopeSchema.safeParse(msg);
+      if (!envelope.success) return [];
+      if (envelope.data.channel !== 'options.trades') return [];
+      if (envelope.data.event !== 'update' && envelope.data.event !== 'all') return [];
+      if (envelope.data.error != null) return [];
+
+      const list = GateioTradeListSchema.safeParse(envelope.data.result);
+      if (!list.success) return [];
+
+      const base = normalizeTradeUnderlying(underlying);
+      const prefix = `${base}_USDT-`;
+      const out: TradeEvent[] = [];
+      for (const t of list.data) {
+        if (!t.contract.startsWith(prefix)) continue;
+        const magnitude = Math.abs(t.size);
+        if (magnitude === 0) continue;
+        // Gate.io encodes taker direction in the sign of `size` (positive = buy,
+        // negative = sell). Verified against /api/v4/options/trades.
+        const side: 'buy' | 'sell' = t.size > 0 ? 'buy' : 'sell';
+        const priceNum = Number(t.price);
+        if (!Number.isFinite(priceNum)) continue;
+        out.push({
+          venue: 'gateio',
+          tradeId: `${t.contract}:${t.id}`,
+          instrument: t.contract,
+          underlying: base,
+          side,
+          price: priceNum,
+          size: magnitude,
+          iv: null,
+          markPrice: null,
+          indexPrice: null,
+          isBlock: false,
+          timestamp: t.create_time_ms ?? t.create_time * 1000,
+        });
+      }
+      return out;
     },
   },
 ];

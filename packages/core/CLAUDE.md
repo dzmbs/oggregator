@@ -104,3 +104,4 @@ pnpm --filter @oggregator/core build   # tsc → dist/
 - **Derive has no app-level heartbeat**: rely on WS ping/pong and reconnect logic.
 - **Derive DNS**: `api.derive.xyz` doesn't resolve. Use `api.lyra.finance`.
 - **Derive slow bootstrap**: ~13s to load all instruments + tickers across currencies/expiries.
+- **Gate.io has no 24h volume in tickers**: neither `/options/tickers` REST nor the `options.contract_tickers` WS channel expose a 24h options volume. The contracts endpoint's `trade_size` is cumulative historical, not 24h. The adapter derives `volume24h` by maintaining a 24h sliding window of `options.trades` per contract (see `feeds/gateio/state.ts` → `gateioRecordTrade`); `volume24hUsd` is then `volume24h × underlyingPrice`. A periodic prune in the health loop rolls inactive contracts back to zero. Implication: at boot, volume starts at null and fills in only as trades arrive — there is no REST backfill possible.
