@@ -1,4 +1,4 @@
-import type { ZodError, ZodSchema, ZodTypeDef } from 'zod';
+import { type ZodError, type ZodType } from 'zod';
 import {
   GateioContractsResponseSchema,
   GateioExpirationsResponseSchema,
@@ -22,14 +22,14 @@ import {
   type GateioWsUnderlyingTicker,
 } from './types.js';
 
-function parse<T>(schema: ZodSchema<T, ZodTypeDef, unknown>, raw: unknown, label: string): T {
+function parse<T>(schema: ZodType<T>, raw: unknown, label: string): T {
   const r = schema.safeParse(raw);
   if (!r.success) {
     const issue = (r.error as ZodError).issues[0];
     const path = issue?.path?.join('.') ?? '<root>';
     throw new Error(`gateio: invalid ${label} at ${path}: ${issue?.message ?? 'unknown'}`);
   }
-  return r.data;
+  return r.data as T;
 }
 
 export function parseGateioUnderlyings(raw: unknown): GateioUnderlying[] {
@@ -75,7 +75,12 @@ export function parseGateioWsMessage(raw: unknown): GateioWsParsed {
 
   if (envelope.error != null) {
     const err = envelope.error as { code?: number; message?: string };
-    return { kind: 'error', channel: envelope.channel, code: err.code, message: err.message };
+    return {
+      kind: 'error',
+      channel: envelope.channel,
+      ...(err.code !== undefined && { code: err.code }),
+      ...(err.message !== undefined && { message: err.message }),
+    };
   }
 
   if (envelope.event === 'subscribe' || envelope.event === 'unsubscribe') {
