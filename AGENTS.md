@@ -7,6 +7,8 @@ pnpm test           # all tests
 pnpm precommit      # typecheck + test (gate)
 ```
 
+**Dependency Management:** Always run `pnpm install` after modifying `package.json` to update `pnpm-lock.yaml` and prevent CI failures due to outdated lockfiles.
+
 **After changing `packages/core/src/` or `packages/protocol/src/`:** rebuild the package so consumers pick up fresh `dist/` output:
 ```bash
 pnpm --filter @oggregator/core build   # tsc → dist/
