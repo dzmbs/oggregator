@@ -40,6 +40,8 @@ const GATEIO_PING_INTERVAL_MS = 15_000;
 
 const HEALTH_CHECK_INTERVAL_MS = 60_000;
 
+const GATEIO_REST_TIMEOUT_MS = 10_000;
+
 function nowSeconds(): number {
   return Math.floor(Date.now() / 1000);
 }
@@ -65,7 +67,9 @@ export class GateioWsAdapter extends SdkBaseAdapter {
   readonly venue: VenueId = 'gateio';
 
   private wsClient: TopicWsClient | null = null;
+  private connectingPromise: Promise<void> | null = null;
   private readonly subscriptions = createGateioSubscriptionState();
+  private readonly instrumentsByUnderlyingName = new Map<string, CachedInstrument[]>();
   private lastWsError: GateioWsError | null = null;
   private restOk = false;
   private restLatencyMs = 0;
@@ -87,6 +91,8 @@ export class GateioWsAdapter extends SdkBaseAdapter {
     } catch (err: unknown) {
       this.restOk = false;
       log.error({ err: String(err) }, 'failed to load underlyings');
+      this.ensureHealthLoop();
+      this.emitHealth();
       return instruments;
     }
 
@@ -122,8 +128,13 @@ export class GateioWsAdapter extends SdkBaseAdapter {
 
     log.info({ count: instruments.length }, 'loaded option instruments');
 
+    this.instrumentsByUnderlyingName.clear();
     for (const inst of instruments) {
       this.quoteStore.set(inst.exchangeSymbol, this.emptyQuote());
+      const key = `${inst.base}_USDT`;
+      const bucket = this.instrumentsByUnderlyingName.get(key);
+      if (bucket) bucket.push(inst);
+      else this.instrumentsByUnderlyingName.set(key, [inst]);
     }
 
     for (const underlying of underlyings) {
@@ -133,12 +144,16 @@ export class GateioWsAdapter extends SdkBaseAdapter {
     this.restOk = true;
     this.restLatencyMs = Date.now() - startedAt;
 
-    if (this.healthTimer == null) {
-      this.healthTimer = setInterval(() => this.emitHealth(), HEALTH_CHECK_INTERVAL_MS);
-    }
+    this.ensureHealthLoop();
     this.emitHealth();
 
     return instruments;
+  }
+
+  private ensureHealthLoop(): void {
+    if (this.healthTimer == null) {
+      this.healthTimer = setInterval(() => this.emitHealth(), HEALTH_CHECK_INTERVAL_MS);
+    }
   }
 
   private async fetchTickerSnapshot(underlying: string): Promise<void> {
@@ -223,10 +238,12 @@ export class GateioWsAdapter extends SdkBaseAdapter {
   }
 
   private connectWs(): Promise<void> {
+    if (this.connectingPromise != null) return this.connectingPromise;
+
     if (this.wsClient == null) {
       this.wsClient = new TopicWsClient(GATEIO_OPTIONS_WS_URL, 'gateio-ws', {
         pingIntervalMs: GATEIO_PING_INTERVAL_MS,
-        pingMessage: { time: nowSeconds(), channel: 'options.ping' },
+        pingMessage: () => ({ time: nowSeconds(), channel: 'options.ping' }),
         onStatusChange: (state) => {
           this.emitStatus(
             state === 'connected' ? 'connected' : state === 'down' ? 'down' : 'reconnecting',
@@ -242,7 +259,10 @@ export class GateioWsAdapter extends SdkBaseAdapter {
       });
     }
 
-    return this.wsClient.connect();
+    this.connectingPromise = this.wsClient.connect().finally(() => {
+      this.connectingPromise = null;
+    });
+    return this.connectingPromise;
   }
 
   // ── WS message handling ───────────────────────────────────────
@@ -287,10 +307,12 @@ export class GateioWsAdapter extends SdkBaseAdapter {
         const indexPrice = msg.data.index_price ?? null;
         if (indexPrice == null) return;
 
+        const bucket = this.instrumentsByUnderlyingName.get(underlyingName);
+        if (bucket == null || bucket.length === 0) return;
+
         const updates: Array<{ exchangeSymbol: string; quote: LiveQuote }> = [];
         const now = Date.now();
-        for (const inst of this.instruments) {
-          if (`${inst.base}_USDT` !== underlyingName) continue;
+        for (const inst of bucket) {
           const prev = this.quoteStore.get(inst.exchangeSymbol) ?? this.emptyQuote();
           const quote = mergeGateioUnderlyingTicker(prev, indexPrice, now);
           updates.push({ exchangeSymbol: inst.exchangeSymbol, quote });
@@ -340,7 +362,7 @@ export class GateioWsAdapter extends SdkBaseAdapter {
     const url = new URL(path, GATEIO_REST_BASE_URL);
     for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
 
-    const res = await fetch(url);
+    const res = await fetch(url, { signal: AbortSignal.timeout(GATEIO_REST_TIMEOUT_MS) });
     if (!res.ok) throw new Error(`Gate.io ${path} returned ${res.status}`);
     return res.json();
   }

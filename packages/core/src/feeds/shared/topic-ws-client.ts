@@ -7,9 +7,11 @@ const RETRY_AFTER_MAX_ATTEMPTS_MS = 60_000;
 const DEFAULT_MAX_RECONNECT_ATTEMPTS = 20;
 const DEFAULT_RECONNECT_DELAY_MS = 1_000;
 
+export type PingMessage = string | Record<string, unknown>;
+
 export interface TopicWsClientOptions {
   pingIntervalMs?: number;
-  pingMessage?: string | Record<string, unknown>;
+  pingMessage?: PingMessage | (() => PingMessage);
   maxReconnectAttempts?: number;
   reconnectDelayMs?: number;
   onStatusChange?: (state: 'connected' | 'reconnecting' | 'down') => void;
@@ -162,7 +164,7 @@ export class TopicWsClient {
     if (pingIntervalMs == null || pingMessage == null) return;
 
     this.pingTimer = setInterval(() => {
-      this.send(pingMessage);
+      this.send(typeof pingMessage === 'function' ? pingMessage() : pingMessage);
     }, pingIntervalMs);
   }
 

@@ -63,6 +63,7 @@ const VenueIdSchema = z.enum([
   'derive',
   'coincall',
   'thalex',
+  'gateio',
 ]);
 
 const PositionLegSchema: z.ZodType<PositionLeg> = z.object({

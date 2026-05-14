@@ -190,7 +190,7 @@ describe('Gate.io REST envelope schemas (verbatim fixtures)', () => {
     expect(GateioOrderBookSchema.safeParse(REST_ORDER_BOOK_FIXTURE).success).toBe(true);
   });
 
-  it('mark_iv parses as a fraction (0..2 range)', () => {
+  it('mark_iv parses as a fraction (0..5 range)', () => {
     const parsed = GateioTickerSchema.parse(REST_TICKER_FIXTURE);
     expect(parsed.mark_iv).toBeDefined();
     const n = Number(parsed.mark_iv);

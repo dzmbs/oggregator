@@ -275,7 +275,6 @@ export const PRIVATE_ADAPTER_SPECS: Readonly<Record<VenueId, VenuePrivateAdapter
       'sign auth op: { time, channel: "options.login", event: "api", payload: [{ api_key, timestamp, sign }] } where sign = HMAC-SHA256(secret, channel + "\\n" + event + "\\n" + timestamp)',
       'subscribe to options.positions channel after auth',
       'normalize Gate position fields (size, entry_price) → PositionLeg',
-      'add "gateio" to PortfolioSource enum',
     ],
   },
 };

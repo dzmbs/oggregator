@@ -27,7 +27,7 @@ export function LandingHeader() {
           <span className="hidden rounded-full border border-[color:var(--landing-border)] bg-[rgba(80,210,193,0.08)] px-3 py-2 font-[var(--font-mono)] text-[10px] uppercase tracking-[0.24em] text-[var(--landing-accent)] sm:inline-flex">
             Live / institutional preview
           </span>
-          <a href="#access" className="landing-button-primary !px-5 !py-3">
+          <a href="#access" className="landing-button-primary px-5! py-3!">
             {landingCopy.nav.cta}
           </a>
         </div>
