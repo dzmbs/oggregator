@@ -80,9 +80,11 @@ const COINCALL_PING_INTERVAL_MS = 15_000;
 const INSTRUMENT_REFRESH_INTERVAL_MS = 10 * 60 * 1000;
 const HEALTH_CHECK_INTERVAL_MS = 60 * 1000;
 
-// Only subscribe options for underlyings that the app cares about. optionConfig
-// lists 21 pairs; we track the subset that overlaps with the other linear-USDT
-// venues (gate.io in particular) so cross-venue chains line up.
+// Full Coincall optionConfig (21 pairs). Long-tail pairs (ORDI/KAS/MNT/etc.)
+// will be CoinCall-only rows in cross-venue chains. The normalization pipeline
+// is generic (symbol regex matches any [A-Z]+USD, strike accepts decimals,
+// IV is fractions, multiplier defaults to 1), so adding pairs costs nothing
+// beyond bandwidth.
 const SUPPORTED_UNDERLYINGS = [
   'BTC',
   'ETH',
@@ -94,6 +96,17 @@ const SUPPORTED_UNDERLYINGS = [
   'HYPE',
   'SUI',
   'XAUT',
+  'AAVE',
+  'TRX',
+  'MATIC',
+  'ORDI',
+  'MNT',
+  'WLFI',
+  'ENA',
+  'PENDLE',
+  'LIT',
+  'TRUMP',
+  'KAS',
 ] as const;
 
 function payloadShape(value: unknown): Record<string, unknown> {

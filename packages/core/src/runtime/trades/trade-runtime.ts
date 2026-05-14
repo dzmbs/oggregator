@@ -489,6 +489,17 @@ const COINCALL_TRADE_UNDERLYINGS = new Set([
   'HYPE',
   'SUI',
   'XAUT',
+  'AAVE',
+  'TRX',
+  'MATIC',
+  'ORDI',
+  'MNT',
+  'WLFI',
+  'ENA',
+  'PENDLE',
+  'LIT',
+  'TRUMP',
+  'KAS',
 ]);
 
 // Thalex lists only BTC + ETH options. Matches feeds/thalex/ws-client.ts.
