@@ -1,7 +1,18 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": "vite",
   "installCommand": "pnpm install --frozen-lockfile",
-  "buildCommand": "pnpm --filter @oggregator/protocol build && pnpm --filter @oggregator/web build",
+  "buildCommand": "pnpm --filter @oggregator/protocol build && pnpm --filter @oggregator/landing build && pnpm --filter @oggregator/web build",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/$1",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.oggregator.xyz"
+        }
+      ]
+    }
+  ],
   "outputDirectory": "packages/web/dist"
 }
