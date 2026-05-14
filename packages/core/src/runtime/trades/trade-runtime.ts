@@ -478,7 +478,18 @@ const DERIBIT_INVERSE_OPTION_CURRENCIES = new Set(['BTC', 'ETH']);
 const DERIBIT_USDC_OPTION_BASES = new Set(['AVAX', 'SOL', 'TRX', 'XRP']);
 
 // Matches SUPPORTED_UNDERLYINGS in feeds/coincall/ws-client.ts.
-const COINCALL_TRADE_UNDERLYINGS = new Set(['BTC', 'ETH', 'SOL', 'BNB', 'DOGE', 'XRP']);
+const COINCALL_TRADE_UNDERLYINGS = new Set([
+  'BTC',
+  'ETH',
+  'SOL',
+  'BNB',
+  'DOGE',
+  'XRP',
+  'LTC',
+  'HYPE',
+  'SUI',
+  'XAUT',
+]);
 
 // Thalex lists only BTC + ETH options. Matches feeds/thalex/ws-client.ts.
 const THALEX_TRADE_UNDERLYINGS = new Set(['BTC', 'ETH']);

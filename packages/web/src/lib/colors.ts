@@ -71,13 +71,22 @@ export const VENUE_COLORS: Record<string, string> = {
   okx: '#e8eaf0',
   binance: '#F0B90B',
   bybit: '#F7A600',
-  derive: '#25FAAF',
+  derive: '#FF8A3D',
   coincall: '#1FE086',
-  thalex: '#00E5A8',
+  thalex: '#5DADE2',
+  gateio: '#E5374E',
 };
 
 export function venueColor(venueId: string): string {
   return VENUE_COLORS[venueId] ?? '#8b909e';
+}
+
+export const VENUE_GRADIENTS: Record<string, string> = {
+  derive: 'linear-gradient(135deg, #FFB347 0%, #FF6F3C 100%)',
+};
+
+export function venueGradient(venueId: string): string | null {
+  return VENUE_GRADIENTS[venueId] ?? null;
 }
 
 // ── Delta-bucket color ramp ───────────────────────────────────────────────

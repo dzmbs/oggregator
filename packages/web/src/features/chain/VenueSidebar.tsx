@@ -1,6 +1,6 @@
 import { memo, useMemo, type CSSProperties } from 'react';
 import { VENUE_LIST, VENUES } from '@lib/venue-meta';
-import { venueColor } from '@lib/colors';
+import { venueColor, venueGradient } from '@lib/colors';
 import { fmtUsdCompact } from '@lib/format';
 import type { VenueFailure } from '@oggregator/protocol';
 import styles from './VenueSidebar.module.css';
@@ -36,14 +36,19 @@ function VenueSidebar({
           const reason = failedMap.get(venue.id);
           const oi = venueOi?.[venue.id];
           const color = venueColor(venue.id);
+          const gradient = venueGradient(venue.id);
           const meta = VENUES[venue.id];
+          const itemStyle = {
+            '--venue-color': color,
+            ...(gradient ? { '--venue-gradient': gradient } : {}),
+          } as CSSProperties;
           return (
             <label
               key={venue.id}
               className={styles.item}
               data-active={active}
               data-failed={failed || undefined}
-              style={{ '--venue-color': color } as CSSProperties}
+              style={itemStyle}
               title={failed ? `Failed: ${reason}` : undefined}
             >
               <input

@@ -51,7 +51,7 @@
 }
 
 .item[data-active="true"]::before {
-  background: var(--venue-color);
+  background: var(--venue-gradient, var(--venue-color));
   box-shadow: 0 0 8px var(--venue-color);
 }
 

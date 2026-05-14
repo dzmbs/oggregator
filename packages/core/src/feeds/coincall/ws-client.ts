@@ -81,8 +81,20 @@ const INSTRUMENT_REFRESH_INTERVAL_MS = 10 * 60 * 1000;
 const HEALTH_CHECK_INTERVAL_MS = 60 * 1000;
 
 // Only subscribe options for underlyings that the app cares about. optionConfig
-// lists 21 pairs but most are long-tail; chain UI focuses on these.
-const SUPPORTED_UNDERLYINGS = ['BTC', 'ETH', 'SOL', 'BNB', 'DOGE', 'XRP'] as const;
+// lists 21 pairs; we track the subset that overlaps with the other linear-USDT
+// venues (gate.io in particular) so cross-venue chains line up.
+const SUPPORTED_UNDERLYINGS = [
+  'BTC',
+  'ETH',
+  'SOL',
+  'BNB',
+  'DOGE',
+  'XRP',
+  'LTC',
+  'HYPE',
+  'SUI',
+  'XAUT',
+] as const;
 
 function payloadShape(value: unknown): Record<string, unknown> {
   if (Array.isArray(value)) {
