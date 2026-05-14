@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 // ── Venue primitives ──────────────────────────────────────────────
 
-export const VENUE_IDS = ['deribit', 'okx', 'bybit', 'binance', 'derive', 'coincall', 'thalex'] as const;
+export const VENUE_IDS = ['deribit', 'okx', 'bybit', 'binance', 'derive', 'coincall', 'thalex', 'gateio'] as const;
 export type VenueId = (typeof VENUE_IDS)[number];
 
 export const VenueIdSchema = z.enum(VENUE_IDS);

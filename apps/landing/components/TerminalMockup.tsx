@@ -6,8 +6,9 @@ import {
 } from "@/lib/demo-data";
 
 const statusToneClass = {
-  primary: "bg-[rgba(116,212,255,0.18)] text-[var(--landing-accent)]",
-  secondary: "bg-white/6 text-zinc-300",
+  primary:
+    "border border-[rgba(80,210,193,0.22)] bg-[rgba(80,210,193,0.12)] text-[var(--landing-accent)]",
+  secondary: "border border-white/8 bg-white/6 text-zinc-300",
 } as const;
 
 const sparklineHeights = [42, 68, 58, 76, 54, 83, 72, 90] as const;
@@ -15,21 +16,21 @@ const sparklineHeights = [42, 68, 58, 76, 54, 83, 72, 90] as const;
 export function TerminalMockup() {
   return (
     <div className="landing-panel-strong relative overflow-hidden rounded-[2rem] p-4 sm:p-5">
-      <div className="absolute inset-x-10 top-0 h-32 bg-[radial-gradient(circle,_rgba(116,212,255,0.24),_transparent_72%)] blur-3xl" />
-      <div className="relative overflow-hidden rounded-[1.6rem] border border-white/8 bg-[rgba(7,10,16,0.96)] shadow-[0_30px_120px_rgba(0,0,0,0.45)]">
-        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/8 px-4 py-3 sm:px-5">
+      <div className="absolute inset-x-10 top-0 h-32 bg-[radial-gradient(circle,_rgba(80,210,193,0.18),_transparent_72%)] blur-3xl" />
+      <div className="relative overflow-hidden rounded-[1.6rem] border border-[color:var(--landing-border)] bg-[rgba(10,10,10,0.96)] shadow-[0_30px_120px_rgba(0,0,0,0.45)]">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[color:var(--landing-border)] px-4 py-3 sm:px-5">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-full bg-rose-400/80" />
-              <span className="h-2.5 w-2.5 rounded-full bg-amber-300/80" />
-              <span className="h-2.5 w-2.5 rounded-full bg-emerald-400/80" />
+              <span className="h-2.5 w-2.5 rounded-full bg-[var(--landing-loss)]" />
+              <span className="h-2.5 w-2.5 rounded-full bg-[var(--landing-warning)]" />
+              <span className="h-2.5 w-2.5 rounded-full bg-[var(--landing-success)]" />
             </div>
             <p className="font-[var(--font-mono)] text-[10px] uppercase tracking-[0.28em] text-zinc-400">
               Oggregator terminal / live route stack
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <span className="rounded-full border border-[rgba(116,212,255,0.2)] bg-[rgba(116,212,255,0.1)] px-3 py-1 font-[var(--font-mono)] text-[10px] uppercase tracking-[0.24em] text-[var(--landing-accent)]">
+            <span className="rounded-full border border-[rgba(80,210,193,0.2)] bg-[rgba(80,210,193,0.1)] px-3 py-1 font-[var(--font-mono)] text-[10px] uppercase tracking-[0.24em] text-[var(--landing-accent)]">
               Sync nominal
             </span>
             <span className="rounded-full border border-white/8 bg-white/5 px-3 py-1 font-[var(--font-mono)] text-[10px] uppercase tracking-[0.24em] text-zinc-300">
@@ -44,7 +45,7 @@ export function TerminalMockup() {
               {terminalMetrics.map((metric) => (
                 <div
                   key={metric.label}
-                  className="rounded-[1.15rem] border border-white/8 bg-white/[0.035] px-4 py-3"
+                  className="rounded-[1.15rem] border border-[color:var(--landing-border)] bg-white/[0.03] px-4 py-3"
                 >
                   <p className="font-[var(--font-mono)] text-[10px] uppercase tracking-[0.24em] text-zinc-500">
                     {metric.label}
@@ -62,7 +63,7 @@ export function TerminalMockup() {
               ))}
             </div>
 
-            <div className="rounded-[1.4rem] border border-white/8 bg-white/[0.025] p-4">
+            <div className="rounded-[1.4rem] border border-[color:var(--landing-border)] bg-white/[0.025] p-4">
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div>
                   <p className="font-[var(--font-mono)] text-[10px] uppercase tracking-[0.24em] text-zinc-500">
@@ -88,7 +89,7 @@ export function TerminalMockup() {
                 {terminalRows.map((row) => (
                   <div
                     key={row.symbol}
-                    className="grid grid-cols-[1.8fr_0.7fr_0.6fr_0.8fr_0.8fr] gap-3 rounded-[1rem] border border-white/6 bg-black/20 px-3 py-3 text-sm text-zinc-200 transition duration-300 hover:border-[rgba(116,212,255,0.3)] hover:bg-white/[0.05]"
+                    className="grid grid-cols-[1.8fr_0.7fr_0.6fr_0.8fr_0.8fr] gap-3 rounded-[1rem] border border-white/6 bg-black/20 px-3 py-3 text-sm text-zinc-200 transition duration-300 hover:border-[rgba(80,210,193,0.3)] hover:bg-white/[0.05]"
                   >
                     <span className="truncate font-[var(--font-mono)] text-[11px] text-zinc-100">
                       {row.symbol}
@@ -104,7 +105,7 @@ export function TerminalMockup() {
           </div>
 
           <div className="space-y-4">
-            <div className="rounded-[1.4rem] border border-white/8 bg-[linear-gradient(180deg,rgba(116,212,255,0.08),rgba(255,255,255,0.02))] p-4">
+            <div className="rounded-[1.4rem] border border-[color:var(--landing-border)] bg-[linear-gradient(180deg,rgba(80,210,193,0.08),rgba(255,255,255,0.02))] p-4">
               <div className="flex items-end justify-between gap-4">
                 <div>
                   <p className="font-[var(--font-mono)] text-[10px] uppercase tracking-[0.24em] text-zinc-500">
@@ -145,7 +146,7 @@ export function TerminalMockup() {
             </div>
 
             <div className="grid gap-4 sm:grid-cols-[1fr_0.84fr] lg:grid-cols-1 xl:grid-cols-[1fr_0.84fr]">
-              <div className="rounded-[1.4rem] border border-white/8 bg-white/[0.025] p-4">
+              <div className="rounded-[1.4rem] border border-[color:var(--landing-border)] bg-white/[0.025] p-4">
                 <p className="font-[var(--font-mono)] text-[10px] uppercase tracking-[0.24em] text-zinc-500">
                   Command stack
                 </p>
@@ -159,11 +160,11 @@ export function TerminalMockup() {
                 </div>
               </div>
 
-              <div className="rounded-[1.4rem] border border-white/8 bg-white/[0.025] p-4">
+              <div className="rounded-[1.4rem] border border-[color:var(--landing-border)] bg-white/[0.025] p-4">
                 <p className="font-[var(--font-mono)] text-[10px] uppercase tracking-[0.24em] text-zinc-500">
                   Surface preview
                 </p>
-                <div className="mt-4 flex h-[168px] items-end gap-2 rounded-[1rem] border border-white/6 bg-[linear-gradient(180deg,rgba(157,123,255,0.14),rgba(6,8,13,0.1))] px-3 pb-3 pt-6">
+                <div className="mt-4 flex h-[168px] items-end gap-2 rounded-[1rem] border border-white/6 bg-[linear-gradient(180deg,rgba(136,182,255,0.14),rgba(10,10,10,0.1))] px-3 pb-3 pt-6">
                   {sparklineHeights.map((height) => (
                     <div key={height} className="flex-1 rounded-full bg-white/6 p-[1px]">
                       <div

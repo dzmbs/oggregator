@@ -3,14 +3,14 @@
 </p>
 
 <p align="center">
-  <strong>Cross-venue crypto options aggregator. Real-time pricing, greeks, and IV across 5 exchanges.</strong>
+  <strong>Cross-venue crypto options aggregator. Real-time pricing, greeks, and IV across 8 exchanges.</strong>
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/version-0.0.1-blue" />
   <img src="https://img.shields.io/badge/license-MIT-green" />
   <img src="https://img.shields.io/badge/node-≥20-orange" />
-  <img src="https://img.shields.io/badge/venues-7-50D2C1" />
+  <img src="https://img.shields.io/badge/venues-8-50D2C1" />
 </p>
 
 <p align="center">
@@ -21,7 +21,7 @@
 
 ## What this is
 
-oggregator connects to Deribit, OKX, Binance, Bybit, Derive, Coincall, and Thalex via WebSocket, normalizes option quotes to a canonical format, and serves a real-time cross-venue comparison dashboard. See the best price, IV, spread, and greeks for any strike across all venues simultaneously.
+oggregator connects to Deribit, OKX, Binance, Bybit, Derive, Coincall, Thalex, and Gate.io via WebSocket, normalizes option quotes to a canonical format, and serves a real-time cross-venue comparison dashboard. See the best price, IV, spread, and greeks for any strike across all venues simultaneously.
 
 **Live demo:** [oggregator.useheat.xyz](https://oggregator.useheat.xyz)
 
@@ -36,6 +36,7 @@ oggregator connects to Deribit, OKX, Binance, Bybit, Derive, Coincall, and Thale
 | Derive | WebSocket | USDC |
 | Coincall | WebSocket + REST | USDT |
 | Thalex | WebSocket | USD (stablecoin) |
+| Gate.io | WebSocket + REST | USDT |
 
 ## Quick Start
 

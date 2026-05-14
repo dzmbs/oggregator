@@ -63,6 +63,7 @@ const VenueIdSchema = z.enum([
   'derive',
   'coincall',
   'thalex',
+  'gateio',
 ]);
 
 const PositionLegSchema: z.ZodType<PositionLeg> = z.object({
@@ -86,6 +87,7 @@ const PositionLegSchema: z.ZodType<PositionLeg> = z.object({
     'derive',
     'coincall',
     'thalex',
+    'gateio',
   ]),
 }) as z.ZodType<PositionLeg>;
 
@@ -98,7 +100,8 @@ export type PortfolioSource =
   | 'bybit'
   | 'derive'
   | 'coincall'
-  | 'thalex';
+  | 'thalex'
+  | 'gateio';
 
 const PortfolioSourceSchema = z.enum([
   'manual',
@@ -110,6 +113,7 @@ const PortfolioSourceSchema = z.enum([
   'derive',
   'coincall',
   'thalex',
+  'gateio',
 ]);
 
 export interface DeriveConnectRequest {

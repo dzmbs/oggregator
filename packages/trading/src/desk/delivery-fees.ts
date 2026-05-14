@@ -21,6 +21,11 @@ const DELIVERY_FEES: Record<VenueId, DeliveryFeeSpec> = {
   derive: { rate: 0.0001, cap: 0.125 },
   coincall: { rate: 0.0002, cap: 0.125 },
   thalex: { rate: 0.00015, cap: 0.125 },
+  // Gate.io publishes settle_fee_rate="0" and settle_limit_fee_rate="0.125" on
+  // every active options contract (verified live 2026-05-13 via
+  // GET /api/v4/options/contracts). No notional-rate fee; intrinsic cap matches
+  // the standard 12.5% cap shared across venues.
+  gateio: { rate: 0, cap: 0.125 },
 };
 
 export function deliveryFeeUsd(

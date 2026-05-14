@@ -89,7 +89,7 @@ export function LeadCaptureSection() {
                 autoComplete="email"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
-                className="mt-3 min-h-14 w-full rounded-full border border-white/10 bg-white/[0.05] px-5 text-base text-[var(--landing-text)] outline-none transition focus:border-[var(--landing-accent)] placeholder:text-zinc-500"
+                className="mt-3 min-h-14 w-full rounded-full border border-[color:var(--landing-border)] bg-white/[0.05] px-5 text-base text-[var(--landing-text)] outline-none transition focus:border-[var(--landing-accent)] placeholder:text-zinc-500"
                 placeholder={landingCopy.cta.placeholder}
                 disabled={isSubmitting}
                 aria-describedby="landing-email-status"
@@ -99,7 +99,7 @@ export function LeadCaptureSection() {
 
             <button
               type="submit"
-              className="min-h-14 rounded-full border border-[var(--landing-accent)] bg-[var(--landing-accent)] px-6 font-[var(--font-mono)] text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-950 transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-70"
+              className="min-h-14 rounded-full border border-[var(--landing-accent)] bg-[var(--landing-accent)] px-6 font-[var(--font-mono)] text-[11px] font-semibold uppercase tracking-[0.28em] text-[var(--landing-bg)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-70"
               disabled={isSubmitting}
             >
               {isSubmitting ? "Submitting" : landingCopy.cta.eyebrow}
@@ -114,9 +114,9 @@ export function LeadCaptureSection() {
               aria-live="polite"
               className={
                 status === "success"
-                  ? "text-sm text-emerald-400"
+                  ? "text-sm text-[var(--landing-success)]"
                   : status === "error"
-                    ? "text-sm text-rose-400"
+                    ? "text-sm text-[var(--landing-loss)]"
                     : "text-sm text-zinc-500"
               }
             >

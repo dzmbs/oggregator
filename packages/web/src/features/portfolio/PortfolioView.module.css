@@ -191,6 +191,75 @@
   color: #60a5fa;
 }
 
+@media (min-width: 901px) and (max-width: 1440px) {
+  .wrap {
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .bodyGrid {
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: 12px;
+  }
+
+  .totalsRow {
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  }
+
+  .totalValue {
+    font-size: 13px;
+  }
+}
+
+@media (min-width: 1600px) {
+  .bodyGrid {
+    grid-template-columns: minmax(0, 1fr) 420px;
+    gap: 20px;
+  }
+
+  .wrap {
+    padding: 20px;
+    gap: 20px;
+  }
+
+  .totalsRow {
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+  }
+}
+
+@media (min-width: 2200px) {
+  .wrap {
+    max-width: 2400px;
+    margin-inline: auto;
+    width: 100%;
+    padding: 24px;
+    gap: 24px;
+  }
+
+  .bodyGrid {
+    grid-template-columns: minmax(0, 1fr) 480px;
+    gap: 24px;
+  }
+
+  .totalsRow {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 14px;
+  }
+
+  .totalLabel {
+    font-size: 11px;
+  }
+
+  .totalValue {
+    font-size: 16px;
+  }
+
+  .title {
+    font-size: 18px;
+  }
+}
+
 @media (max-width: 900px) {
   .bodyGrid {
     grid-template-columns: 1fr;

@@ -5,6 +5,7 @@ import bybitLogo from '@/assets/venues/bybit.svg';
 import deriveLogo from '@/assets/venues/derive.png';
 import coincallLogo from '@/assets/venues/coincall.png';
 import thalexLogo from '@/assets/venues/Thalex.svg';
+import gateioLogo from '@/assets/venues/gateio.svg';
 
 export interface VenueMeta {
   id: string;
@@ -45,6 +46,13 @@ export const VENUES: Record<string, VenueMeta> = {
     shortLabel: 'THX',
     logo: thalexLogo,
     color: '#00E5A8',
+  },
+  gateio: {
+    id: 'gateio',
+    label: 'Gate.io',
+    shortLabel: 'GAT',
+    logo: gateioLogo,
+    color: '#2354E6',
   },
 };
 

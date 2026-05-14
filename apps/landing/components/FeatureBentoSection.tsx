@@ -26,8 +26,8 @@ export function FeatureBentoSection() {
         {featureCards.map((card) => (
           <article
             key={card.id}
-            className={`landing-panel group relative overflow-hidden rounded-[1.8rem] p-6 transition duration-300 hover:-translate-y-1 hover:border-[rgba(116,212,255,0.24)] ${spanClassByCard[card.span]}`}
-          >
+            className={`landing-panel group relative overflow-hidden rounded-[1.8rem] p-6 transition duration-300 hover:-translate-y-1 hover:border-[rgba(80,210,193,0.24)] ${spanClassByCard[card.span]}`}
+            >
             <div
               className={`absolute inset-x-0 top-0 h-px bg-gradient-to-r ${accentLineClassByCard[card.span]}`}
             />
@@ -40,7 +40,7 @@ export function FeatureBentoSection() {
                   {card.title}
                 </h3>
               </div>
-              <span className="rounded-full border border-white/8 bg-white/[0.04] px-3 py-1 font-[var(--font-mono)] text-[10px] uppercase tracking-[0.22em] text-[var(--landing-accent)]">
+              <span className="rounded-full border border-[color:var(--landing-border)] bg-[rgba(80,210,193,0.08)] px-3 py-1 font-[var(--font-mono)] text-[10px] uppercase tracking-[0.22em] text-[var(--landing-accent)]">
                 {card.metric}
               </span>
             </div>

@@ -30,6 +30,7 @@ vi.mock('@oggregator/core', () => ({
   DeriveWsAdapter: makeAdapterClass('derive'),
   CoincallWsAdapter: makeAdapterClass('coincall'),
   ThalexWsAdapter: makeAdapterClass('thalex'),
+  GateioWsAdapter: makeAdapterClass('gateio'),
 }));
 
 describe('disposeAdapters', () => {
@@ -44,7 +45,7 @@ describe('disposeAdapters', () => {
     await disposeAdapters({ info: vi.fn(), warn: vi.fn() } as unknown as FastifyBaseLogger);
 
     expect(new Set(disposedVenues)).toEqual(
-      new Set(['deribit', 'okx', 'binance', 'bybit', 'derive', 'coincall', 'thalex']),
+      new Set(['deribit', 'okx', 'binance', 'bybit', 'derive', 'coincall', 'thalex', 'gateio']),
     );
   });
 });

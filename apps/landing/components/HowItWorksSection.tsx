@@ -11,13 +11,13 @@ export function HowItWorksSection() {
       </div>
 
       <div className="relative mt-10 grid gap-4 lg:grid-cols-3">
-        <div className="pointer-events-none absolute left-[17%] right-[17%] top-7 hidden h-px bg-[linear-gradient(90deg,transparent,rgba(116,212,255,0.45),transparent)] lg:block" />
+        <div className="pointer-events-none absolute left-[17%] right-[17%] top-7 hidden h-px bg-[linear-gradient(90deg,transparent,rgba(80,210,193,0.45),transparent)] lg:block" />
         {workflowSteps.map((step) => (
           <article
             key={step.id}
-            className="landing-panel group relative overflow-hidden rounded-[1.8rem] p-6 transition duration-300 hover:-translate-y-1 hover:border-[rgba(116,212,255,0.25)]"
+            className="landing-panel group relative overflow-hidden rounded-[1.8rem] p-6 transition duration-300 hover:-translate-y-1 hover:border-[rgba(80,210,193,0.25)]"
           >
-            <div className="absolute inset-x-0 top-0 h-24 bg-[radial-gradient(circle_at_top,rgba(116,212,255,0.12),transparent_70%)] opacity-0 transition duration-300 group-hover:opacity-100" />
+            <div className="absolute inset-x-0 top-0 h-24 bg-[radial-gradient(circle_at_top,rgba(80,210,193,0.12),transparent_70%)] opacity-0 transition duration-300 group-hover:opacity-100" />
             <div className="relative">
               <div className="flex items-center justify-between gap-4">
                 <span className="flex h-12 w-12 items-center justify-center rounded-full border border-white/8 bg-white/[0.05] font-[var(--font-mono)] text-[11px] uppercase tracking-[0.28em] text-[var(--landing-accent)]">

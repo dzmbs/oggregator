@@ -1,14 +1,14 @@
 import { tickerItems, type TickerItem } from "@/lib/demo-data";
 
 const directionClass: Record<TickerItem["direction"], string> = {
-  up: "text-emerald-300",
-  down: "text-rose-300",
-  flat: "text-[var(--landing-accent)]",
+  up: "text-[var(--landing-success)]",
+  down: "text-[var(--landing-loss)]",
+  flat: "text-[var(--landing-accent-violet)]",
 };
 
 export function TopTicker() {
   return (
-    <div className="border-b border-[color:var(--landing-border)] bg-[rgba(4,6,10,0.72)] backdrop-blur-xl">
+    <div className="border-b border-[color:var(--landing-border)] bg-[rgba(10,10,10,0.88)] backdrop-blur-xl">
       <div className="landing-container flex items-center overflow-x-auto px-4 py-2.5 [scrollbar-width:none] sm:px-6">
         {tickerItems.map((item, index) => (
           <div

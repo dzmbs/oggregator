@@ -8,6 +8,7 @@ import {
   DeriveWsAdapter,
   CoincallWsAdapter,
   ThalexWsAdapter,
+  GateioWsAdapter,
 } from '@oggregator/core';
 
 const adapters = [
@@ -18,6 +19,7 @@ const adapters = [
   new DeriveWsAdapter(),
   new CoincallWsAdapter(),
   new ThalexWsAdapter(),
+  new GateioWsAdapter(),
 ];
 
 export async function bootstrapAdapters(log: FastifyBaseLogger) {
