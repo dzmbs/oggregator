@@ -24,6 +24,7 @@ const FEE_CAP: Record<VenueId, number> = {
   derive: 0.125, // 12.5% of option premium
   coincall: 0.125, // 12.5% of option premium
   thalex: 0.125, // 12.5% of option premium
+  gateio: 0.125, // venue-published price_limit_fee_rate on every options contract
 };
 
 export interface CachedInstrument {

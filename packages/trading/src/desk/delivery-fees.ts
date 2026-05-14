@@ -21,6 +21,7 @@ const DELIVERY_FEES: Record<VenueId, DeliveryFeeSpec> = {
   derive: { rate: 0.0001, cap: 0.125 },
   coincall: { rate: 0.0002, cap: 0.125 },
   thalex: { rate: 0.00015, cap: 0.125 },
+  gateio: { rate: 0.0002, cap: 0.125 },
 };
 
 export function deliveryFeeUsd(

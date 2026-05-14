@@ -12,6 +12,7 @@ export const PositionSourceSchema = z.enum([
   'derive',
   'coincall',
   'thalex',
+  'gateio',
 ]);
 export type PositionSource = z.infer<typeof PositionSourceSchema>;
 
@@ -25,6 +26,7 @@ export const PortfolioSourceSchema = z.enum([
   'derive',
   'coincall',
   'thalex',
+  'gateio',
 ]);
 export type PortfolioSource = z.infer<typeof PortfolioSourceSchema>;
 

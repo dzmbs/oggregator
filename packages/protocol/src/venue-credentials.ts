@@ -261,4 +261,21 @@ export const PRIVATE_ADAPTER_SPECS: Readonly<Record<VenueId, VenuePrivateAdapter
       'gate behind THALEX_PRIVATE_ENABLED env flag until ready',
     ],
   },
+  gateio: {
+    venue: 'gateio',
+    status: 'planned',
+    wsEndpoint: 'wss://op-ws.gateio.live/v4/ws/usdt',
+    authScheme: 'hmac',
+    subscribeMethod: 'subscribe',
+    positionChannels: ['options.positions'],
+    docsUrl: 'https://www.gate.com/docs/developers/options/ws/en/',
+    credentialFields: [COMMON_KEY, COMMON_SECRET],
+    todos: [
+      'create packages/core/src/feeds/gateio-private/ws-client.ts using TopicWsClient',
+      'sign auth op: { time, channel: "options.login", event: "api", payload: [{ api_key, timestamp, sign }] } where sign = HMAC-SHA256(secret, channel + "\\n" + event + "\\n" + timestamp)',
+      'subscribe to options.positions channel after auth',
+      'normalize Gate position fields (size, entry_price) → PositionLeg',
+      'add "gateio" to PortfolioSource enum',
+    ],
+  },
 };
