@@ -96,7 +96,7 @@ Error semantics:
 `useInstrumentCandles(venue, symbol, interval, range)`:
 
 - TanStack Query. Cache key `['instrument-candles', venue, symbol, interval, range]`. `staleTime: 30s`, `gcTime: 5m`.
-- Live tick of the **current bar**: a selector hooks into the existing chain query cache. When a fresh chain snapshot lands (200ms WS coalesce, `hooks/useChainWs.ts`), the hook reads the matching strike's `markPrice` from `chain.strikes[*].callSide.venues[venue]` (or putSide based on contract type) and extends the last candle's `c` + `h/l` accordingly. No new WS endpoint.
+- Live tick of the **current bar**: a selector hooks into the existing chain query cache. When a fresh chain snapshot lands (200ms WS coalesce, `hooks/useChainWs.ts`), the hook reads the matching strike's `mid` price from `chain.strikes[*].call.venues[venue]` (or `.put` based on contract type — see `VenueQuote` in `@oggregator/protocol/ws.ts`) and extends the last candle's `c` + `h/l` accordingly. `VenueQuote` does not carry a separate `markPrice` field; `mid` is the live mark proxy used elsewhere in the app. No new WS endpoint.
 - Inline mini and floating panel viewing the same `(venue, symbol, interval, range)` share one fetch via the cache.
 
 ## Rendering
