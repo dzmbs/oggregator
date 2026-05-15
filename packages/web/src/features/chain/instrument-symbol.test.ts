@@ -51,9 +51,23 @@ describe('toVenueSymbol', () => {
     })).toBe('BTC_USDT-20260626-80000-C');
   });
 
+  it('formats Bybit BTC call with USDT settlement suffix', () => {
+    expect(toVenueSymbol({
+      venue: 'bybit', underlying: 'BTC', expiry: '2026-06-26',
+      strike: 80000, type: 'call',
+    })).toBe('BTC-26JUN26-80000-C-USDT');
+  });
+
+  it('formats Derive BTC call', () => {
+    expect(toVenueSymbol({
+      venue: 'derive', underlying: 'BTC', expiry: '2026-09-25',
+      strike: 80000, type: 'call',
+    })).toBe('BTC-20260925-80000-C');
+  });
+
   it('throws NotSupportedVenueError for unsupported venues', () => {
     expect(() =>
-      toVenueSymbol({ venue: 'bybit', underlying: 'BTC', expiry: '2026-06-27', strike: 70000, type: 'call' }),
+      toVenueSymbol({ venue: 'coincall', underlying: 'BTC', expiry: '2026-06-27', strike: 70000, type: 'call' }),
     ).toThrow(NotSupportedVenueError);
   });
 

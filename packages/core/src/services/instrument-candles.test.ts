@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { mergeTradeAndMark, bucketTicks } from './instrument-candles.js';
+import { mergeTradeAndMark, bucketTicks, bucketTrades } from './instrument-candles.js';
 
 describe('mergeTradeAndMark', () => {
   it('uses trade bar when vol > 0', () => {
@@ -50,6 +50,41 @@ describe('mergeTradeAndMark', () => {
     ];
     const out = mergeTradeAndMark(trade, mark);
     expect(out.candles.map((c) => c.ts)).toEqual([1, 2]);
+  });
+});
+
+describe('bucketTrades', () => {
+  it('aggregates trades into OHLCV candles', () => {
+    const trades = [
+      { execId: 'a', ts: 60_000, price: 10, size: 1 },
+      { execId: 'b', ts: 60_500, price: 12, size: 0.5 },
+      { execId: 'c', ts: 61_000, price: 9, size: 2 },
+      { execId: 'd', ts: 120_000, price: 8, size: 1 },
+    ];
+    const out = bucketTrades(trades, 60_000);
+    expect(out).toEqual([
+      { ts: 60_000, o: 10, h: 12, l: 9, c: 9, vol: 3.5 },
+      { ts: 120_000, o: 8, h: 8, l: 8, c: 8, vol: 1 },
+    ]);
+  });
+
+  it('sorts unordered trades before bucketing so o/c stay correct', () => {
+    const trades = [
+      { execId: 'b', ts: 60_500, price: 12, size: 1 },
+      { execId: 'a', ts: 60_000, price: 10, size: 1 },
+      { execId: 'c', ts: 61_000, price: 9, size: 1 },
+    ];
+    const out = bucketTrades(trades, 60_000);
+    expect(out[0]).toEqual({ ts: 60_000, o: 10, h: 12, l: 9, c: 9, vol: 3 });
+  });
+
+  it('skips trades with non-finite price or ts', () => {
+    const trades = [
+      { execId: 'a', ts: 60_000, price: NaN, size: 1 },
+      { execId: 'b', ts: 60_500, price: 12, size: 1 },
+    ];
+    const out = bucketTrades(trades, 60_000);
+    expect(out).toEqual([{ ts: 60_000, o: 12, h: 12, l: 12, c: 12, vol: 1 }]);
   });
 });
 

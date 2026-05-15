@@ -7,6 +7,8 @@ export const CHART_SUPPORTED_VENUES: readonly VenueId[] = [
   'binance',
   'okx',
   'gateio',
+  'bybit',
+  'derive',
 ];
 
 export function isChartSupportedVenue(v: VenueId): boolean {
@@ -38,6 +40,10 @@ export function toVenueSymbol(args: ToVenueSymbolArgs): string {
       return formatOkx(args);
     case 'gateio':
       return formatGateio(args);
+    case 'bybit':
+      return formatBybit(args);
+    case 'derive':
+      return formatDerive(args);
     default:
       throw new NotSupportedVenueError(args.venue);
   }
@@ -81,4 +87,19 @@ function formatGateio({ underlying, expiry, strike, type }: ToVenueSymbolArgs): 
   const mm = String(month + 1).padStart(2, '0');
   const dd = String(day).padStart(2, '0');
   return `${underlying}_USDT-${year}${mm}${dd}-${String(strike)}-${type === 'call' ? 'C' : 'P'}`;
+}
+
+function formatBybit({ underlying, expiry, strike, type }: ToVenueSymbolArgs): string {
+  // Format: BTC-DDMONYY-STRIKE-C/P-USDT (Deribit-style with USDT suffix)
+  const { day, month, year } = parseExpiry(expiry);
+  const yr = String(year).slice(-2);
+  return `${underlying}-${day}${MONTHS[month]}${yr}-${String(strike)}-${type === 'call' ? 'C' : 'P'}-USDT`;
+}
+
+function formatDerive({ underlying, expiry, strike, type }: ToVenueSymbolArgs): string {
+  // Format: BTC-YYYYMMDD-STRIKE-C/P
+  const { day, month, year } = parseExpiry(expiry);
+  const mm = String(month + 1).padStart(2, '0');
+  const dd = String(day).padStart(2, '0');
+  return `${underlying}-${year}${mm}${dd}-${String(strike)}-${type === 'call' ? 'C' : 'P'}`;
 }

@@ -1,7 +1,9 @@
 import { z } from 'zod';
 import {
   BINANCE_REST_BASE_URL,
+  BYBIT_REST_BASE_URL,
   DERIBIT_REST_BASE_URL,
+  DERIVE_REST_BASE_URL,
   GATEIO_REST_BASE_URL,
   OKX_REST_BASE_URL,
 } from '../feeds/shared/endpoints.js';
@@ -378,23 +380,228 @@ export async function fetchGateioTrade(
   }));
 }
 
+// ── Bybit ──────────────────────────────────────────────────────────
+// Bybit has no /v5/market/kline support for category=option (verified:
+// retCode 10001 PARAMS_ERROR). The mark-price-kline endpoint does work,
+// and we seed traded-price candles by bucketing /v5/market/recent-trade
+// locally — Bybit's documented and intended workflow for option charts.
+const INTERVAL_TO_BYBIT: Record<InstrumentCandleInterval, string> = {
+  '1m': '1', '5m': '5', '15m': '15', '1h': '60', '4h': '240', '1d': 'D',
+};
+
+const BybitMarkKlineSchema = z.object({
+  retCode: z.number(),
+  retMsg: z.string().optional(),
+  result: z.object({
+    category: z.string().optional(),
+    symbol: z.string().optional(),
+    // mark-price-kline rows are [ts, o, h, l, c] as strings; newest-first.
+    list: z.array(z.array(z.string())),
+  }),
+});
+
+const BybitRecentTradeSchema = z.object({
+  retCode: z.number(),
+  retMsg: z.string().optional(),
+  result: z.object({
+    list: z.array(z.object({
+      execId: z.string(),
+      price: z.string(),
+      size: z.string(),
+      time: z.string(),
+    })),
+  }),
+});
+
+export async function fetchBybitMark(
+  symbol: string,
+  interval: InstrumentCandleInterval,
+  range: InstrumentCandleRange,
+): Promise<RawCandle[]> {
+  const now = Date.now();
+  const start = now - RANGE_TO_MS[range];
+  const params = new URLSearchParams({
+    category: 'option',
+    symbol,
+    interval: INTERVAL_TO_BYBIT[interval],
+    start: String(start),
+    end: String(now),
+    limit: '1000',
+  });
+  const res = await fetch(
+    `${BYBIT_REST_BASE_URL}/v5/market/mark-price-kline?${params}`,
+    { signal: AbortSignal.timeout(10_000), headers: { accept: 'application/json' } },
+  );
+  if (res.status === 404) throw new InstrumentCandlesError('not_found', `Bybit: ${symbol}`);
+  if (!res.ok) throw new InstrumentCandlesError('upstream', `Bybit ${res.status}`);
+  const result = BybitMarkKlineSchema.safeParse(await res.json());
+  if (!result.success || result.data.retCode !== 0) {
+    log.warn({ symbol, retCode: result.success ? result.data.retCode : null }, 'bybit mark parse failed');
+    return [];
+  }
+  return result.data.result.list.map((row) => ({
+    ts: Number(row[0]),
+    o: Number(row[1]),
+    h: Number(row[2]),
+    l: Number(row[3]),
+    c: Number(row[4]),
+    vol: 0,
+  }));
+}
+
+export async function fetchBybitTradeBucketed(
+  symbol: string,
+  interval: InstrumentCandleInterval,
+  range: InstrumentCandleRange,
+): Promise<RawCandle[]> {
+  const cutoff = Date.now() - RANGE_TO_MS[range];
+  const params = new URLSearchParams({
+    category: 'option',
+    symbol,
+    limit: '1000',
+  });
+  const res = await fetch(
+    `${BYBIT_REST_BASE_URL}/v5/market/recent-trade?${params}`,
+    { signal: AbortSignal.timeout(10_000), headers: { accept: 'application/json' } },
+  );
+  if (res.status === 404) throw new InstrumentCandlesError('not_found', `Bybit: ${symbol}`);
+  if (!res.ok) throw new InstrumentCandlesError('upstream', `Bybit ${res.status}`);
+  const result = BybitRecentTradeSchema.safeParse(await res.json());
+  if (!result.success || result.data.retCode !== 0) {
+    log.warn({ symbol, retCode: result.success ? result.data.retCode : null }, 'bybit trade parse failed');
+    return [];
+  }
+  return bucketTrades(
+    result.data.result.list
+      .filter((t) => Number(t.time) >= cutoff)
+      .map((t) => ({ execId: t.execId, ts: Number(t.time), price: Number(t.price), size: Number(t.size) })),
+    INTERVAL_TO_MS[interval],
+  );
+}
+
+// ── Derive (Lyra v2) ───────────────────────────────────────────────
+// Derive has no aggregated kline endpoint, so we paginate
+// public/get_trade_history and bucket trades locally. Trades appear
+// twice (one record per side of the fill, sharing trade_id) and we
+// dedupe on trade_id before bucketing.
+const DeriveTradeHistorySchema = z.object({
+  result: z.object({
+    trades: z.array(z.object({
+      trade_id: z.string(),
+      timestamp: z.number(),
+      trade_price: z.string(),
+      trade_amount: z.string(),
+    })),
+    pagination: z.object({
+      num_pages: z.number(),
+      count: z.number(),
+    }).optional(),
+  }),
+});
+
+const DERIVE_MAX_PAGES = 5;
+const DERIVE_PAGE_SIZE = 1000;
+
+export async function fetchDeriveTradeBucketed(
+  symbol: string,
+  interval: InstrumentCandleInterval,
+  range: InstrumentCandleRange,
+): Promise<RawCandle[]> {
+  const cutoff = Date.now() - RANGE_TO_MS[range];
+  const seen = new Set<string>();
+  const trades: Array<{ execId: string; ts: number; price: number; size: number }> = [];
+
+  for (let page = 1; page <= DERIVE_MAX_PAGES; page++) {
+    const res = await fetch(`${DERIVE_REST_BASE_URL}/public/get_trade_history`, {
+      method: 'POST',
+      signal: AbortSignal.timeout(10_000),
+      headers: { accept: 'application/json', 'content-type': 'application/json' },
+      body: JSON.stringify({
+        instrument_name: symbol,
+        page_size: DERIVE_PAGE_SIZE,
+        page,
+      }),
+    });
+    if (res.status === 404) throw new InstrumentCandlesError('not_found', `Derive: ${symbol}`);
+    if (!res.ok) throw new InstrumentCandlesError('upstream', `Derive ${res.status}`);
+    const result = DeriveTradeHistorySchema.safeParse(await res.json());
+    if (!result.success) {
+      log.warn({ symbol, issues: result.error.issues }, 'derive trade parse failed');
+      return [];
+    }
+    const pageTrades = result.data.result.trades;
+    if (pageTrades.length === 0) break;
+
+    let oldestTs = Number.POSITIVE_INFINITY;
+    for (const t of pageTrades) {
+      if (seen.has(t.trade_id)) continue;
+      seen.add(t.trade_id);
+      if (t.timestamp < oldestTs) oldestTs = t.timestamp;
+      trades.push({
+        execId: t.trade_id,
+        ts: t.timestamp,
+        price: Number(t.trade_price),
+        size: Number(t.trade_amount),
+      });
+    }
+    if (oldestTs < cutoff) break;
+    if (pageTrades.length < DERIVE_PAGE_SIZE) break;
+  }
+  return bucketTrades(
+    trades.filter((t) => t.ts >= cutoff),
+    INTERVAL_TO_MS[interval],
+  );
+}
+
+// Bucket dedup'd trades (execId-keyed at the caller) into OHLCV candles.
+export function bucketTrades(
+  trades: ReadonlyArray<{ execId: string; ts: number; price: number; size: number }>,
+  bucketMs: number,
+): RawCandle[] {
+  const sorted = [...trades].sort((a, b) => a.ts - b.ts);
+  const out = new Map<number, RawCandle>();
+  for (const t of sorted) {
+    if (!Number.isFinite(t.price) || !Number.isFinite(t.ts)) continue;
+    const b = Math.floor(t.ts / bucketMs) * bucketMs;
+    const cur = out.get(b);
+    if (!cur) {
+      out.set(b, { ts: b, o: t.price, h: t.price, l: t.price, c: t.price, vol: t.size });
+    } else {
+      cur.h = Math.max(cur.h, t.price);
+      cur.l = Math.min(cur.l, t.price);
+      cur.c = t.price;
+      cur.vol += t.size;
+    }
+  }
+  return [...out.values()].sort((a, b) => a.ts - b.ts);
+}
+
 // ── Venue capability map ──────────────────────────────────────────
-// Wired venues:           deribit, binance, okx, gateio
-// Intentionally skipped — these venues either lack a public option-kline
-// endpoint or gate it behind auth, and adding them today would silently
-// produce empty charts or require key management:
-//   bybit    — /v5/market/kline rejects category=option (spot/futures only)
-//   coincall — kline REST endpoint is auth-gated (HMAC API key required)
-//   thalex   — no public historical kline; only live ticker streams
-//   derive   — public get_trade_history returns empty per strike for our
-//              sample set; no aggregated kline endpoint exists
-const SUPPORTED_VENUES = new Set<VenueId>(['deribit', 'binance', 'okx', 'gateio']);
+// Wired venues: deribit, binance, okx, gateio, bybit, derive.
+// Intentionally NOT wired (verified against official docs):
+//   coincall — GET /open/option/market/kline/history/v1/{optionName}
+//              is the official kline path, but Coincall's own example
+//              curl explicitly requires signed headers (X-CC-APIKEY,
+//              sign, ts, X-REQ-TS-DIFF). Probing the endpoint without
+//              auth returns code:4003 "token auth fail". Vendor-gated.
+//   thalex   — Only `subs_market_data/Ticker` is documented; that is
+//              a WebSocket subscription delivering live last_price and
+//              24h stats, not historical kline. The REST method
+//              public/get_mark_price_historical_data returns
+//              {error:31,"unknown API method"} on production
+//              (api_version 2.63.0). No historical kline endpoint
+//              exists on the public surface.
+const SUPPORTED_VENUES = new Set<VenueId>([
+  'deribit', 'binance', 'okx', 'gateio', 'bybit', 'derive',
+]);
 
 const PRICE_CURRENCY: Record<string, string> = {
   deribit: 'BASE',    // BTC for BTC options, ETH for ETH options
   binance: 'USDT',
   okx: 'BASE',        // inverse — quoted in BTC/ETH
   gateio: 'USDT',
+  bybit: 'USDT',
+  derive: 'USDC',
 };
 
 function priceCurrencyFor(venue: VenueId, symbol: string): string {
@@ -483,6 +690,16 @@ export class InstrumentCandleService {
       case 'gateio':
         return Promise.all([
           fetchGateioTrade(symbol, interval, range),
+          Promise.resolve([] as RawCandle[]),
+        ]);
+      case 'bybit':
+        return Promise.all([
+          fetchBybitTradeBucketed(symbol, interval, range),
+          fetchBybitMark(symbol, interval, range),
+        ]);
+      case 'derive':
+        return Promise.all([
+          fetchDeriveTradeBucketed(symbol, interval, range),
           Promise.resolve([] as RawCandle[]),
         ]);
       default:
