@@ -11,10 +11,10 @@ export type InstrumentCandleRange = z.infer<typeof InstrumentCandleRangeSchema>;
 
 export const InstrumentCandleSchema = z.object({
   ts: z.number().int().nonnegative(),
-  o: z.number(),
-  h: z.number(),
-  l: z.number(),
-  c: z.number(),
+  o: z.number().nonnegative(),
+  h: z.number().nonnegative(),
+  l: z.number().nonnegative(),
+  c: z.number().nonnegative(),
   vol: z.number().nonnegative(),
   synthetic: z.boolean(),
 });
@@ -22,7 +22,7 @@ export type InstrumentCandle = z.infer<typeof InstrumentCandleSchema>;
 
 export const InstrumentMarkPointSchema = z.object({
   ts: z.number().int().nonnegative(),
-  c: z.number(),
+  c: z.number().nonnegative(),
 });
 export type InstrumentMarkPoint = z.infer<typeof InstrumentMarkPointSchema>;
 
@@ -34,3 +34,11 @@ export const InstrumentCandlesResponseSchema = z.object({
   markLine: z.array(InstrumentMarkPointSchema),
 });
 export type InstrumentCandlesResponse = z.infer<typeof InstrumentCandlesResponseSchema>;
+
+export const InstrumentCandlesQuerySchema = z.object({
+  venue: VenueIdSchema,
+  symbol: z.string().min(1).max(64),
+  interval: InstrumentCandleIntervalSchema,
+  range: InstrumentCandleRangeSchema,
+});
+export type InstrumentCandlesQuery = z.infer<typeof InstrumentCandlesQuerySchema>;

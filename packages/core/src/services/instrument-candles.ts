@@ -88,8 +88,11 @@ export function bucketTicks(
   ticks: ReadonlyArray<[number, number]>,
   bucketMs: number,
 ): RawCandle[] {
+  // Sort first so o/c reflect the chronologically first/last tick per bucket,
+  // not the iteration-order first/last (which would be wrong for unsorted input).
+  const sorted = [...ticks].sort((a, b) => a[0] - b[0]);
   const out = new Map<number, RawCandle>();
-  for (const [ts, v] of ticks) {
+  for (const [ts, v] of sorted) {
     const b = Math.floor(ts / bucketMs) * bucketMs;
     const cur = out.get(b);
     if (!cur) out.set(b, { ts: b, o: v, h: v, l: v, c: v, vol: 0 });
@@ -177,8 +180,11 @@ interface CacheEntry {
 }
 
 export class InstrumentCandleService {
+  // Map preserves insertion order; we use that for FIFO eviction once the cap
+  // is exceeded. Bound: ~5KB per entry × 500 keys = ~2.5MB ceiling.
   private readonly cache = new Map<string, CacheEntry>();
   private readonly cacheTtlMs = 30_000;
+  private readonly cacheMaxEntries = 500;
   private ready = false;
 
   async start(): Promise<void> {
@@ -215,6 +221,10 @@ export class InstrumentCandleService {
       candles: merged.candles,
       markLine: merged.markLine,
     };
+    if (this.cache.size >= this.cacheMaxEntries) {
+      const oldest = this.cache.keys().next().value;
+      if (oldest !== undefined) this.cache.delete(oldest);
+    }
     this.cache.set(key, { fetchedAt: Date.now(), response });
     log.debug({ venue, symbol, interval, range, count: merged.candles.length }, 'instrument-candles fetched');
     return response;

@@ -1,9 +1,6 @@
 import type { FastifyInstance } from 'fastify';
-import { z } from 'zod';
 import {
-  InstrumentCandleIntervalSchema,
-  InstrumentCandleRangeSchema,
-  VenueIdSchema,
+  InstrumentCandlesQuerySchema,
   type VenueId,
   type InstrumentCandleInterval,
   type InstrumentCandleRange,
@@ -11,19 +8,12 @@ import {
 import { InstrumentCandlesError } from '@oggregator/core';
 import { instrumentCandleService, isInstrumentCandlesReady } from '../services.js';
 
-const QuerySchema = z.object({
-  venue: VenueIdSchema,
-  symbol: z.string().min(1).max(64),
-  interval: InstrumentCandleIntervalSchema,
-  range: InstrumentCandleRangeSchema,
-});
-
 export async function instrumentCandlesRoute(app: FastifyInstance) {
   app.get<{ Querystring: Record<string, string> }>('/instrument-candles', async (req, reply) => {
     if (!isInstrumentCandlesReady()) {
       return reply.status(503).send({ error: 'Instrument candles service not ready' });
     }
-    const parse = QuerySchema.safeParse(req.query);
+    const parse = InstrumentCandlesQuerySchema.safeParse(req.query);
     if (!parse.success) {
       return reply.status(400).send({ error: 'Invalid query', issues: parse.error.issues });
     }

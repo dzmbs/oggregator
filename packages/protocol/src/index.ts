@@ -105,11 +105,13 @@ export {
   InstrumentCandleSchema,
   InstrumentMarkPointSchema,
   InstrumentCandlesResponseSchema,
+  InstrumentCandlesQuerySchema,
   type InstrumentCandleInterval,
   type InstrumentCandleRange,
   type InstrumentCandle,
   type InstrumentMarkPoint,
   type InstrumentCandlesResponse,
+  type InstrumentCandlesQuery,
 } from './instrument-candles.js';
 
 export {
