@@ -100,6 +100,19 @@ export {
 } from './portfolio.js';
 
 export {
+  InstrumentCandleIntervalSchema,
+  InstrumentCandleRangeSchema,
+  InstrumentCandleSchema,
+  InstrumentMarkPointSchema,
+  InstrumentCandlesResponseSchema,
+  type InstrumentCandleInterval,
+  type InstrumentCandleRange,
+  type InstrumentCandle,
+  type InstrumentMarkPoint,
+  type InstrumentCandlesResponse,
+} from './instrument-candles.js';
+
+export {
   VenueCredentialFieldKeySchema,
   VenueCredentialFieldSpecSchema,
   VenuePrivateAdapterStatusSchema,
