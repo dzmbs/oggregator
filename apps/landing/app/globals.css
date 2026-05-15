@@ -88,6 +88,10 @@ body {
   padding: 0.95rem;
 }
 
+.landing-feed-tape-track {
+  animation: ticker-marquee 42s linear infinite;
+}
+
 .landing-chip,
 .landing-kicker {
   font-family: var(--font-mono), monospace;
@@ -225,6 +229,10 @@ a {
 
 @media (prefers-reduced-motion: reduce) {
   .ticker-track {
+    animation: none;
+  }
+
+  .landing-feed-tape-track {
     animation: none;
   }
 

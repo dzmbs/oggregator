@@ -47,28 +47,29 @@ export function HeroTerminalSection() {
         <div className="mt-6 grid gap-3 text-sm leading-6 text-[var(--landing-muted-strong)] md:grid-cols-3">
           <div className="rounded-[1.2rem] border border-white/8 bg-white/[0.025] px-4 py-4">
             <p className="font-[var(--font-mono)] text-[10px] uppercase tracking-[0.22em] text-[var(--landing-accent)]">
-              Depth hierarchy
+              Surface parity
             </p>
             <p className="mt-3">
-              Macro topology stays visible until proximity justifies local labels and exact quotes.
+              The landing page now uses the same terminal grammar as the app instead of a detached
+              marketing mockup.
             </p>
           </div>
           <div className="rounded-[1.2rem] border border-white/8 bg-white/[0.025] px-4 py-4">
             <p className="font-[var(--font-mono)] text-[10px] uppercase tracking-[0.22em] text-[var(--landing-accent)]">
-              Volumetric overlays
+              Real captures
             </p>
             <p className="mt-3">
-              Liquidity fog, event ridges, and confidence mesh stack on the surface instead of
-              beside it.
+              Portfolio and chain previews are pulled from the actual app so the landing page feels
+              native to the product.
             </p>
           </div>
           <div className="rounded-[1.2rem] border border-white/8 bg-white/[0.025] px-4 py-4">
             <p className="font-[var(--font-mono)] text-[10px] uppercase tracking-[0.22em] text-[var(--landing-accent)]">
-              Anchored telemetry
+              Live tape feel
             </p>
             <p className="mt-3">
-              Pinned callouts stay attached to strike and tenor coordinates while the camera moves
-              around them.
+              Feed tape and surface motion keep the page moving like the app, without inventing fake
+              book data.
             </p>
           </div>
         </div>

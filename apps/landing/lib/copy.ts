@@ -7,14 +7,14 @@ export const landingCopy = {
     cta: 'Request Access',
   },
   hero: {
-    eyebrow: 'Spatial options intelligence',
-    headline: 'Navigate volatility as a live surface.',
+    eyebrow: 'Terminal-first options intelligence',
+    headline: 'The landing page now moves like the app.',
     subheadline:
-      'Replace card-heavy market dashboards with a real-time 3D volatility surface that reveals regime shape, venue quality, and node-level execution context in one spatial scene.',
+      'Show the real terminal language on the landing page: simulated live surface behavior, real portfolio and chain captures, and the same feed-forward atmosphere traders see in the product.',
     primaryCta: 'Request Access',
     secondaryCta: 'Explore Surface',
-    proofLabel: 'Spatial states',
-    proofPoints: ['Overview orbit', 'Regional focus', 'Point detail', 'Contextual telemetry'],
+    proofLabel: 'App language',
+    proofPoints: ['Live surface motion', 'Portfolio preview', 'Chain preview', 'Feed tape'],
   },
   workflow: {
     eyebrow: 'Spatial drill-in',
