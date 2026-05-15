@@ -6,6 +6,7 @@ import {
   DERIVE_REST_BASE_URL,
   GATEIO_REST_BASE_URL,
   OKX_REST_BASE_URL,
+  THALEX_REST_URL,
 } from '../feeds/shared/endpoints.js';
 import { feedLogger } from '../utils/logger.js';
 import type {
@@ -576,23 +577,76 @@ export function bucketTrades(
   return [...out.values()].sort((a, b) => a.ts - b.ts);
 }
 
+// ── Thalex ─────────────────────────────────────────────────────────
+// REST GET /api/v2/public/mark_price_historical_data. Options row format
+// per the OpenAPI spec (rest_historical_data tag):
+//   [ts, o, h, l, c, oIv, hIv, lIv, cIv, top_of_book | null]
+// Timestamps are Unix seconds (number, may be float). Public, no auth.
+const INTERVAL_TO_THALEX: Record<InstrumentCandleInterval, string> = {
+  '1m': '1m', '5m': '5m', '15m': '15m', '1h': '1h', '4h': '1h', '1d': '1d',
+};
+// Thalex resolutions: 1m, 5m, 15m, 30m, 1h, 1d, 1w — no 4h, fall back to 1h.
+
+const ThalexHistoricalSchema = z.object({
+  result: z.object({
+    instrument_type: z.string(),
+    mark: z.array(z.array(z.unknown())),
+    no_data: z.boolean().optional(),
+  }),
+});
+
+export async function fetchThalexMark(
+  symbol: string,
+  interval: InstrumentCandleInterval,
+  range: InstrumentCandleRange,
+): Promise<RawCandle[]> {
+  const now = Math.floor(Date.now() / 1000);
+  const start = now - Math.floor(RANGE_TO_MS[range] / 1000);
+  const params = new URLSearchParams({
+    instrument_name: symbol,
+    from: String(start),
+    to: String(now),
+    resolution: INTERVAL_TO_THALEX[interval],
+  });
+  const res = await fetch(
+    `${THALEX_REST_URL}/public/mark_price_historical_data?${params}`,
+    { signal: AbortSignal.timeout(10_000), headers: { accept: 'application/json' } },
+  );
+  if (res.status === 404) throw new InstrumentCandlesError('not_found', `Thalex: ${symbol}`);
+  if (!res.ok) throw new InstrumentCandlesError('upstream', `Thalex ${res.status}`);
+  const result = ThalexHistoricalSchema.safeParse(await res.json());
+  if (!result.success) {
+    log.warn({ issues: result.error.issues, symbol }, 'thalex mark parse failed');
+    return [];
+  }
+  if (result.data.result.no_data) return [];
+  const candles: RawCandle[] = [];
+  for (const row of result.data.result.mark) {
+    if (row.length < 5) continue;
+    const ts = Number(row[0]);
+    if (!Number.isFinite(ts)) continue;
+    candles.push({
+      ts: Math.floor(ts * 1000),
+      o: Number(row[1]),
+      h: Number(row[2]),
+      l: Number(row[3]),
+      c: Number(row[4]),
+      vol: 0,
+    });
+  }
+  return candles;
+}
+
 // ── Venue capability map ──────────────────────────────────────────
-// Wired venues: deribit, binance, okx, gateio, bybit, derive.
+// Wired venues: deribit, binance, okx, gateio, bybit, derive, thalex.
 // Intentionally NOT wired (verified against official docs):
 //   coincall — GET /open/option/market/kline/history/v1/{optionName}
 //              is the official kline path, but Coincall's own example
 //              curl explicitly requires signed headers (X-CC-APIKEY,
 //              sign, ts, X-REQ-TS-DIFF). Probing the endpoint without
 //              auth returns code:4003 "token auth fail". Vendor-gated.
-//   thalex   — Only `subs_market_data/Ticker` is documented; that is
-//              a WebSocket subscription delivering live last_price and
-//              24h stats, not historical kline. The REST method
-//              public/get_mark_price_historical_data returns
-//              {error:31,"unknown API method"} on production
-//              (api_version 2.63.0). No historical kline endpoint
-//              exists on the public surface.
 const SUPPORTED_VENUES = new Set<VenueId>([
-  'deribit', 'binance', 'okx', 'gateio', 'bybit', 'derive',
+  'deribit', 'binance', 'okx', 'gateio', 'bybit', 'derive', 'thalex',
 ]);
 
 const PRICE_CURRENCY: Record<string, string> = {
@@ -602,6 +656,7 @@ const PRICE_CURRENCY: Record<string, string> = {
   gateio: 'USDT',
   bybit: 'USDT',
   derive: 'USDC',
+  thalex: 'USD',
 };
 
 function priceCurrencyFor(venue: VenueId, symbol: string): string {
@@ -701,6 +756,11 @@ export class InstrumentCandleService {
         return Promise.all([
           fetchDeriveTradeBucketed(symbol, interval, range),
           Promise.resolve([] as RawCandle[]),
+        ]);
+      case 'thalex':
+        return Promise.all([
+          Promise.resolve([] as RawCandle[]),
+          fetchThalexMark(symbol, interval, range),
         ]);
       default:
         throw new InstrumentCandlesError('unsupported_venue', `Venue ${venue} not yet supported`);

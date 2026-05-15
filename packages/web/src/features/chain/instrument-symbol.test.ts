@@ -65,6 +65,13 @@ describe('toVenueSymbol', () => {
     })).toBe('BTC-20260925-80000-C');
   });
 
+  it('formats Thalex BTC call (Deribit-style DDMONYY)', () => {
+    expect(toVenueSymbol({
+      venue: 'thalex', underlying: 'BTC', expiry: '2026-06-26',
+      strike: 80000, type: 'call',
+    })).toBe('BTC-26JUN26-80000-C');
+  });
+
   it('throws NotSupportedVenueError for unsupported venues', () => {
     expect(() =>
       toVenueSymbol({ venue: 'coincall', underlying: 'BTC', expiry: '2026-06-27', strike: 70000, type: 'call' }),

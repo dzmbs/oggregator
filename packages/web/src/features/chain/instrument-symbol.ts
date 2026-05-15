@@ -9,6 +9,7 @@ export const CHART_SUPPORTED_VENUES: readonly VenueId[] = [
   'gateio',
   'bybit',
   'derive',
+  'thalex',
 ];
 
 export function isChartSupportedVenue(v: VenueId): boolean {
@@ -44,6 +45,8 @@ export function toVenueSymbol(args: ToVenueSymbolArgs): string {
       return formatBybit(args);
     case 'derive':
       return formatDerive(args);
+    case 'thalex':
+      return formatThalex(args);
     default:
       throw new NotSupportedVenueError(args.venue);
   }
@@ -102,4 +105,12 @@ function formatDerive({ underlying, expiry, strike, type }: ToVenueSymbolArgs): 
   const mm = String(month + 1).padStart(2, '0');
   const dd = String(day).padStart(2, '0');
   return `${underlying}-${year}${mm}${dd}-${String(strike)}-${type === 'call' ? 'C' : 'P'}`;
+}
+
+function formatThalex({ underlying, expiry, strike, type }: ToVenueSymbolArgs): string {
+  // Same as Deribit: BTC-DDMONYY-STRIKE-C/P (verified against
+  // GET /api/v2/public/instruments — instrument_name uses this shape).
+  const { day, month, year } = parseExpiry(expiry);
+  const yr = String(year).slice(-2);
+  return `${underlying}-${day}${MONTHS[month]}${yr}-${String(strike)}-${type === 'call' ? 'C' : 'P'}`;
 }
