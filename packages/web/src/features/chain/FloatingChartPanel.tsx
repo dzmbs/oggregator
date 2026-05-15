@@ -1,5 +1,5 @@
 // packages/web/src/features/chain/FloatingChartPanel.tsx
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { InstrumentCandleInterval, InstrumentCandleRange, VenueId } from '@oggregator/protocol';
 import type { EnrichedChainResponse } from '@shared/enriched';
@@ -7,7 +7,7 @@ import { VENUES } from '@lib/venue-meta';
 import type { ChartPanel } from './chart-panels-store.js';
 import { useChartPanelsStore } from './chart-panels-store.js';
 import { useInstrumentCandles, useLiveMidFromChain } from './use-instrument-candles.js';
-import { toVenueSymbol } from './instrument-symbol.js';
+import { toVenueSymbol, NotSupportedVenueError } from './instrument-symbol.js';
 import InstrumentChart from './InstrumentChart.js';
 import styles from './FloatingChartPanel.module.css';
 
@@ -54,8 +54,9 @@ function switchPanelVenue(
       strike: panel.strike,
       type: panel.type,
     });
-  } catch {
-    // NotSupportedVenueError — silently ignore.
+  } catch (err) {
+    if (err instanceof NotSupportedVenueError) return;
+    throw err;
   }
 }
 
@@ -67,7 +68,6 @@ export default function FloatingChartPanel({ panel }: { panel: ChartPanel }) {
   const strikeVenues = useStrikeVenues(panel.underlying, panel.expiry, panel.strike, panel.type);
   const dragRef = useRef<DragState | null>(null);
   const resizeRef = useRef<ResizeState | null>(null);
-  const [, setDragTick] = useState(0);
 
   const liveMid = useLiveMidFromChain(
     panel.underlying, panel.expiry, panel.strike, panel.type, panel.venue,
@@ -101,7 +101,6 @@ export default function FloatingChartPanel({ panel }: { panel: ChartPanel }) {
     function onUp() {
       dragRef.current = null;
       resizeRef.current = null;
-      setDragTick((t) => t + 1);
     }
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);

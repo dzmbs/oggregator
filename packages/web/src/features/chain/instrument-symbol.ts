@@ -28,6 +28,9 @@ export function toVenueSymbol(args: ToVenueSymbolArgs): string {
 
 function formatDeribit({ underlying, expiry, strike, type }: ToVenueSymbolArgs): string {
   const d = new Date(`${expiry}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) {
+    throw new Error(`toVenueSymbol: invalid expiry "${expiry}" (expected YYYY-MM-DD)`);
+  }
   const day = String(d.getUTCDate());
   const mon = MONTHS[d.getUTCMonth()];
   const yr = String(d.getUTCFullYear()).slice(-2);

@@ -40,7 +40,8 @@ export default function InstrumentChart({ candles, markLine, overlays, compact =
   const ma20SeriesRef = useRef<ISeriesApi<'Line', Time> | null>(null);
   const [hover, setHover] = useState<HoverOhlc | null>(null);
 
-  // Chart lifecycle — recreate only when compact mode changes
+  // Chart lifecycle — mount once. compact changes are applied via applyOptions
+  // in a separate effect so the renderer isn't rebuilt on every toggle.
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -54,7 +55,7 @@ export default function InstrumentChart({ candles, markLine, overlays, compact =
       },
       grid: { vertLines: { visible: false }, horzLines: { color: '#1A1A1A' } },
       rightPriceScale: { borderColor: '#1F2937', scaleMargins: { top: 0.1, bottom: 0.1 } },
-      timeScale: { borderColor: '#1F2937', timeVisible: true, secondsVisible: false, visible: !compact },
+      timeScale: { borderColor: '#1F2937', timeVisible: true, secondsVisible: false },
       crosshair: { mode: 1 },
     });
     chartRef.current = chart;
@@ -99,6 +100,10 @@ export default function InstrumentChart({ candles, markLine, overlays, compact =
     });
 
     return () => { chart.remove(); chartRef.current = null; };
+  }, []);
+
+  useEffect(() => {
+    chartRef.current?.applyOptions({ timeScale: { visible: !compact } });
   }, [compact]);
 
   useEffect(() => {

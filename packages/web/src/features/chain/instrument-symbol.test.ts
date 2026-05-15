@@ -28,4 +28,10 @@ describe('toVenueSymbol', () => {
       toVenueSymbol({ venue: 'okx', underlying: 'BTC', expiry: '2026-06-27', strike: 70000, type: 'call' }),
     ).toThrow(NotSupportedVenueError);
   });
+
+  it('throws on invalid expiry', () => {
+    expect(() =>
+      toVenueSymbol({ venue: 'deribit', underlying: 'BTC', expiry: 'not-a-date', strike: 70000, type: 'call' }),
+    ).toThrow(/invalid expiry/);
+  });
 });

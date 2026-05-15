@@ -1,11 +1,12 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
-import type {
-  InstrumentCandle,
-  InstrumentCandleInterval,
-  InstrumentCandleRange,
-  InstrumentCandlesResponse,
-  VenueId,
+import {
+  InstrumentCandlesResponseSchema,
+  type InstrumentCandle,
+  type InstrumentCandleInterval,
+  type InstrumentCandleRange,
+  type InstrumentCandlesResponse,
+  type VenueId,
 } from '@oggregator/protocol';
 import { fetchJson } from '@lib/http';
 import type { EnrichedChainResponse } from '@shared/enriched';
@@ -52,9 +53,14 @@ export function useInstrumentCandles({
     queryKey: ['instrument-candles', venue, symbol, interval, range],
     queryFn: async () => {
       if (!warmupDone) await warmupPromise;
-      return fetchJson<InstrumentCandlesResponse>(
+      const raw = await fetchJson<unknown>(
         `/instrument-candles?venue=${venue}&symbol=${encodeURIComponent(symbol)}&interval=${interval}&range=${range}`,
       );
+      const parsed = InstrumentCandlesResponseSchema.safeParse(raw);
+      if (!parsed.success) {
+        throw new Error(`instrument-candles response did not match schema: ${parsed.error.message}`);
+      }
+      return parsed.data as InstrumentCandlesResponse;
     },
     enabled,
     staleTime: 30_000,
