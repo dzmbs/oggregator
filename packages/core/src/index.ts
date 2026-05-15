@@ -125,6 +125,11 @@ export {
 } from './runtime/spot/index.js';
 
 // services
+export {
+  InstrumentCandleService,
+  instrumentCandleService,
+  InstrumentCandlesError,
+} from './services/instrument-candles.js';
 export { DvolService, type DvolSnapshot, type DvolCandle, type HvPoint } from './services/dvol.js';
 export {
   SpotCandleService,

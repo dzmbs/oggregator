@@ -6,6 +6,8 @@ import type {
   InstrumentMarkPoint,
   InstrumentCandleInterval,
   InstrumentCandleRange,
+  InstrumentCandlesResponse,
+  VenueId,
 } from '@oggregator/protocol';
 
 const log = feedLogger('instrument-candles');
@@ -168,3 +170,55 @@ export async function fetchDeribitMark(
   }
   return bucketTicks(result.data.result, INTERVAL_TO_MS[interval]);
 }
+
+interface CacheEntry {
+  fetchedAt: number;
+  response: InstrumentCandlesResponse;
+}
+
+export class InstrumentCandleService {
+  private readonly cache = new Map<string, CacheEntry>();
+  private readonly cacheTtlMs = 30_000;
+  private ready = false;
+
+  async start(): Promise<void> {
+    this.ready = true;
+  }
+
+  isReady(): boolean {
+    return this.ready;
+  }
+
+  async getCandles(
+    venue: VenueId,
+    symbol: string,
+    interval: InstrumentCandleInterval,
+    range: InstrumentCandleRange,
+  ): Promise<InstrumentCandlesResponse> {
+    const key = `${venue}:${symbol}:${interval}:${range}`;
+    const hit = this.cache.get(key);
+    if (hit && Date.now() - hit.fetchedAt < this.cacheTtlMs) return hit.response;
+
+    if (venue !== 'deribit') {
+      throw new InstrumentCandlesError('unsupported_venue', `Venue ${venue} not yet supported`);
+    }
+
+    const [trade, mark] = await Promise.all([
+      fetchDeribitTrade(symbol, interval, range),
+      fetchDeribitMark(symbol, interval, range),
+    ]);
+    const merged = mergeTradeAndMark(trade, mark);
+    const response: InstrumentCandlesResponse = {
+      venue,
+      symbol,
+      interval,
+      candles: merged.candles,
+      markLine: merged.markLine,
+    };
+    this.cache.set(key, { fetchedAt: Date.now(), response });
+    log.debug({ venue, symbol, interval, range, count: merged.candles.length }, 'instrument-candles fetched');
+    return response;
+  }
+}
+
+export const instrumentCandleService = new InstrumentCandleService();
