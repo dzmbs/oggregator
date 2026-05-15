@@ -7,7 +7,7 @@ import { VENUES } from '@lib/venue-meta';
 import type { ChartPanel } from './chart-panels-store.js';
 import { useChartPanelsStore } from './chart-panels-store.js';
 import { useInstrumentCandles, useLiveMidFromChain } from './use-instrument-candles.js';
-import { toVenueSymbol, NotSupportedVenueError } from './instrument-symbol.js';
+import { toVenueSymbol, NotSupportedVenueError, isChartSupportedVenue } from './instrument-symbol.js';
 import InstrumentChart from './InstrumentChart.js';
 import styles from './FloatingChartPanel.module.css';
 
@@ -25,7 +25,7 @@ function useStrikeVenues(underlying: string, expiry: string, strike: number, typ
     const row = data.strikes.find((s) => s.strike === strike);
     if (!row) continue;
     const side = type === 'call' ? row.call : row.put;
-    return Object.keys(side.venues) as VenueId[];
+    return (Object.keys(side.venues) as VenueId[]).filter(isChartSupportedVenue);
   }
   return [];
 }
@@ -134,7 +134,7 @@ export default function FloatingChartPanel({ panel }: { panel: ChartPanel }) {
         transform: `translate(${panel.x}px, ${panel.y}px)`,
         width: panel.w,
         height: panel.minimized ? 28 : panel.h,
-        zIndex: panel.zSeq,
+        zIndex: 1500 + panel.zSeq,
       }}
       onPointerDown={() => front(panel.id)}
     >

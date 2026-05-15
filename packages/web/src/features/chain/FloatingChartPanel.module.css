@@ -9,6 +9,7 @@
   flex-direction: column;
   font-family: 'IBM Plex Mono', monospace;
   color: #e6e6e6;
+  z-index: 1500;
 }
 .titlebar {
   display: flex;

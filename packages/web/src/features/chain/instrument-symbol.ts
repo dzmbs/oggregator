@@ -2,6 +2,12 @@ import type { VenueId } from '@oggregator/protocol';
 
 const MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
 
+export const CHART_SUPPORTED_VENUES: readonly VenueId[] = ['deribit'];
+
+export function isChartSupportedVenue(v: VenueId): boolean {
+  return (CHART_SUPPORTED_VENUES as readonly string[]).includes(v);
+}
+
 export class NotSupportedVenueError extends Error {
   constructor(public readonly venue: VenueId) {
     super(`Instrument symbol formatting not implemented for venue: ${venue}`);

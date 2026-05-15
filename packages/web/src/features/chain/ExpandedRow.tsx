@@ -6,7 +6,7 @@ import { IvChip, SpreadPill, ForwardDeltaPill } from '@components/ui';
 import { fmtUsd, fmtDelta, fmtNum, fmtIv } from '@lib/format';
 import { computeImpliedForward, computeImpliedForwardBand } from './forward-analysis';
 import { useChartPanelsStore } from './chart-panels-store.js';
-import { toVenueSymbol, NotSupportedVenueError } from './instrument-symbol.js';
+import { toVenueSymbol, NotSupportedVenueError, isChartSupportedVenue } from './instrument-symbol.js';
 import styles from './ExpandedRow.module.css';
 
 interface ForwardCell {
@@ -365,7 +365,7 @@ interface ChartButtonProps {
 
 function pickPrimaryVenue(side: EnrichedSide, active: readonly VenueId[]): VenueId | null {
   const entries = (Object.entries(side.venues) as [VenueId, VenueQuote][])
-    .filter(([v]) => active.includes(v));
+    .filter(([v]) => active.includes(v) && isChartSupportedVenue(v));
   if (entries.length === 0) return null;
   entries.sort((a, b) => (b[1].openInterest ?? 0) - (a[1].openInterest ?? 0));
   return entries[0]?.[0] ?? null;
