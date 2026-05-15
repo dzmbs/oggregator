@@ -280,6 +280,17 @@
   }
 }
 
+/* ── Inline chart layout ─────────────────────────────────────────────────── */
+
+.layout {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+.chartSlot {
+  flex: 0 0 auto;
+}
+
 /* ── Mobile ──────────────────────────────────────────── */
 
 @media (max-width: 768px) {

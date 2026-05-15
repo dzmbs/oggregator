@@ -5,6 +5,7 @@ import { VENUES } from '@lib/venue-meta';
 import { IvChip, SpreadPill, ForwardDeltaPill } from '@components/ui';
 import { fmtUsd, fmtDelta, fmtNum, fmtIv } from '@lib/format';
 import { computeImpliedForward, computeImpliedForwardBand } from './forward-analysis';
+import InstrumentChartInline from './InstrumentChartInline.js';
 import styles from './ExpandedRow.module.css';
 
 interface ForwardCell {
@@ -21,6 +22,8 @@ interface ExpandedRowProps {
   activeVenues: string[];
   atmStrike: number | null;
   atmConsensusForward: number | null;
+  underlying: string;
+  expiry: string;
 }
 
 interface VenueRowProps {
@@ -246,6 +249,8 @@ export default function ExpandedRow({
   activeVenues,
   atmStrike,
   atmConsensusForward,
+  underlying,
+  expiry,
 }: ExpandedRowProps) {
   const forwardsByVenue = useMemo<Map<VenueId, ForwardCell>>(() => {
     const map = new Map<VenueId, ForwardCell>();
@@ -286,45 +291,58 @@ export default function ExpandedRow({
         </div>
       )}
 
-      <div className={styles.sides}>
-        <div className={styles.side} data-type="call">
-          <div className={styles.sideHeader}>
-            <span className={styles.sideLabel}>CALLS</span>
-          </div>
-          <div className={styles.sideScroll}>
-            <SideTable
-              side={callSide}
-              type="call"
-              strike={strike}
-              myIv={myIv}
-              forwardsByVenue={forwardsByVenue}
-              atmStrike={atmStrike}
-            />
-          </div>
+      <div className={styles.layout}>
+        <div className={styles.chartSlot}>
+          <InstrumentChartInline
+            underlying={underlying}
+            expiry={expiry}
+            strike={strike}
+            type="call"
+            side={callSide}
+            activeVenues={activeVenues as VenueId[]}
+          />
         </div>
 
-        <div className={styles.strikeChannel} data-atm={isAtm || undefined}>
-          <div className={styles.strikeChannelHeader}>
-            {isAtm && <span className={styles.strikeAtmBadge}>ATM</span>}
-            <span className={styles.strikeChannelNum} data-atm={isAtm || undefined}>
-              {strike.toLocaleString()}
-            </span>
+        <div className={styles.sides}>
+          <div className={styles.side} data-type="call">
+            <div className={styles.sideHeader}>
+              <span className={styles.sideLabel}>CALLS</span>
+            </div>
+            <div className={styles.sideScroll}>
+              <SideTable
+                side={callSide}
+                type="call"
+                strike={strike}
+                myIv={myIv}
+                forwardsByVenue={forwardsByVenue}
+                atmStrike={atmStrike}
+              />
+            </div>
           </div>
-        </div>
 
-        <div className={styles.side} data-type="put">
-          <div className={styles.sideHeader} data-align="end">
-            <span className={styles.sideLabel}>PUTS</span>
+          <div className={styles.strikeChannel} data-atm={isAtm || undefined}>
+            <div className={styles.strikeChannelHeader}>
+              {isAtm && <span className={styles.strikeAtmBadge}>ATM</span>}
+              <span className={styles.strikeChannelNum} data-atm={isAtm || undefined}>
+                {strike.toLocaleString()}
+              </span>
+            </div>
           </div>
-          <div className={styles.sideScroll}>
-            <SideTable
-              side={putSide}
-              type="put"
-              strike={strike}
-              myIv={myIv}
-              forwardsByVenue={forwardsByVenue}
-              atmStrike={atmStrike}
-            />
+
+          <div className={styles.side} data-type="put">
+            <div className={styles.sideHeader} data-align="end">
+              <span className={styles.sideLabel}>PUTS</span>
+            </div>
+            <div className={styles.sideScroll}>
+              <SideTable
+                side={putSide}
+                type="put"
+                strike={strike}
+                myIv={myIv}
+                forwardsByVenue={forwardsByVenue}
+                atmStrike={atmStrike}
+              />
+            </div>
           </div>
         </div>
       </div>

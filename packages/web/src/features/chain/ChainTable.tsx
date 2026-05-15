@@ -39,6 +39,7 @@ interface NewChainTableProps {
   activeVenues: string[];
   myIv: number | null;
   expiry: string;
+  underlying: string;
 }
 
 function fmtGamma(v: number | null): string {
@@ -157,6 +158,8 @@ interface StrikeRowProps {
   atmStrike: number | null;
   atmConsensusForward: number | null;
   indexPrice: number | null;
+  underlying: string;
+  expiry: string;
 }
 
 function fmtDistPct(strike: number, indexPrice: number | null): string | null {
@@ -185,6 +188,8 @@ const StrikeRowItem = memo(function StrikeRowItem({
   atmStrike,
   atmConsensusForward,
   indexPrice,
+  underlying,
+  expiry,
 }: StrikeRowItemPropsInternal) {
   const distLabel = fmtDistPct(strike.strike, indexPrice);
   const callQ =
@@ -327,6 +332,8 @@ const StrikeRowItem = memo(function StrikeRowItem({
           activeVenues={activeVenues}
           atmStrike={atmStrike}
           atmConsensusForward={atmConsensusForward}
+          underlying={underlying}
+          expiry={expiry}
         />
       )}
     </div>
@@ -342,6 +349,7 @@ export default function NewChainTable({
   activeVenues,
   myIv,
   expiry,
+  underlying,
 }: NewChainTableProps) {
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const [quickTrade, setQuickTrade] = useState<QuickTradeInfo | null>(null);
@@ -532,6 +540,8 @@ export default function NewChainTable({
                   atmStrike={atmStrike}
                   atmConsensusForward={atmConsensusForward}
                   indexPrice={indexPrice}
+                  underlying={underlying}
+                  expiry={expiry}
                 />
               </div>
             );

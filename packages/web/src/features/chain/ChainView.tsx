@@ -129,6 +129,7 @@ export default function ChainView() {
                 activeVenues={activeVenues}
                 myIv={myIvValid ? myIvFloat : null}
                 expiry={expiry}
+                underlying={underlying}
               />
             )}
           </div>
@@ -197,6 +198,7 @@ export default function ChainView() {
               activeVenues={activeVenues}
               myIv={myIvValid ? myIvFloat : null}
               expiry={expiry}
+              underlying={underlying}
             />
           )}
         </div>
