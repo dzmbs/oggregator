@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect } from 'react';
 
 import { AppShell } from '@components/layout';
-import { ChainView, useUnderlyings } from '@features/chain';
+import { ChainView, ChartPanelLayer, useUnderlyings } from '@features/chain';
 import { ErrorBoundary, SessionNotice, Spinner } from '@components/ui';
 import { useGlobalFeedStatus } from '@hooks/useGlobalFeedStatus';
 import { useServerVersion } from '@hooks/useServerVersion';
@@ -79,6 +79,7 @@ export default function App() {
         </ErrorBoundary>
       </div>
       <SessionNotice />
+      <ChartPanelLayer />
     </AppShell>
   );
 }
