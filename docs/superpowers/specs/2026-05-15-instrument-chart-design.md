@@ -17,7 +17,7 @@ Give traders a per-contract historical chart on the CHAIN view, scoped to "time 
 
 ## Architecture
 
-```
+```text
 packages/web/src/features/chain/
   InstrumentChart.tsx              — pure renderer. lightweight-charts. accepts candles + markLine + MAs.
   InstrumentChartInline.tsx        — wraps InstrumentChart at ~280×160. lives in ExpandedRow gutter.
@@ -44,7 +44,7 @@ Panel state lives in Zustand, not React, because floating panels need to survive
 
 One new route, mirrors `routes/spot-candles.ts`:
 
-```
+```text
 GET /api/instrument-candles
   ?venue=deribit
   &symbol=BTC-30JUN26-70000-C
@@ -60,7 +60,7 @@ GET /api/instrument-candles
 
 Service (`core/services/instrument-candles.ts`) dispatches via `Record<VenueId, fn>` to the per-venue adapter, **fetches trade klines and mark klines in parallel**, and merges per bar:
 
-```
+```text
 for each bucket ts:
   trade = tradeCandles[ts]
   mark  = markCandles[ts]
@@ -74,17 +74,18 @@ for each bucket ts:
 
 The two parallel fetches per venue:
 
-| Venue | Trade klines | Mark klines |
-|---|---|---|
-| Deribit | `get_tradingview_chart_data` | `get_mark_price_history` |
-| OKX | `/market/history-candles` | `/market/mark-price-candlesticks` |
-| Bybit | `/market/kline` | `/market/mark-price-kline` |
-| Gate | `/options/candlesticks` (mark-based) | (returns same series for both) |
-| Thalex | trade kline endpoint | mark kline endpoint |
+| Venue   | Trade klines                          | Mark klines                            |
+| ------- | ------------------------------------- | -------------------------------------- |
+| Deribit | `get_tradingview_chart_data`          | `get_mark_price_history`               |
+| OKX     | `/market/history-candles`             | `/market/mark-price-candlesticks`      |
+| Bybit   | `/market/kline`                       | `/market/mark-price-kline`             |
+| Gate    | `/options/candlesticks` (mark-based)  | (returns same series for both)         |
+| Thalex  | trade kline endpoint                  | mark kline endpoint                    |
 
 Each venue's existing HTTP client in `core/feeds/<venue>/` gets two new methods. No new HTTP plumbing.
 
 Error semantics:
+
 - 404 if the contract isn't listed on that venue.
 - 410 if expired and klines are no longer served.
 - 501 if the venue adapter doesn't yet implement instrument candles (v1.1 venues).
