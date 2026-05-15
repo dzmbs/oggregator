@@ -83,3 +83,15 @@
   cursor: nwse-resize;
   background: linear-gradient(135deg, transparent 50%, #1F2937 50%);
 }
+.mobileModal {
+  position: fixed;
+  inset: 0;
+  background: #0E1117;
+  border: none;
+  box-shadow: none;
+  display: flex;
+  flex-direction: column;
+  font-family: 'IBM Plex Mono', monospace;
+  color: #e6e6e6;
+  z-index: 1000;
+}

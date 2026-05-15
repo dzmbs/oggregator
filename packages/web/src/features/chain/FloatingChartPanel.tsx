@@ -164,3 +164,68 @@ export default function FloatingChartPanel({ panel }: { panel: ChartPanel }) {
     </div>
   );
 }
+
+export function MobileChartModal({ panel }: { panel: ChartPanel }) {
+  const update = useChartPanelsStore((s) => s.updatePanel);
+  const close = useChartPanelsStore((s) => s.closePanel);
+
+  const liveMid = useLiveMidFromChain(
+    panel.underlying, panel.expiry, panel.strike, panel.type, panel.venue,
+  );
+  const { candles, markLine, isLoading, error } = useInstrumentCandles({
+    venue: panel.venue,
+    symbol: panel.symbol,
+    interval: panel.interval,
+    range: panel.range,
+    liveMid,
+  });
+
+  return (
+    <div className={styles.mobileModal}>
+      <div className={styles.titlebar}>
+        <span className={styles.title}>
+          {panel.symbol}
+          <span className={styles.venueLabel}> · {VENUES[panel.venue]?.shortLabel ?? panel.venue}</span>
+        </span>
+        <button type="button" onClick={() => close(panel.id)} aria-label="Close">✕</button>
+      </div>
+      <div className={styles.toolbar}>
+        <div className={styles.intervals}>
+          {INTERVALS.map((i) => (
+            <button
+              key={i}
+              type="button"
+              data-active={panel.interval === i || undefined}
+              onClick={() => update(panel.id, { interval: i })}
+            >{i}</button>
+          ))}
+        </div>
+        <div className={styles.ranges}>
+          {RANGES.map((r) => (
+            <button
+              key={r}
+              type="button"
+              data-active={panel.range === r || undefined}
+              onClick={() => update(panel.id, { range: r })}
+            >{r}</button>
+          ))}
+        </div>
+        <div className={styles.overlays}>
+          <button type="button" data-active={panel.overlays.mark || undefined}
+            onClick={() => update(panel.id, { overlays: { ...panel.overlays, mark: !panel.overlays.mark } })}>Mark</button>
+          <button type="button" data-active={panel.overlays.ma9 || undefined}
+            onClick={() => update(panel.id, { overlays: { ...panel.overlays, ma9: !panel.overlays.ma9 } })}>MA9</button>
+          <button type="button" data-active={panel.overlays.ma20 || undefined}
+            onClick={() => update(panel.id, { overlays: { ...panel.overlays, ma20: !panel.overlays.ma20 } })}>MA20</button>
+        </div>
+      </div>
+      <div className={styles.body}>
+        {isLoading && <div className={styles.empty}>loading…</div>}
+        {error && <div className={styles.empty}>error — retry</div>}
+        {!isLoading && !error && (
+          <InstrumentChart candles={candles} markLine={markLine} overlays={panel.overlays} />
+        )}
+      </div>
+    </div>
+  );
+}
