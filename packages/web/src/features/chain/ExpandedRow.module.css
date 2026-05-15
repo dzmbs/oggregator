@@ -282,15 +282,31 @@
   }
 }
 
-/* ── Inline chart layout ─────────────────────────────────────────────────── */
+/* ── Chart button (in CALLS / PUTS side header) ──────────────────────────── */
 
-.layout {
-  display: flex;
-  gap: 8px;
-  align-items: stretch;
+.chartBtn {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 1px 8px;
+  background: transparent;
+  color: var(--text-dim);
+  border: 1px solid var(--border-subtle);
+  border-radius: 2px;
+  cursor: pointer;
+  transition: color var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast);
 }
-.chartSlot {
-  flex: 0 0 auto;
+
+.chartBtn:hover:not(:disabled) {
+  color: var(--accent-primary);
+  border-color: var(--accent-primary);
+}
+
+.chartBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 /* ── Mobile ──────────────────────────────────────────── */
