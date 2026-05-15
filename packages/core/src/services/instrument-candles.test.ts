@@ -32,11 +32,13 @@ describe('mergeTradeAndMark', () => {
     expect(out.markLine.map((m) => m.c)).toEqual([1, 2]);
   });
 
-  it('drops trade buckets with no matching mark bucket', () => {
+  it('emits trade-only buckets even when no mark bucket exists', () => {
     const trade = [{ ts: 1, o: 10, h: 11, l: 9, c: 10.5, vol: 5 }];
     const mark: { ts: number; o: number; h: number; l: number; c: number; vol: number }[] = [];
     const out = mergeTradeAndMark(trade, mark);
-    expect(out.candles).toEqual([]);
+    expect(out.candles).toEqual([
+      { ts: 1, o: 10, h: 11, l: 9, c: 10.5, vol: 5, synthetic: false },
+    ]);
     expect(out.markLine).toEqual([]);
   });
 

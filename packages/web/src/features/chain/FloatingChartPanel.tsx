@@ -72,7 +72,7 @@ export default function FloatingChartPanel({ panel }: { panel: ChartPanel }) {
   const liveMid = useLiveMidFromChain(
     panel.underlying, panel.expiry, panel.strike, panel.type, panel.venue,
   );
-  const { candles, markLine, isLoading, error } = useInstrumentCandles({
+  const { candles, markLine, isLoading, error, priceCurrency } = useInstrumentCandles({
     venue: panel.venue,
     symbol: panel.symbol,
     interval: panel.interval,
@@ -142,6 +142,9 @@ export default function FloatingChartPanel({ panel }: { panel: ChartPanel }) {
         <span className={styles.title}>
           {panel.symbol}
           <span className={styles.venueLabel}> · {VENUES[panel.venue]?.shortLabel ?? panel.venue}</span>
+          {priceCurrency && (
+            <span className={styles.venueLabel}> · {priceCurrency}</span>
+          )}
         </span>
         <span className={styles.controls}>
           <button
@@ -208,7 +211,10 @@ export default function FloatingChartPanel({ panel }: { panel: ChartPanel }) {
           <div className={styles.body}>
             {isLoading && <div className={styles.empty}>loading…</div>}
             {error && <div className={styles.empty}>error — retry</div>}
-            {!isLoading && !error && (
+            {!isLoading && !error && candles.length === 0 && (
+              <div className={styles.empty}>No historical data for this strike on {VENUES[panel.venue]?.shortLabel ?? panel.venue}</div>
+            )}
+            {!isLoading && !error && candles.length > 0 && (
               <InstrumentChart
                 candles={candles}
                 markLine={markLine}
@@ -232,7 +238,7 @@ export function MobileChartModal({ panel }: { panel: ChartPanel }) {
   const liveMid = useLiveMidFromChain(
     panel.underlying, panel.expiry, panel.strike, panel.type, panel.venue,
   );
-  const { candles, markLine, isLoading, error } = useInstrumentCandles({
+  const { candles, markLine, isLoading, error, priceCurrency } = useInstrumentCandles({
     venue: panel.venue,
     symbol: panel.symbol,
     interval: panel.interval,
@@ -246,6 +252,9 @@ export function MobileChartModal({ panel }: { panel: ChartPanel }) {
         <span className={styles.title}>
           {panel.symbol}
           <span className={styles.venueLabel}> · {VENUES[panel.venue]?.shortLabel ?? panel.venue}</span>
+          {priceCurrency && (
+            <span className={styles.venueLabel}> · {priceCurrency}</span>
+          )}
         </span>
         <button type="button" onClick={() => close(panel.id)} aria-label="Close">✕</button>
       </div>
@@ -294,7 +303,10 @@ export function MobileChartModal({ panel }: { panel: ChartPanel }) {
       <div className={styles.body}>
         {isLoading && <div className={styles.empty}>loading…</div>}
         {error && <div className={styles.empty}>error — retry</div>}
-        {!isLoading && !error && (
+        {!isLoading && !error && candles.length === 0 && (
+          <div className={styles.empty}>No historical data for this strike on {VENUES[panel.venue]?.shortLabel ?? panel.venue}</div>
+        )}
+        {!isLoading && !error && candles.length > 0 && (
           <InstrumentChart candles={candles} markLine={markLine} overlays={panel.overlays} />
         )}
       </div>

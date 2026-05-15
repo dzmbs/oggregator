@@ -23,9 +23,37 @@ describe('toVenueSymbol', () => {
     })).toBe('SOL-30MAY26-1.14-C');
   });
 
+  it('formats Binance BTC call', () => {
+    expect(toVenueSymbol({
+      venue: 'binance', underlying: 'BTC', expiry: '2026-06-26',
+      strike: 80000, type: 'call',
+    })).toBe('BTC-260626-80000-C');
+  });
+
+  it('formats Binance ETH put with single-digit day', () => {
+    expect(toVenueSymbol({
+      venue: 'binance', underlying: 'ETH', expiry: '2026-09-05',
+      strike: 3000, type: 'put',
+    })).toBe('ETH-260905-3000-P');
+  });
+
+  it('formats OKX BTC call (inverse)', () => {
+    expect(toVenueSymbol({
+      venue: 'okx', underlying: 'BTC', expiry: '2026-06-26',
+      strike: 80000, type: 'call',
+    })).toBe('BTC-USD-260626-80000-C');
+  });
+
+  it('formats Gate.io BTC call', () => {
+    expect(toVenueSymbol({
+      venue: 'gateio', underlying: 'BTC', expiry: '2026-06-26',
+      strike: 80000, type: 'call',
+    })).toBe('BTC_USDT-20260626-80000-C');
+  });
+
   it('throws NotSupportedVenueError for unsupported venues', () => {
     expect(() =>
-      toVenueSymbol({ venue: 'okx', underlying: 'BTC', expiry: '2026-06-27', strike: 70000, type: 'call' }),
+      toVenueSymbol({ venue: 'bybit', underlying: 'BTC', expiry: '2026-06-27', strike: 70000, type: 'call' }),
     ).toThrow(NotSupportedVenueError);
   });
 

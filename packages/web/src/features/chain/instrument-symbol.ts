@@ -2,7 +2,12 @@ import type { VenueId } from '@oggregator/protocol';
 
 const MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
 
-export const CHART_SUPPORTED_VENUES: readonly VenueId[] = ['deribit'];
+export const CHART_SUPPORTED_VENUES: readonly VenueId[] = [
+  'deribit',
+  'binance',
+  'okx',
+  'gateio',
+];
 
 export function isChartSupportedVenue(v: VenueId): boolean {
   return (CHART_SUPPORTED_VENUES as readonly string[]).includes(v);
@@ -27,18 +32,53 @@ export function toVenueSymbol(args: ToVenueSymbolArgs): string {
   switch (args.venue) {
     case 'deribit':
       return formatDeribit(args);
+    case 'binance':
+      return formatBinance(args);
+    case 'okx':
+      return formatOkx(args);
+    case 'gateio':
+      return formatGateio(args);
     default:
       throw new NotSupportedVenueError(args.venue);
   }
 }
 
-function formatDeribit({ underlying, expiry, strike, type }: ToVenueSymbolArgs): string {
+function parseExpiry(expiry: string): { day: number; month: number; year: number } {
   const d = new Date(`${expiry}T00:00:00Z`);
   if (Number.isNaN(d.getTime())) {
     throw new Error(`toVenueSymbol: invalid expiry "${expiry}" (expected YYYY-MM-DD)`);
   }
-  const day = String(d.getUTCDate());
-  const mon = MONTHS[d.getUTCMonth()];
-  const yr = String(d.getUTCFullYear()).slice(-2);
-  return `${underlying}-${day}${mon}${yr}-${String(strike)}-${type === 'call' ? 'C' : 'P'}`;
+  return { day: d.getUTCDate(), month: d.getUTCMonth(), year: d.getUTCFullYear() };
+}
+
+function formatDeribit({ underlying, expiry, strike, type }: ToVenueSymbolArgs): string {
+  const { day, month, year } = parseExpiry(expiry);
+  const yr = String(year).slice(-2);
+  return `${underlying}-${day}${MONTHS[month]}${yr}-${String(strike)}-${type === 'call' ? 'C' : 'P'}`;
+}
+
+function formatBinance({ underlying, expiry, strike, type }: ToVenueSymbolArgs): string {
+  // Format: BTC-YYMMDD-STRIKE-C/P
+  const { day, month, year } = parseExpiry(expiry);
+  const yr = String(year).slice(-2);
+  const mm = String(month + 1).padStart(2, '0');
+  const dd = String(day).padStart(2, '0');
+  return `${underlying}-${yr}${mm}${dd}-${String(strike)}-${type === 'call' ? 'C' : 'P'}`;
+}
+
+function formatOkx({ underlying, expiry, strike, type }: ToVenueSymbolArgs): string {
+  // Inverse format used by the chain feed: BTC-USD-YYMMDD-STRIKE-C/P
+  const { day, month, year } = parseExpiry(expiry);
+  const yr = String(year).slice(-2);
+  const mm = String(month + 1).padStart(2, '0');
+  const dd = String(day).padStart(2, '0');
+  return `${underlying}-USD-${yr}${mm}${dd}-${String(strike)}-${type === 'call' ? 'C' : 'P'}`;
+}
+
+function formatGateio({ underlying, expiry, strike, type }: ToVenueSymbolArgs): string {
+  // Format: BTC_USDT-YYYYMMDD-STRIKE-C/P
+  const { day, month, year } = parseExpiry(expiry);
+  const mm = String(month + 1).padStart(2, '0');
+  const dd = String(day).padStart(2, '0');
+  return `${underlying}_USDT-${year}${mm}${dd}-${String(strike)}-${type === 'call' ? 'C' : 'P'}`;
 }

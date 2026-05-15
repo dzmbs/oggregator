@@ -76,6 +76,7 @@ export function useInstrumentCandles({
     ...query,
     candles,
     markLine: query.data?.markLine ?? [],
+    priceCurrency: query.data?.priceCurrency ?? null,
   };
 }
 

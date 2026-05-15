@@ -32,6 +32,7 @@ export const InstrumentCandlesResponseSchema = z.object({
   interval: InstrumentCandleIntervalSchema,
   candles: z.array(InstrumentCandleSchema),
   markLine: z.array(InstrumentMarkPointSchema),
+  priceCurrency: z.string().min(1).max(8),
 });
 export type InstrumentCandlesResponse = z.infer<typeof InstrumentCandlesResponseSchema>;
 

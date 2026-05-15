@@ -1,5 +1,10 @@
 import { z } from 'zod';
-import { DERIBIT_REST_BASE_URL } from '../feeds/shared/endpoints.js';
+import {
+  BINANCE_REST_BASE_URL,
+  DERIBIT_REST_BASE_URL,
+  GATEIO_REST_BASE_URL,
+  OKX_REST_BASE_URL,
+} from '../feeds/shared/endpoints.js';
 import { feedLogger } from '../utils/logger.js';
 import type {
   InstrumentCandle,
@@ -36,25 +41,26 @@ export function mergeTradeAndMark(
   mark: readonly RawCandle[],
 ): { candles: InstrumentCandle[]; markLine: InstrumentMarkPoint[] } {
   const tradeByTs = new Map(trade.map((c) => [c.ts, c]));
+  const markByTs = new Map(mark.map((c) => [c.ts, c]));
+  const allTs = new Set<number>([...tradeByTs.keys(), ...markByTs.keys()]);
   const candles: InstrumentCandle[] = [];
   const markLine: InstrumentMarkPoint[] = [];
-  for (const m of mark) {
-    markLine.push({ ts: m.ts, c: m.c });
-    const t = tradeByTs.get(m.ts);
+  for (const ts of allTs) {
+    const t = tradeByTs.get(ts);
+    const m = markByTs.get(ts);
     if (t && t.vol > 0) {
-      candles.push({ ts: t.ts, o: t.o, h: t.h, l: t.l, c: t.c, vol: t.vol, synthetic: false });
-    } else {
-      candles.push({ ts: m.ts, o: m.o, h: m.h, l: m.l, c: m.c, vol: 0, synthetic: true });
+      candles.push({ ts, o: t.o, h: t.h, l: t.l, c: t.c, vol: t.vol, synthetic: false });
+    } else if (m) {
+      candles.push({ ts, o: m.o, h: m.h, l: m.l, c: m.c, vol: 0, synthetic: true });
+    } else if (t) {
+      candles.push({ ts, o: t.o, h: t.h, l: t.l, c: t.c, vol: 0, synthetic: false });
     }
+    if (m) markLine.push({ ts, c: m.c });
   }
   candles.sort((a, b) => a.ts - b.ts);
   markLine.sort((a, b) => a.ts - b.ts);
   return { candles, markLine };
 }
-
-const INTERVAL_TO_DERIBIT: Record<InstrumentCandleInterval, string> = {
-  '1m': '1', '5m': '5', '15m': '15', '1h': '60', '4h': '240', '1d': '1D',
-};
 
 const INTERVAL_TO_MS: Record<InstrumentCandleInterval, number> = {
   '1m': 60_000, '5m': 5 * 60_000, '15m': 15 * 60_000,
@@ -68,28 +74,10 @@ const RANGE_TO_MS: Record<InstrumentCandleRange, number> = {
   max: 365 * 24 * 60 * 60 * 1000,
 };
 
-const TradingViewSchema = z.object({
-  result: z.object({
-    status: z.string(),
-    ticks: z.array(z.number()),
-    open: z.array(z.number()),
-    high: z.array(z.number()),
-    low: z.array(z.number()),
-    close: z.array(z.number()),
-    volume: z.array(z.number()).optional(),
-  }),
-});
-
-const MarkHistorySchema = z.object({
-  result: z.array(z.tuple([z.number(), z.number()])),
-});
-
 export function bucketTicks(
   ticks: ReadonlyArray<[number, number]>,
   bucketMs: number,
 ): RawCandle[] {
-  // Sort first so o/c reflect the chronologically first/last tick per bucket,
-  // not the iteration-order first/last (which would be wrong for unsorted input).
   const sorted = [...ticks].sort((a, b) => a[0] - b[0]);
   const out = new Map<number, RawCandle>();
   for (const [ts, v] of sorted) {
@@ -104,6 +92,27 @@ export function bucketTicks(
   }
   return [...out.values()].sort((a, b) => a.ts - b.ts);
 }
+
+// ── Deribit ────────────────────────────────────────────────────────
+const INTERVAL_TO_DERIBIT: Record<InstrumentCandleInterval, string> = {
+  '1m': '1', '5m': '5', '15m': '15', '1h': '60', '4h': '240', '1d': '1D',
+};
+
+const DeribitTradingViewSchema = z.object({
+  result: z.object({
+    status: z.string(),
+    ticks: z.array(z.number()),
+    open: z.array(z.number()),
+    high: z.array(z.number()),
+    low: z.array(z.number()),
+    close: z.array(z.number()),
+    volume: z.array(z.number()).optional(),
+  }),
+});
+
+const DeribitMarkHistorySchema = z.object({
+  result: z.array(z.tuple([z.number(), z.number()])),
+});
 
 export async function fetchDeribitTrade(
   symbol: string,
@@ -124,9 +133,9 @@ export async function fetchDeribitTrade(
   );
   if (res.status === 404) throw new InstrumentCandlesError('not_found', `Deribit: ${symbol}`);
   if (!res.ok) throw new InstrumentCandlesError('upstream', `Deribit ${res.status}`);
-  const result = TradingViewSchema.safeParse(await res.json());
+  const result = DeribitTradingViewSchema.safeParse(await res.json());
   if (!result.success) {
-    log.warn({ issues: result.error.issues, symbol }, 'deribit response parse failed');
+    log.warn({ issues: result.error.issues, symbol }, 'deribit trade parse failed');
     return [];
   }
   const r = result.data.result;
@@ -166,12 +175,233 @@ export async function fetchDeribitMark(
   );
   if (res.status === 404) throw new InstrumentCandlesError('not_found', `Deribit: ${symbol}`);
   if (!res.ok) throw new InstrumentCandlesError('upstream', `Deribit ${res.status}`);
-  const result = MarkHistorySchema.safeParse(await res.json());
+  const result = DeribitMarkHistorySchema.safeParse(await res.json());
   if (!result.success) {
-    log.warn({ issues: result.error.issues, symbol }, 'deribit response parse failed');
+    log.warn({ issues: result.error.issues, symbol }, 'deribit mark parse failed');
     return [];
   }
   return bucketTicks(result.data.result, INTERVAL_TO_MS[interval]);
+}
+
+// ── Binance ────────────────────────────────────────────────────────
+const INTERVAL_TO_BINANCE: Record<InstrumentCandleInterval, string> = {
+  '1m': '1m', '5m': '5m', '15m': '15m', '1h': '1h', '4h': '4h', '1d': '1d',
+};
+
+const BinanceKlineSchema = z.array(
+  z.tuple([
+    z.number(),  // openTime
+    z.string(),  // open
+    z.string(),  // high
+    z.string(),  // low
+    z.string(),  // close
+    z.string(),  // volume
+    z.number(),  // closeTime
+    z.string(),  // quoteVolume
+    z.number(),  // takerVolume
+    z.string(),  // takerQuoteVolume
+    z.string(),  // amount
+    z.string(),  // ignore
+  ]).rest(z.unknown()),
+);
+
+export async function fetchBinanceTrade(
+  symbol: string,
+  interval: InstrumentCandleInterval,
+  range: InstrumentCandleRange,
+): Promise<RawCandle[]> {
+  const now = Date.now();
+  const start = now - RANGE_TO_MS[range];
+  const params = new URLSearchParams({
+    symbol,
+    interval: INTERVAL_TO_BINANCE[interval],
+    startTime: String(start),
+    endTime: String(now),
+    limit: '500',
+  });
+  const res = await fetch(
+    `${BINANCE_REST_BASE_URL}/eapi/v1/klines?${params}`,
+    { signal: AbortSignal.timeout(10_000), headers: { accept: 'application/json' } },
+  );
+  if (res.status === 400 || res.status === 404) {
+    throw new InstrumentCandlesError('not_found', `Binance: ${symbol}`);
+  }
+  if (!res.ok) throw new InstrumentCandlesError('upstream', `Binance ${res.status}`);
+  const result = BinanceKlineSchema.safeParse(await res.json());
+  if (!result.success) {
+    log.warn({ issues: result.error.issues, symbol }, 'binance klines parse failed');
+    return [];
+  }
+  return result.data.map((row) => ({
+    ts: row[0],
+    o: Number(row[1]),
+    h: Number(row[2]),
+    l: Number(row[3]),
+    c: Number(row[4]),
+    vol: Number(row[5]),
+  }));
+}
+
+// ── OKX ────────────────────────────────────────────────────────────
+const INTERVAL_TO_OKX: Record<InstrumentCandleInterval, string> = {
+  '1m': '1m', '5m': '5m', '15m': '15m', '1h': '1H', '4h': '4H', '1d': '1D',
+};
+
+// market/candles returns [ts, o, h, l, c, vol, volCcy, volCcyQuote, confirm]
+const OkxCandleSchema = z.object({
+  code: z.string(),
+  data: z.array(z.array(z.string())),
+});
+// history-mark-price-candles returns [ts, o, h, l, c, confirm]
+const OkxMarkCandleSchema = z.object({
+  code: z.string(),
+  data: z.array(z.array(z.string())),
+});
+
+export async function fetchOkxTrade(
+  symbol: string,
+  interval: InstrumentCandleInterval,
+  range: InstrumentCandleRange,
+): Promise<RawCandle[]> {
+  const now = Date.now();
+  const start = now - RANGE_TO_MS[range];
+  const params = new URLSearchParams({
+    instId: symbol,
+    bar: INTERVAL_TO_OKX[interval],
+    after: String(now),
+    before: String(start),
+    limit: '300',
+  });
+  const res = await fetch(
+    `${OKX_REST_BASE_URL}/api/v5/market/candles?${params}`,
+    { signal: AbortSignal.timeout(10_000), headers: { accept: 'application/json' } },
+  );
+  if (res.status === 404) throw new InstrumentCandlesError('not_found', `OKX: ${symbol}`);
+  if (!res.ok) throw new InstrumentCandlesError('upstream', `OKX ${res.status}`);
+  const result = OkxCandleSchema.safeParse(await res.json());
+  if (!result.success || result.data.code !== '0') {
+    log.warn({ symbol, code: result.success ? result.data.code : null }, 'okx candles parse failed');
+    return [];
+  }
+  return result.data.data.map((row) => ({
+    ts: Number(row[0]),
+    o: Number(row[1]),
+    h: Number(row[2]),
+    l: Number(row[3]),
+    c: Number(row[4]),
+    vol: Number(row[5] ?? '0'),
+  }));
+}
+
+export async function fetchOkxMark(
+  symbol: string,
+  interval: InstrumentCandleInterval,
+  range: InstrumentCandleRange,
+): Promise<RawCandle[]> {
+  const now = Date.now();
+  const start = now - RANGE_TO_MS[range];
+  const params = new URLSearchParams({
+    instId: symbol,
+    bar: INTERVAL_TO_OKX[interval],
+    after: String(now),
+    before: String(start),
+    limit: '300',
+  });
+  const res = await fetch(
+    `${OKX_REST_BASE_URL}/api/v5/market/history-mark-price-candles?${params}`,
+    { signal: AbortSignal.timeout(10_000), headers: { accept: 'application/json' } },
+  );
+  if (res.status === 404) throw new InstrumentCandlesError('not_found', `OKX: ${symbol}`);
+  if (!res.ok) throw new InstrumentCandlesError('upstream', `OKX ${res.status}`);
+  const result = OkxMarkCandleSchema.safeParse(await res.json());
+  if (!result.success || result.data.code !== '0') {
+    log.warn({ symbol, code: result.success ? result.data.code : null }, 'okx mark parse failed');
+    return [];
+  }
+  return result.data.data.map((row) => ({
+    ts: Number(row[0]),
+    o: Number(row[1]),
+    h: Number(row[2]),
+    l: Number(row[3]),
+    c: Number(row[4]),
+    vol: 0,
+  }));
+}
+
+// ── Gate.io ────────────────────────────────────────────────────────
+const INTERVAL_TO_GATEIO: Record<InstrumentCandleInterval, string> = {
+  '1m': '1m', '5m': '5m', '15m': '15m', '1h': '1h', '4h': '4h', '1d': '1d',
+};
+
+const GateioCandleSchema = z.array(
+  z.object({
+    t: z.number(),
+    o: z.string(),
+    h: z.string(),
+    l: z.string(),
+    c: z.string(),
+    v: z.number(),
+  }),
+);
+
+export async function fetchGateioTrade(
+  symbol: string,
+  interval: InstrumentCandleInterval,
+  range: InstrumentCandleRange,
+): Promise<RawCandle[]> {
+  const now = Math.floor(Date.now() / 1000);
+  const start = now - Math.floor(RANGE_TO_MS[range] / 1000);
+  const params = new URLSearchParams({
+    contract: symbol,
+    interval: INTERVAL_TO_GATEIO[interval],
+    from: String(start),
+    to: String(now),
+  });
+  const res = await fetch(
+    `${GATEIO_REST_BASE_URL}/api/v4/options/candlesticks?${params}`,
+    { signal: AbortSignal.timeout(10_000), headers: { accept: 'application/json' } },
+  );
+  if (res.status === 404) throw new InstrumentCandlesError('not_found', `Gate.io: ${symbol}`);
+  if (!res.ok) throw new InstrumentCandlesError('upstream', `Gate.io ${res.status}`);
+  const result = GateioCandleSchema.safeParse(await res.json());
+  if (!result.success) {
+    log.warn({ issues: result.error.issues, symbol }, 'gateio candles parse failed');
+    return [];
+  }
+  return result.data.map((row) => ({
+    ts: row.t * 1000,
+    o: Number(row.o),
+    h: Number(row.h),
+    l: Number(row.l),
+    c: Number(row.c),
+    vol: row.v,
+  }));
+}
+
+// ── Venue capability map ──────────────────────────────────────────
+// Wired venues:           deribit, binance, okx, gateio
+// Intentionally skipped — these venues either lack a public option-kline
+// endpoint or gate it behind auth, and adding them today would silently
+// produce empty charts or require key management:
+//   bybit    — /v5/market/kline rejects category=option (spot/futures only)
+//   coincall — kline REST endpoint is auth-gated (HMAC API key required)
+//   thalex   — no public historical kline; only live ticker streams
+//   derive   — public get_trade_history returns empty per strike for our
+//              sample set; no aggregated kline endpoint exists
+const SUPPORTED_VENUES = new Set<VenueId>(['deribit', 'binance', 'okx', 'gateio']);
+
+const PRICE_CURRENCY: Record<string, string> = {
+  deribit: 'BASE',    // BTC for BTC options, ETH for ETH options
+  binance: 'USDT',
+  okx: 'BASE',        // inverse — quoted in BTC/ETH
+  gateio: 'USDT',
+};
+
+function priceCurrencyFor(venue: VenueId, symbol: string): string {
+  const base = PRICE_CURRENCY[venue] ?? 'USD';
+  if (base !== 'BASE') return base;
+  const head = symbol.split('-')[0] ?? symbol.split('_')[0] ?? '';
+  return head || 'BASE';
 }
 
 interface CacheEntry {
@@ -205,14 +435,11 @@ export class InstrumentCandleService {
     const hit = this.cache.get(key);
     if (hit && Date.now() - hit.fetchedAt < this.cacheTtlMs) return hit.response;
 
-    if (venue !== 'deribit') {
+    if (!SUPPORTED_VENUES.has(venue)) {
       throw new InstrumentCandlesError('unsupported_venue', `Venue ${venue} not yet supported`);
     }
 
-    const [trade, mark] = await Promise.all([
-      fetchDeribitTrade(symbol, interval, range),
-      fetchDeribitMark(symbol, interval, range),
-    ]);
+    const [trade, mark] = await this.fetchForVenue(venue, symbol, interval, range);
     const merged = mergeTradeAndMark(trade, mark);
     const response: InstrumentCandlesResponse = {
       venue,
@@ -220,6 +447,7 @@ export class InstrumentCandleService {
       interval,
       candles: merged.candles,
       markLine: merged.markLine,
+      priceCurrency: priceCurrencyFor(venue, symbol),
     };
     if (this.cache.size >= this.cacheMaxEntries) {
       const oldest = this.cache.keys().next().value;
@@ -228,6 +456,38 @@ export class InstrumentCandleService {
     this.cache.set(key, { fetchedAt: Date.now(), response });
     log.debug({ venue, symbol, interval, range, count: merged.candles.length }, 'instrument-candles fetched');
     return response;
+  }
+
+  private async fetchForVenue(
+    venue: VenueId,
+    symbol: string,
+    interval: InstrumentCandleInterval,
+    range: InstrumentCandleRange,
+  ): Promise<[RawCandle[], RawCandle[]]> {
+    switch (venue) {
+      case 'deribit':
+        return Promise.all([
+          fetchDeribitTrade(symbol, interval, range),
+          fetchDeribitMark(symbol, interval, range),
+        ]);
+      case 'binance':
+        return Promise.all([
+          fetchBinanceTrade(symbol, interval, range),
+          Promise.resolve([] as RawCandle[]),
+        ]);
+      case 'okx':
+        return Promise.all([
+          fetchOkxTrade(symbol, interval, range),
+          fetchOkxMark(symbol, interval, range),
+        ]);
+      case 'gateio':
+        return Promise.all([
+          fetchGateioTrade(symbol, interval, range),
+          Promise.resolve([] as RawCandle[]),
+        ]);
+      default:
+        throw new InstrumentCandlesError('unsupported_venue', `Venue ${venue} not yet supported`);
+    }
   }
 }
 
