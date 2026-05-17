@@ -3,16 +3,16 @@
 import { useFrame } from "@react-three/fiber";
 import type { MotionValue } from "framer-motion";
 import { useMemo, useRef } from "react";
-import type { BufferAttribute, Mesh } from "three";
-import { Color, DoubleSide, PlaneGeometry } from "three";
+import { BufferAttribute, Color, DoubleSide, type Mesh, PlaneGeometry } from "three";
 
-const SEGMENTS_X = 56;
-const SEGMENTS_Y = 42;
+const SEGMENTS_X = 40;
+const SEGMENTS_Y = 26;
 const PLANE_WIDTH = 11.4;
 const PLANE_HEIGHT = 7.4;
 const Z_MIN = 28;
 const Z_MAX = 62;
 const Z_SCALE = 0.085;
+const PHASE_STEP_PERIOD = 0.45;
 
 const GRADIENT_STOPS = [
   { t: 0, color: new Color("#1e40af") },
@@ -23,7 +23,7 @@ const GRADIENT_STOPS = [
 ];
 
 function sampleGradient(t: number, target: Color) {
-  const clamped = Math.min(Math.max(t, 0), 1);
+  const clamped = t < 0 ? 0 : t > 1 ? 1 : t;
   for (let i = 0; i < GRADIENT_STOPS.length - 1; i += 1) {
     const a = GRADIENT_STOPS[i]!;
     const b = GRADIENT_STOPS[i + 1]!;
@@ -43,19 +43,19 @@ function computeIv(
   phase: number,
   drift: number,
 ) {
-  const deltaSteps = SEGMENTS_X;
-  const tenorSteps = SEGMENTS_Y;
-  const delta = deltaIndex / deltaSteps;
-  const tenorRatio = tenorIndex / tenorSteps;
+  const delta = deltaIndex / SEGMENTS_X;
+  const tenorRatio = tenorIndex / SEGMENTS_Y;
 
   const smile = Math.abs(delta - 0.5) * 34;
   const term = (1 - tenorRatio) * 8;
-  const hump = Math.exp(-((tenorRatio - 0.34) ** 2) / 0.02) * 10;
+  const humpExp = (tenorRatio - 0.34) * (tenorRatio - 0.34);
+  const hump = Math.exp(-humpExp / 0.02) * 10;
   const wave = Math.sin(phase + delta * 8.5 + tenorRatio * 3.2) * 1.6;
   const skew =
     Math.cos(phase * 0.55 + tenorRatio * 2.5) * (0.5 - delta) * 14;
+  const pulseExp = (delta - 0.68) * (delta - 0.68);
   const pulse =
-    Math.exp(-((delta - 0.68) ** 2) / 0.018) *
+    Math.exp(-pulseExp / 0.018) *
     Math.cos(phase * 0.7 + tenorRatio * 5.8) *
     2.2;
 
@@ -73,7 +73,7 @@ function lerp(a: number, b: number, t: number) {
 }
 
 function sampleScene(progress: number) {
-  const clamped = Math.min(Math.max(progress, 0), 1);
+  const clamped = progress < 0 ? 0 : progress > 1 ? 1 : progress;
   const last = sceneCameras.length - 1;
   const scaled = clamped * last;
   const lower = Math.floor(scaled);
@@ -96,20 +96,9 @@ function buildGeometry() {
     SEGMENTS_X,
     SEGMENTS_Y,
   );
-  const positions = geometry.attributes.position;
-  if (!positions) {
-    return { geometry, colorArray: new Float32Array(0) };
-  }
-
-  const colorArray = new Float32Array(positions.count * 3);
-  geometry.setAttribute(
-    "color",
-    new (geometry.attributes.position!.constructor as new (
-      array: ArrayLike<number>,
-      itemSize: number,
-    ) => BufferAttribute)(colorArray, 3),
-  );
-
+  const vertexCount = geometry.attributes.position?.count ?? 0;
+  const colorArray = new Float32Array(vertexCount * 3);
+  geometry.setAttribute("color", new BufferAttribute(colorArray, 3));
   return { geometry, colorArray };
 }
 
@@ -135,9 +124,10 @@ function refreshGeometry(
 
       const t = (iv - Z_MIN) / span;
       sampleGradient(t, tmp);
-      colorArray[vertex * 3] = tmp.r;
-      colorArray[vertex * 3 + 1] = tmp.g;
-      colorArray[vertex * 3 + 2] = tmp.b;
+      const offset = vertex * 3;
+      colorArray[offset] = tmp.r;
+      colorArray[offset + 1] = tmp.g;
+      colorArray[offset + 2] = tmp.b;
 
       vertex += 1;
     }
@@ -145,7 +135,6 @@ function refreshGeometry(
 
   positions.needsUpdate = true;
   colorAttr.needsUpdate = true;
-  geometry.computeVertexNormals();
 }
 
 export function TheaterSurfaceMesh({
@@ -155,9 +144,7 @@ export function TheaterSurfaceMesh({
 }) {
   const { geometry, colorArray } = useMemo(() => buildGeometry(), []);
   const surfaceRef = useRef<Mesh>(null);
-  const wireRef = useRef<Mesh>(null);
   const phaseRef = useRef(0);
-  const driftRef = useRef(0);
   const lastUpdateRef = useRef(0);
 
   useMemo(() => {
@@ -167,52 +154,35 @@ export function TheaterSurfaceMesh({
   useFrame((state) => {
     const elapsed = state.clock.elapsedTime;
 
-    if (elapsed - lastUpdateRef.current > 0.18) {
-      phaseRef.current += 0.18;
-      driftRef.current = Math.sin(elapsed * 0.32) * 1.6;
-      refreshGeometry(geometry, colorArray, phaseRef.current, driftRef.current);
+    if (elapsed - lastUpdateRef.current > PHASE_STEP_PERIOD) {
+      phaseRef.current += PHASE_STEP_PERIOD;
+      const drift = Math.sin(elapsed * 0.32) * 1.6;
+      refreshGeometry(geometry, colorArray, phaseRef.current, drift);
       lastUpdateRef.current = elapsed;
     }
+
+    const mesh = surfaceRef.current;
+    if (!mesh) return;
 
     const target = sampleScene(scrollProgress.get());
     const breath = Math.sin(elapsed * 0.18) * 0.04;
     const drift = Math.sin(elapsed * 0.12) * 0.08;
     const bob = Math.sin(elapsed * 0.22) * 0.05;
 
-    const rotationX = target.rotX + breath;
-    const rotationY = target.rotY + drift;
-    const positionY = target.posY + bob;
-
-    for (const mesh of [surfaceRef.current, wireRef.current]) {
-      if (!mesh) continue;
-      mesh.rotation.x = rotationX;
-      mesh.rotation.y = rotationY;
-      mesh.position.y = positionY;
-      mesh.position.z = target.posZ;
-    }
+    mesh.rotation.x = target.rotX + breath;
+    mesh.rotation.y = target.rotY + drift;
+    mesh.position.y = target.posY + bob;
+    mesh.position.z = target.posZ;
   });
 
   return (
-    <group>
-      <mesh ref={surfaceRef} geometry={geometry}>
-        <meshStandardMaterial
-          vertexColors
-          side={DoubleSide}
-          metalness={0.05}
-          roughness={0.62}
-          emissive="#000000"
-          emissiveIntensity={0}
-          flatShading={false}
-        />
-      </mesh>
-      <mesh ref={wireRef} geometry={geometry} renderOrder={1}>
-        <meshBasicMaterial
-          color="#ffffff"
-          transparent
-          opacity={0.06}
-          wireframe
-        />
-      </mesh>
-    </group>
+    <mesh ref={surfaceRef} geometry={geometry} frustumCulled={false}>
+      <meshBasicMaterial
+        vertexColors
+        side={DoubleSide}
+        fog
+        toneMapped={false}
+      />
+    </mesh>
   );
 }

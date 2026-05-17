@@ -2,7 +2,7 @@
 
 import { Canvas } from "@react-three/fiber";
 import type { MotionValue } from "framer-motion";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { TheaterSurfaceMesh } from "./TheaterSurfaceMesh";
 
@@ -19,23 +19,38 @@ export default function VolSurfaceTheaterCanvas({
   scrollProgress: MotionValue<number>;
 }) {
   const [canRenderCanvas, setCanRenderCanvas] = useState(false);
+  const [inView, setInView] = useState(true);
+  const wrapperRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-
     const syncPreference = () => {
       setCanRenderCanvas(!motionQuery.matches && canRenderInteractiveSurface());
     };
-
     syncPreference();
 
     if (typeof motionQuery.addEventListener === "function") {
       motionQuery.addEventListener("change", syncPreference);
       return () => motionQuery.removeEventListener("change", syncPreference);
     }
-
     motionQuery.addListener(syncPreference);
     return () => motionQuery.removeListener(syncPreference);
+  }, []);
+
+  useEffect(() => {
+    const node = wrapperRef.current;
+    if (!node || typeof IntersectionObserver === "undefined") return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (entry) setInView(entry.isIntersecting);
+      },
+      { rootMargin: "120px 0px" },
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
   }, []);
 
   if (!canRenderCanvas) {
@@ -48,18 +63,18 @@ export default function VolSurfaceTheaterCanvas({
   }
 
   return (
-    <Canvas
-      camera={{ fov: 30, position: [4.6, -1.4, 6.8] }}
-      className="absolute inset-0 h-full w-full"
-      dpr={[1, 1.75]}
-    >
-      <color attach="background" args={["#0a0a0a"]} />
-      <fog attach="fog" args={["#0a0a0a", 12, 22]} />
-      <ambientLight intensity={0.9} />
-      <directionalLight color="#ffffff" intensity={1.15} position={[6, 8, 6]} />
-      <directionalLight color="#bcd6ff" intensity={0.5} position={[-6, 4, 3]} />
-      <directionalLight color="#fcd9b5" intensity={0.35} position={[2, -3, 4]} />
-      <TheaterSurfaceMesh scrollProgress={scrollProgress} />
-    </Canvas>
+    <div ref={wrapperRef} className="absolute inset-0">
+      <Canvas
+        camera={{ fov: 30, position: [4.6, -1.4, 6.8] }}
+        className="h-full w-full"
+        dpr={[1, 1.25]}
+        frameloop={inView ? "always" : "never"}
+        gl={{ antialias: true, powerPreference: "high-performance" }}
+      >
+        <color attach="background" args={["#0a0a0a"]} />
+        <fog attach="fog" args={["#0a0a0a", 12, 22]} />
+        <TheaterSurfaceMesh scrollProgress={scrollProgress} />
+      </Canvas>
+    </div>
   );
 }
