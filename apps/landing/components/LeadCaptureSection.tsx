@@ -60,7 +60,7 @@ export function LeadCaptureSection() {
     >
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_8%_18%,_rgba(215,122,82,0.22),_transparent_38%),_radial-gradient(circle_at_92%_84%,_rgba(80,210,193,0.12),_transparent_40%)]"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_8%_18%,_rgba(237,244,246,0.10),_transparent_38%),_radial-gradient(circle_at_92%_84%,_rgba(237,244,246,0.06),_transparent_40%)]"
       />
       <div
         aria-hidden
@@ -161,7 +161,7 @@ export function LeadCaptureSection() {
 
               <button
                 type="submit"
-                className="mt-8 flex items-center justify-between gap-4 self-start border border-[var(--landing-accent)] bg-[var(--landing-accent)] px-8 py-5 font-[var(--font-mono)] text-[11px] font-semibold uppercase tracking-[0.3em] text-[var(--landing-bg)] transition hover:translate-x-1 hover:bg-[#6ee0d0] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--landing-accent)] disabled:cursor-not-allowed disabled:opacity-70"
+                className="mt-8 flex items-center justify-between gap-4 self-start border border-[var(--landing-accent)] bg-[var(--landing-accent)] px-8 py-5 font-[var(--font-mono)] text-[11px] font-semibold uppercase tracking-[0.3em] text-[var(--landing-bg)] transition hover:translate-x-1 hover:bg-[#ffffff] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--landing-accent)] disabled:cursor-not-allowed disabled:opacity-70"
                 disabled={isSubmitting}
               >
                 <span>{isSubmitting ? "Submitting" : landingCopy.cta.eyebrow}</span>

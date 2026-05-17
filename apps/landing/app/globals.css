@@ -9,14 +9,14 @@
   --landing-text-strong: #edf4f6;
   --landing-muted: #76808a;
   --landing-muted-strong: #aab4bc;
-  --landing-accent: #50d2c1;
-  --landing-accent-violet: #88b6ff;
-  --landing-accent-soft: rgba(80, 210, 193, 0.14);
+  --landing-accent: #edf4f6;
+  --landing-accent-violet: #aab4bc;
+  --landing-accent-soft: rgba(237, 244, 246, 0.10);
   --landing-border: rgba(40, 52, 60, 0.72);
   --landing-border-strong: rgba(67, 79, 88, 0.9);
-  --landing-success: #00e997;
-  --landing-loss: #cb3855;
-  --landing-warning: #fef9a0;
+  --landing-success: #d3dadf;
+  --landing-loss: #76808a;
+  --landing-warning: #aab4bc;
   --font-heading: var(--font-display);
 }
 
@@ -31,8 +31,8 @@ body {
 body {
   font-family: var(--font-sans), sans-serif;
   background-image:
-    radial-gradient(circle at 14% 0%, rgba(80, 210, 193, 0.1), transparent 30%),
-    radial-gradient(circle at 84% 10%, rgba(136, 182, 255, 0.08), transparent 24%),
+    radial-gradient(circle at 14% 0%, rgba(237, 244, 246, 0.06), transparent 30%),
+    radial-gradient(circle at 84% 10%, rgba(237, 244, 246, 0.04), transparent 24%),
     linear-gradient(180deg, #12171b 0%, #0d1115 18%, var(--landing-bg) 100%);
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -49,8 +49,8 @@ body {
   inset: 0;
   pointer-events: none;
   background-image:
-    linear-gradient(rgba(80, 210, 193, 0.045) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(80, 210, 193, 0.045) 1px, transparent 1px);
+    linear-gradient(rgba(237, 244, 246, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(237, 244, 246, 0.04) 1px, transparent 1px);
   background-position: center;
   background-size: 128px 128px;
   mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.55), transparent 88%);
@@ -184,10 +184,10 @@ body {
 }
 
 .landing-button-primary {
-  border: 1px solid rgba(80, 210, 193, 0.42);
+  border: 1px solid rgba(237, 244, 246, 0.5);
   background: var(--landing-accent);
-  color: #051110;
-  box-shadow: 0 12px 36px rgba(80, 210, 193, 0.18);
+  color: #0a0d10;
+  box-shadow: 0 12px 36px rgba(237, 244, 246, 0.12);
 }
 
 .landing-button-secondary {

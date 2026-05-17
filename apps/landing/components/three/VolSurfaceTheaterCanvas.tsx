@@ -1,43 +1,16 @@
 "use client";
 
-import { Canvas, useThree } from "@react-three/fiber";
+import { Canvas } from "@react-three/fiber";
 import type { MotionValue } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 
 import { TheaterSurfaceMesh } from "./TheaterSurfaceMesh";
-
-const TARGET_FPS = 45;
-const FRAME_INTERVAL_MS = 1000 / TARGET_FPS;
 
 function canRenderInteractiveSurface() {
   return (
     typeof window !== "undefined" &&
     typeof window.WebGLRenderingContext !== "undefined"
   );
-}
-
-function FrameDriver({ active }: { active: boolean }) {
-  const invalidate = useThree((state) => state.invalidate);
-
-  useEffect(() => {
-    if (!active) return;
-
-    let rafId = 0;
-    let lastTick = performance.now();
-
-    const tick = (time: number) => {
-      if (time - lastTick >= FRAME_INTERVAL_MS) {
-        invalidate();
-        lastTick = time;
-      }
-      rafId = requestAnimationFrame(tick);
-    };
-
-    rafId = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafId);
-  }, [active, invalidate]);
-
-  return null;
 }
 
 export default function VolSurfaceTheaterCanvas({
@@ -94,8 +67,8 @@ export default function VolSurfaceTheaterCanvas({
       <Canvas
         camera={{ fov: 30, position: [4.6, -1.4, 6.8] }}
         className="h-full w-full"
-        dpr={[0.75, 1]}
-        frameloop="demand"
+        dpr={[1, 1.5]}
+        frameloop={inView ? "always" : "never"}
         gl={{
           antialias: false,
           alpha: false,
@@ -105,7 +78,6 @@ export default function VolSurfaceTheaterCanvas({
         }}
       >
         <color attach="background" args={["#0a0a0a"]} />
-        <FrameDriver active={inView} />
         <TheaterSurfaceMesh scrollProgress={scrollProgress} />
       </Canvas>
     </div>

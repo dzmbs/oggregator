@@ -21,7 +21,7 @@ export function FeatureBentoSection() {
                 One object, four ways to read it.
               </h3>
             </div>
-            <span className="rounded-full border border-[rgba(80,210,193,0.24)] bg-[rgba(80,210,193,0.1)] px-3 py-2 font-[var(--font-mono)] text-[10px] uppercase tracking-[0.22em] text-[var(--landing-accent)]">
+            <span className="rounded-full border border-[rgba(237,244,246,0.16)] bg-[rgba(237,244,246,0.06)] px-3 py-2 font-[var(--font-mono)] text-[10px] uppercase tracking-[0.22em] text-[var(--landing-accent)]">
               Preserve camera context
             </span>
           </div>

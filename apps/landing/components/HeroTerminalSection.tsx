@@ -217,7 +217,7 @@ export function HeroTerminalSection() {
         >
           <div className="max-w-3xl">
             <span className="inline-flex items-center gap-3 border border-white/15 bg-white/[0.03] px-4 py-2 font-[var(--font-mono)] text-[10px] uppercase tracking-[0.36em] text-zinc-300">
-              <span className="h-1.5 w-1.5 rounded-full bg-[var(--landing-accent)] shadow-[0_0_12px_rgba(80,210,193,0.8)]" />
+              <span className="h-1.5 w-1.5 rounded-full bg-[var(--landing-accent)] shadow-[0_0_12px_rgba(237,244,246,0.55)]" />
               surface.live · tick-by-tick
             </span>
             <p className="mt-12 max-w-xl font-[var(--font-mono)] text-[11px] uppercase leading-6 tracking-[0.32em] text-zinc-400">
@@ -235,7 +235,7 @@ export function HeroTerminalSection() {
         >
           <div className="max-w-3xl">
             <span className="landing-chip">
-              <span className="h-2 w-2 rounded-full bg-[var(--landing-accent)] shadow-[0_0_18px_rgba(80,210,193,0.8)]" />
+              <span className="h-2 w-2 rounded-full bg-[var(--landing-accent)] shadow-[0_0_18px_rgba(237,244,246,0.55)]" />
               {landingCopy.hero.eyebrow}
             </span>
             <h1 className="landing-display-title mt-7 max-w-[14ch] text-[clamp(3.4rem,8.4vw,7.6rem)] [text-wrap:balance]">
