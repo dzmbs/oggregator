@@ -5,14 +5,14 @@ import type { MotionValue } from "framer-motion";
 import { useMemo, useRef } from "react";
 import { BufferAttribute, Color, DoubleSide, type Mesh, PlaneGeometry } from "three";
 
-const SEGMENTS_X = 40;
-const SEGMENTS_Y = 26;
+const SEGMENTS_X = 32;
+const SEGMENTS_Y = 22;
 const PLANE_WIDTH = 11.4;
 const PLANE_HEIGHT = 7.4;
 const Z_MIN = 28;
 const Z_MAX = 62;
 const Z_SCALE = 0.085;
-const PHASE_STEP_PERIOD = 0.45;
+const PHASE_STEP_PERIOD = 0.8;
 
 const GRADIENT_STOPS = [
   { t: 0, color: new Color("#1e40af") },
@@ -180,7 +180,7 @@ export function TheaterSurfaceMesh({
       <meshBasicMaterial
         vertexColors
         side={DoubleSide}
-        fog
+        fog={false}
         toneMapped={false}
       />
     </mesh>
