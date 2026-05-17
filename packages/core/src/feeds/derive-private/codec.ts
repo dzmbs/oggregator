@@ -43,6 +43,7 @@ export function derivePositionToLeg(pos: DerivePosition): PositionLeg | null {
     size,
     entryPriceUsd,
     entryIv: null,
+    realizedPnlUsd: 0,
     entryTs: pos.creation_timestamp,
     venueHint: 'derive',
     source: 'derive',

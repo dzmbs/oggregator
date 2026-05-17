@@ -39,13 +39,25 @@ export const PositionLegSchema = z.object({
   size: z.number().refine((v) => v !== 0, 'size must be non-zero'),
   entryPriceUsd: z.number().positive(),
   entryIv: z.number().nonnegative().nullable(),
+  // True when entryIv was back-solved from price+forward+T (not user/venue
+  // supplied) so the UI can mark it as model-derived.
+  entryIvIsModel: z.boolean().optional(),
+  // Realized PnL accumulated by prior partial closes on this leg. Manual
+  // upserts that reduce or flip size fold the closed slice into this field
+  // instead of dropping it.
+  realizedPnlUsd: z.number().default(0),
   entryTs: z.number().int().nonnegative(),
   venueHint: VenueIdSchema.nullable(),
   source: PositionSourceSchema,
 });
 export type PositionLeg = z.infer<typeof PositionLegSchema>;
 
-export const PositionLegInputSchema = PositionLegSchema.omit({ legId: true, entryTs: true }).extend({
+export const PositionLegInputSchema = PositionLegSchema.omit({
+  legId: true,
+  entryTs: true,
+  realizedPnlUsd: true,
+  entryIvIsModel: true,
+}).extend({
   legId: z.string().min(1).optional(),
   entryTs: z.number().int().nonnegative().optional(),
 });
@@ -54,6 +66,7 @@ export type PositionLegInput = z.infer<typeof PositionLegInputSchema>;
 export const VegaByStrikeRowSchema = z.object({
   strike: z.number(),
   expiry: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  optionRight: z.enum(['call', 'put']),
   delta: z.number(),
   vega: z.number(),
   gamma: z.number(),
@@ -174,6 +187,35 @@ export const PortfolioPnlCurveSchema = z.object({
 });
 export type PortfolioPnlCurve = z.infer<typeof PortfolioPnlCurveSchema>;
 
+export const StrategyKindSchema = z.enum([
+  'naked',
+  'call_spread',
+  'put_spread',
+  'straddle',
+  'strangle',
+]);
+export type StrategyKind = z.infer<typeof StrategyKindSchema>;
+
+export const StrategyGroupSchema = z.object({
+  groupId: z.string(),
+  kind: StrategyKindSchema,
+  underlying: z.string(),
+  expiry: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  legIds: z.array(z.string()),
+  // Signed net entry premium: positive = net debit paid, negative = net
+  // credit received. Sum over legs of entryPriceUsd * size, where size is
+  // signed (positive long, negative short).
+  netEntryPremiumUsd: z.number(),
+  debitOrCredit: z.enum(['debit', 'credit', 'flat']),
+  // Max profit / loss known in closed form for verticals; null when the
+  // structure has unbounded payoff in one direction (naked / strangle short
+  // calls etc.).
+  maxProfitUsd: z.number().nullable(),
+  maxLossUsd: z.number().nullable(),
+  breakEvenSpotsUsd: z.array(z.number()),
+});
+export type StrategyGroup = z.infer<typeof StrategyGroupSchema>;
+
 export const PortfolioMetricsSchema = z.object({
   accountId: z.string(),
   generatedAt: z.number().int(),
@@ -184,6 +226,7 @@ export const PortfolioMetricsSchema = z.object({
   byExpiry: z.array(ExpiryBucketRowSchema),
   breakEven: z.array(BreakEvenIvRowSchema),
   shockGrid: z.array(z.array(ShockGridCellSchema)),
+  strategies: z.array(StrategyGroupSchema),
 });
 export type PortfolioMetrics = z.infer<typeof PortfolioMetricsSchema>;
 

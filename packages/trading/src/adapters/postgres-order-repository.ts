@@ -108,6 +108,10 @@ function fromFillRow(row: PaperFillRow): Fill {
     quantity: row.quantity,
     requestedQuantity: row.requestedQuantity,
     priceUsd: row.priceUsd,
+    // IV at fill time is not persisted on paper_fills (we keep the rolled-up
+    // avgEntryIv on the position instead). On replay, individual fill IVs
+    // are unrecoverable — that's by design.
+    iv: null,
     feesUsd: row.feesUsd,
     slippageUsd: row.slippageUsd,
     partialFill: row.partialFill,

@@ -6,6 +6,7 @@ import type {
   PortfolioTotals,
   PositionLeg,
   ShockGridCell,
+  StrategyGroup,
   VegaByStrikeRow,
 } from '@oggregator/protocol';
 
@@ -19,6 +20,7 @@ import {
 } from '../../portfolio/aggregator.js';
 import { buildPortfolioPnlCurve } from '../../portfolio/pnl-curve.js';
 import { computeShockGrid } from '../../portfolio/scenarios.js';
+import { detectStrategyGroups } from '../../portfolio/strategy-groups.js';
 import type {
   MarkProvider,
   PositionStore,
@@ -246,6 +248,7 @@ export class PortfolioRuntime {
     let byExpiry: ExpiryBucketRow[];
     let breakEven: BreakEvenIvRow[];
     let shockGrid: ShockGridCell[][];
+    let strategies: StrategyGroup[];
 
     if (positions.length === 0) {
       totals = emptyTotals();
@@ -254,6 +257,7 @@ export class PortfolioRuntime {
       byExpiry = [];
       breakEven = [];
       shockGrid = [];
+      strategies = [];
     } else {
       totals = computeTotals(withMarks);
       pnlCurve = buildPortfolioPnlCurve(withMarks, this.now(), this.forwardDays);
@@ -262,6 +266,7 @@ export class PortfolioRuntime {
       breakEven = breakEvenIvCurve(withMarks);
       const atmStrike = pickAtmStrike(positions, this.chainSurface);
       shockGrid = atmStrike > 0 ? computeShockGrid(withMarks, nowMs, atmStrike) : [];
+      strategies = detectStrategyGroups(positions);
     }
 
     const metrics: PortfolioMetrics = {
@@ -274,6 +279,7 @@ export class PortfolioRuntime {
       byExpiry,
       breakEven,
       shockGrid,
+      strategies,
     };
     return { positions, metrics };
   }
@@ -301,6 +307,7 @@ export class PortfolioRuntime {
         byExpiry: [],
         breakEven: [],
         shockGrid: [],
+        strategies: [],
       };
       return {
         positions,

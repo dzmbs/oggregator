@@ -19,3 +19,10 @@ export {
 } from './aggregator.js';
 export { applyVolShock, computeShockPnl, computeShockGrid } from './scenarios.js';
 export { buildPortfolioPnlCurve } from './pnl-curve.js';
+export {
+  foldManualLeg,
+  findExistingForInput,
+  naturalKeyOf,
+  type FoldContext,
+} from './position-fold.js';
+export { detectStrategyGroups } from './strategy-groups.js';

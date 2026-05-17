@@ -22,6 +22,7 @@ function book(overrides: Partial<QuoteBook>): QuoteBook {
     bidUsd: 100,
     askUsd: 110,
     markUsd: 105,
+    markIv: 0.6,
     underlyingPriceUsd: 78_000,
     feesTakerUsd: 0,
     bidSize: null,

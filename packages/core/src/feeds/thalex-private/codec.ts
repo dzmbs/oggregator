@@ -65,6 +65,7 @@ export function thalexPortfolioEntryToLeg(
     size,
     entryPriceUsd: avg,
     entryIv: null,
+    realizedPnlUsd: 0,
     entryTs: nowMs,
     venueHint: 'thalex',
     source: 'thalex',

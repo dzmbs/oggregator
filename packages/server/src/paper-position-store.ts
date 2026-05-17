@@ -19,6 +19,8 @@ interface Position {
   };
   netQuantity: number;
   avgEntryPriceUsd: number;
+  avgEntryIv: number | null;
+  realizedPnlUsd: number;
   openedAt: Date;
 }
 
@@ -35,7 +37,8 @@ function paperToLeg(p: Position): PositionLeg {
     optionRight: p.key.optionRight,
     size: p.netQuantity,
     entryPriceUsd: p.avgEntryPriceUsd,
-    entryIv: null,
+    entryIv: p.avgEntryIv,
+    realizedPnlUsd: p.realizedPnlUsd,
     entryTs: p.openedAt.getTime(),
     venueHint: null,
     source: 'paper',
@@ -124,7 +127,13 @@ export class PaperPositionStore implements PositionStore {
     const changedLegIds: string[] = [];
     for (const [legId, leg] of next) {
       const prior = prev.get(legId);
-      if (prior == null || prior.size !== leg.size || prior.entryPriceUsd !== leg.entryPriceUsd) {
+      if (
+        prior == null ||
+        prior.size !== leg.size ||
+        prior.entryPriceUsd !== leg.entryPriceUsd ||
+        prior.entryIv !== leg.entryIv ||
+        prior.realizedPnlUsd !== leg.realizedPnlUsd
+      ) {
         changedLegIds.push(legId);
       }
     }

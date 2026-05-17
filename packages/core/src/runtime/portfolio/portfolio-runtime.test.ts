@@ -28,6 +28,7 @@ function makeLeg(strike: number, size: number, legId = `leg-${strike}-${size}`):
     entryTs: NOW,
     venueHint: null,
     source: 'manual',
+    realizedPnlUsd: 0,
   };
 }
 

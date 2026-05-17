@@ -20,6 +20,7 @@ function makePosition(
     },
     netQuantity,
     avgEntryPriceUsd: 1234,
+    avgEntryIv: null,
     realizedPnlUsd: 0,
     openedAt: new Date('2026-04-01T00:00:00Z'),
     lastFillAt: new Date('2026-04-01T00:00:00Z'),

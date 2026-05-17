@@ -14,6 +14,7 @@ import PortfolioVegaCurve from './PortfolioVegaCurve';
 import PositionForm from './PositionForm';
 import PositionsTable from './PositionsTable';
 import ShockHeatmap from './ShockHeatmap';
+import StrategyGroupsPanel from './StrategyGroups';
 import { usePortfolioMetrics, usePortfolioPositions } from './hooks/queries';
 import { usePortfolioWs } from './hooks/usePortfolioWs';
 import styles from './PortfolioView.module.css';
@@ -331,6 +332,7 @@ export default function PortfolioView() {
       <div className={styles.bodyGrid}>
         <div className={styles.mainCol}>
           <PortfolioPnlCurve curve={metrics?.pnlCurve ?? EMPTY_PNL_CURVE} forwardDays={forwardDays} />
+          <StrategyGroupsPanel groups={metrics?.strategies ?? []} />
           <PortfolioVegaCurve byStrike={metrics?.byStrike ?? []} breakEven={metrics?.breakEven ?? []} />
           <div className={styles.tableWrap}>
             <PositionsTable

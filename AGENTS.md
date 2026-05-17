@@ -47,3 +47,5 @@ To build the web package directly:
 ```bash
 pnpm --filter @oggregator/web build
 ```
+# code policy
+DONT writer comments in code unless really needed
