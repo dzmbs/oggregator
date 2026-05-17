@@ -249,9 +249,16 @@ export default function PortfolioVegaCurve({ byStrike, breakEven }: Props) {
       : displayByStrike;
     const merged = mergeRowsForMode(filtered, mode);
     return merged
-      .map((row) => ({ x: Number(row.strike), y: row[mode] }))
+      .map((row) => ({
+        x: Number(row.strike),
+        y: row[mode],
+        optionRight: row.optionRight,
+      }))
       .filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y))
-      .sort((a, b) => a.x - b.x);
+      .sort((a, b) => {
+        if (a.x !== b.x) return a.x - b.x;
+        return a.optionRight < b.optionRight ? -1 : 1;
+      });
   }, [displayByStrike, activeExpiry, mode]);
 
   const chart = useMemo(() => {
@@ -428,7 +435,7 @@ export default function PortfolioVegaCurve({ byStrike, breakEven }: Props) {
               strokeLinecap="round"
             />
             {points.map((p) => (
-              <g key={`p-${p.x}`}>
+              <g key={`p-${p.x}-${p.optionRight}`}>
                 <title>{`Strike ${p.x.toLocaleString()} • ${meta.label} ${fmtSignedValue(p.y)}`}</title>
                 <circle
                   cx={chart.toX(p.x)}

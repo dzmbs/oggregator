@@ -102,6 +102,50 @@ describe('PaperFillEngine', () => {
     expect(fills[0]!.feesUsd).toBeCloseTo(50, 6);
   });
 
+  it('propagates the venue mark IV onto the produced Fill', async () => {
+    const quotes = single(
+      new Map([[78_000, book({ askUsd: 3_095, markIv: 0.4275, feesTakerUsd: 0 })]]),
+    );
+    const engine = new PaperFillEngine(quotes, clock);
+    const fills = await engine.executeOrder(
+      order([
+        {
+          side: 'buy',
+          optionRight: 'call',
+          underlying: 'BTC',
+          expiry: '2026-05-29',
+          strike: 78_000,
+          quantity: 1,
+          preferredVenues: null,
+        },
+      ]),
+      [],
+    );
+    expect(fills[0]!.iv).toBe(0.4275);
+  });
+
+  it('passes through a null venue mark IV as Fill.iv = null', async () => {
+    const quotes = single(
+      new Map([[78_000, book({ askUsd: 3_095, markIv: null, feesTakerUsd: 0 })]]),
+    );
+    const engine = new PaperFillEngine(quotes, clock);
+    const fills = await engine.executeOrder(
+      order([
+        {
+          side: 'buy',
+          optionRight: 'call',
+          underlying: 'BTC',
+          expiry: '2026-05-29',
+          strike: 78_000,
+          quantity: 1,
+          preferredVenues: null,
+        },
+      ]),
+      [],
+    );
+    expect(fills[0]!.iv).toBeNull();
+  });
+
   it('defaults to zero fees when venue provides no estimate', async () => {
     const quotes = single(
       new Map([[78_000, book({ askUsd: 3_095, feesTakerUsd: 0 })]]),

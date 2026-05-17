@@ -182,7 +182,9 @@ export function detectStrategyGroups(legs: PositionLeg[]): StrategyGroup[] {
     // Greedy 2-leg pairing pass. Order by strike+right so deterministic.
     const sorted = [...bucket].sort((a, b) => {
       if (a.strike !== b.strike) return a.strike - b.strike;
-      return a.optionRight < b.optionRight ? -1 : 1;
+      if (a.optionRight !== b.optionRight) return a.optionRight < b.optionRight ? -1 : 1;
+      if (a.legId === b.legId) return 0;
+      return a.legId < b.legId ? -1 : 1;
     });
     for (let i = 0; i < sorted.length; i += 1) {
       const a = sorted[i]!;

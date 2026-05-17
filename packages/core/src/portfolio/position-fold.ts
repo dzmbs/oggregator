@@ -146,18 +146,31 @@ export function foldManualLeg(
     const newAbs = Math.abs(newSize);
     const newEntry =
       (existing.entryPriceUsd * priorAbs + input.entryPriceUsd * freshAbs) / newAbs;
-    const blendedIv = blendIv(existing.entryIv, priorAbs, input.entryIv, freshAbs);
+
+    // Back-solve the fresh fill's IV when the caller didn't provide one so
+    // the blend uses a real number on both sides whenever the mark context
+    // is rich enough. Falls back to the existing null-handling in blendIv
+    // when back-solve isn't possible.
+    const freshBacksolved = backSolveEntryIv(input, ctx.mark);
+    const resolvedFreshIv = input.entryIv ?? freshBacksolved.iv;
+    const freshContributedModel = input.entryIv == null && freshBacksolved.isModel;
+    const blendedIv = blendIv(existing.entryIv, priorAbs, resolvedFreshIv, freshAbs);
+
+    // entryIvIsModel becomes sticky only when no explicit venue IV came in
+    // on this fill. If the user provided an explicit entryIv, the blended
+    // result is anchored to real data and the flag should clear.
+    const nextIsModel =
+      input.entryIv != null
+        ? false
+        : (existing.entryIvIsModel === true || freshContributedModel);
+
+    const { entryIvIsModel: _drop, ...rest } = existing;
     return {
-      ...existing,
+      ...rest,
       size: newSize,
       entryPriceUsd: newEntry,
       entryIv: blendedIv,
-      // If either side was model-derived the merged value still came partly
-      // from a back-solve, so keep the flag sticky until the user explicitly
-      // overrides on a future fill.
-      ...(existing.entryIvIsModel === true && input.entryIv == null
-        ? { entryIvIsModel: true }
-        : {}),
+      ...(nextIsModel ? { entryIvIsModel: true as const } : {}),
     };
   }
 
@@ -189,7 +202,8 @@ export function foldManualLeg(
   }
 
   // Sign flip: prior position fully closed, residual sits at the new fill's
-  // price as the new avg entry.
+  // price as the new avg entry, and the entry time resets to the new fill
+  // so the reopened leg doesn't appear older than it is.
   const { iv, isModel } = backSolveEntryIv(input, ctx.mark);
   const resolvedIv = input.entryIv ?? iv;
   const flipIsModel = input.entryIv == null && isModel;
@@ -199,6 +213,7 @@ export function foldManualLeg(
     size: newSize,
     entryPriceUsd: input.entryPriceUsd,
     entryIv: resolvedIv,
+    entryTs: input.entryTs ?? ctx.nowMs,
     ...(flipIsModel ? { entryIvIsModel: true as const } : {}),
     realizedPnlUsd: existing.realizedPnlUsd + realizedDelta,
   };

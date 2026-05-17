@@ -208,7 +208,7 @@ export function SurfaceScrollTheater() {
         </div>
 
         <div className="pointer-events-none absolute inset-0">
-          {scenes.map((scene, index) => (
+          {(staticMode ? scenes.slice(0, 1) : scenes).map((scene, index) => (
             <SceneFrame
               key={scene.id}
               scene={scene}

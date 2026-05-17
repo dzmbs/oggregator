@@ -138,7 +138,13 @@ export function LeadCaptureSection() {
                   inputMode="email"
                   autoComplete="email"
                   value={email}
-                  onChange={(event) => setEmail(event.target.value)}
+                  onChange={(event) => {
+                    setEmail(event.target.value);
+                    if (status !== "idle" && status !== "loading") {
+                      setStatus("idle");
+                      setErrorMessage("");
+                    }
+                  }}
                   className="w-full bg-transparent font-[var(--font-mono)] text-xl text-[var(--landing-text-strong)] outline-none placeholder:text-zinc-600 sm:text-2xl"
                   placeholder={landingCopy.cta.placeholder}
                   disabled={isSubmitting}

@@ -55,14 +55,20 @@ export async function portfolioPositionsRoute(app: FastifyInstance) {
     const accountId = getAccountId(req);
     const input = parsed.data;
 
+    // Paper, derive, thalex (and other venue sources) are owned by their
+    // own stores — the venue private feed is the source of truth. Allowing
+    // a POST here would let a client inject fake rows into the manual store
+    // under a venue source label. Reject up-front.
+    if (input.source !== 'manual') {
+      return reply.status(400).send({
+        error: 'source_not_writable',
+        message: `source "${input.source}" is read-only here; manual upserts only`,
+      });
+    }
+
     // Manual upserts dedup by natural key so "add another fill at the same
     // strike/right/expiry" averages into one leg instead of leaving N rows.
-    // Other sources (paper, derive, thalex) come from their own stores; only
-    // 'manual' is mutated through this route.
-    const existing =
-      input.source === 'manual'
-        ? findExistingForInput(listPositions(accountId, 'manual'), input)
-        : null;
+    const existing = findExistingForInput(listPositions(accountId, 'manual'), input);
 
     // Best-effort: ensure the chain is loaded so the mark provider has a
     // forward + T to back-solve a missing entryIv. This is a no-op when the

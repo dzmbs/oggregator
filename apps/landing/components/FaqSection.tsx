@@ -118,7 +118,7 @@ export function FaqSection() {
                       animate={{ opacity: 1, height: "auto" }}
                       exit={
                         prefersReducedMotion
-                          ? { opacity: 0, height: 0 }
+                          ? { opacity: 0 }
                           : { opacity: 0, height: 0 }
                       }
                       transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}

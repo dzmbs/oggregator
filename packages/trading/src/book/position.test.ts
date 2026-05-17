@@ -139,6 +139,33 @@ describe('applyFillToPosition', () => {
     expect(close.avgEntryIv).toBeNull();
   });
 
+  it('on sign flip, avgEntryIv resets to the incoming fill IV', () => {
+    const open = applyFillToPosition(
+      null,
+      makeFill({ side: 'buy', quantity: 2, priceUsd: 1000, iv: 0.6 }),
+    );
+    const flip = applyFillToPosition(
+      open,
+      makeFill({ side: 'sell', quantity: 5, priceUsd: 1200, iv: 0.42 }),
+    );
+    expect(flip.netQuantity).toBe(-3);
+    expect(flip.avgEntryPriceUsd).toBe(1200);
+    expect(flip.avgEntryIv).toBeCloseTo(0.42, 6);
+  });
+
+  it('on sign flip with no incoming IV, avgEntryIv resets to null (not preserved)', () => {
+    const open = applyFillToPosition(
+      null,
+      makeFill({ side: 'buy', quantity: 2, priceUsd: 1000, iv: 0.6 }),
+    );
+    const flip = applyFillToPosition(
+      open,
+      makeFill({ side: 'sell', quantity: 5, priceUsd: 1200, iv: null }),
+    );
+    expect(flip.netQuantity).toBe(-3);
+    expect(flip.avgEntryIv).toBeNull();
+  });
+
   it('realizes PnL on partial close of a short', () => {
     const open = applyFillToPosition(
       null,

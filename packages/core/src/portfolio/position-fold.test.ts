@@ -103,10 +103,12 @@ describe('foldManualLeg — same direction (averaging in)', () => {
     expect(next?.realizedPnlUsd).toBe(0);
   });
 
-  it('keeps existing IV when the new fill has none', () => {
+  it('keeps existing IV when the new fill has none and mark is unavailable', () => {
+    // Without a mark context the fold can't back-solve the fresh fill's IV,
+    // so the blend falls back to the prior IV alone.
     const existing = baseLeg({ size: 1, entryIv: 0.4 });
     const input = baseInput({ size: 1, entryPriceUsd: 3_600, entryIv: null });
-    const next = foldManualLeg(existing, input, ctx());
+    const next = foldManualLeg(existing, input, ctx(null));
     expect(next?.entryIv).toBeCloseTo(0.4, 6);
   });
 
@@ -157,6 +159,57 @@ describe('foldManualLeg — direction flip with larger residual', () => {
     expect(next?.entryPriceUsd).toBe(4_500);
     expect(next?.entryIv).toBe(0.35);
     expect(next?.realizedPnlUsd).toBeCloseTo(1_000, 6);
+  });
+
+  it('resets entryTs to the new fill on a sign flip', () => {
+    const existing = baseLeg({ size: 2, entryPriceUsd: 4_000, entryTs: 1_700_000_000_000 });
+    const fillTs = 1_700_000_500_000;
+    const input = baseInput({ size: -5, entryPriceUsd: 4_500, entryTs: fillTs });
+    const next = foldManualLeg(existing, input, ctx());
+    expect(next?.entryTs).toBe(fillTs);
+  });
+
+  it('falls back to ctx.nowMs when the fill input does not supply entryTs', () => {
+    const existing = baseLeg({ size: 2, entryPriceUsd: 4_000, entryTs: 1_700_000_000_000 });
+    const input = baseInput({ size: -5, entryPriceUsd: 4_500 });
+    const next = foldManualLeg(existing, input, ctx(baseMark(), 1_700_000_999_000));
+    expect(next?.entryTs).toBe(1_700_000_999_000);
+  });
+});
+
+describe('foldManualLeg — entryIvIsModel stickiness', () => {
+  it('clears the model flag when the new fill supplies an explicit IV', () => {
+    const existing = baseLeg({
+      size: 1,
+      entryPriceUsd: 4_000,
+      entryIv: 0.4,
+      entryIvIsModel: true,
+    });
+    const input = baseInput({ size: 1, entryPriceUsd: 3_600, entryIv: 0.36 });
+    const next = foldManualLeg(existing, input, ctx());
+    expect(next?.entryIvIsModel).toBeUndefined();
+  });
+
+  it('keeps the model flag when prior was model and new fill has no IV', () => {
+    const existing = baseLeg({
+      size: 1,
+      entryPriceUsd: 4_000,
+      entryIv: 0.4,
+      entryIvIsModel: true,
+    });
+    const input = baseInput({ size: 1, entryPriceUsd: 3_600, entryIv: null });
+    const next = foldManualLeg(existing, input, ctx());
+    expect(next?.entryIvIsModel).toBe(true);
+  });
+
+  it('marks the merged leg as model when the new fill back-solves IV', () => {
+    const existing = baseLeg({ size: 1, entryPriceUsd: 4_000, entryIv: 0.4 });
+    const input = baseInput({ size: 1, entryPriceUsd: 3_700, entryIv: null });
+    const next = foldManualLeg(existing, input, ctx());
+    expect(next?.entryIvIsModel).toBe(true);
+    // IV is blended: prior was 0.4, fresh was back-solved (positive number).
+    expect(next?.entryIv).not.toBeNull();
+    expect(next?.entryIv).toBeGreaterThan(0);
   });
 });
 
