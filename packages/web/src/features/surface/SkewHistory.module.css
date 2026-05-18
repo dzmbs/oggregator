@@ -104,6 +104,26 @@
   color: var(--color-warning);
 }
 
+.modeGuide {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  align-items: baseline;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+}
+
+.modeGuideTitle {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.modeGuideText {
+  color: var(--text-dim);
+}
+
 .chartArea {
   flex: 1;
   min-height: 260px;
@@ -135,8 +155,22 @@
   letter-spacing: 0.04em;
 }
 
+.metricMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
 .metricName {
   font-weight: 700;
+}
+
+.metricInsight {
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .metricValue {
@@ -210,6 +244,14 @@
   .legend {
     flex-wrap: wrap;
     gap: var(--space-2) var(--space-3);
+  }
+
+  .modeGuide {
+    letter-spacing: 0.02em;
+  }
+
+  .metricInsight {
+    white-space: normal;
   }
 
   .chartArea {

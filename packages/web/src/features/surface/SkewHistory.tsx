@@ -25,11 +25,21 @@ import {
 import styles from './SkewHistory.module.css';
 
 const TENORS: IvTenor[] = ['7d', '30d', '60d', '90d'];
-const DISPLAY_MODES: SkewDisplayMode[] = ['raw', 'normalized', 'zscore'];
+const DISPLAY_MODES: SkewDisplayMode[] = ['normalized', 'zscore', 'raw'];
 const DISPLAY_LABELS: Record<SkewDisplayMode, string> = {
   raw: 'Raw',
   normalized: 'Normalized',
   zscore: 'Z-Score',
+};
+const MODE_TITLES: Record<SkewDisplayMode, string> = {
+  normalized: 'Default lens: skew relative to ATM IV',
+  zscore: 'Stretch lens: skew versus its recent range',
+  raw: 'Absolute lens: desk-style vol-point skew',
+};
+const MODE_DESCRIPTIONS: Record<SkewDisplayMode, string> = {
+  normalized: 'Best for cross-regime reading. Compare skew after adjusting for the current vol level.',
+  zscore: 'Best for extremes. Use this to spot when skew is stretched versus the selected history window.',
+  raw: 'Best for absolute pricing. Keep this as the advanced view when you care about straight vol-point moves.',
 };
 const RR_COLOR = '#50d2c1';
 const FLY_COLOR = '#f59e0b';
@@ -60,8 +70,37 @@ function axisFormatter(mode: SkewDisplayMode) {
   return (value: number) => {
     const sign = value > 0 ? '+' : '';
     if (mode === 'zscore') return `${sign}${value.toFixed(2)}σ`;
+    if (mode === 'normalized') return `${sign}${value.toFixed(1)}% ATM`;
     return `${sign}${value.toFixed(1)}%`;
   };
+}
+
+function describeRrState(value: number | null): string {
+  if (value == null || !Number.isFinite(value)) return 'Insufficient data';
+  if (value > 0.25) return 'Calls rich vs puts';
+  if (value < -0.25) return 'Puts rich vs calls';
+  return 'Skew close to balanced';
+}
+
+function describeFlyState(value: number | null): string {
+  if (value == null || !Number.isFinite(value)) return 'Insufficient data';
+  if (value > 0.25) return 'Wings rich vs ATM';
+  if (value < -0.25) return 'Wings cheap vs ATM';
+  return 'Wings close to ATM';
+}
+
+function describeStretch(zone: SkewZone | null): string {
+  if (zone === 'extreme') return 'extreme vs window';
+  if (zone === 'stretched') return 'stretched vs window';
+  if (zone === 'normal') return 'near window average';
+  return 'insufficient history';
+}
+
+function describeMetric(value: number | null, zone: SkewZone | null, mode: SkewDisplayMode, title: string): string {
+  const base = title === '25Δ RR' ? describeRrState(value) : describeFlyState(value);
+  if (mode === 'zscore') return `${base} · ${describeStretch(zone)}`;
+  if (mode === 'normalized') return `${base} · scaled by ATM IV`;
+  return `${base} · absolute vol points`;
 }
 
 function SkewMiniChart({
@@ -69,6 +108,7 @@ function SkewMiniChart({
   color,
   data,
   latest,
+  insight,
   mode,
   zone,
 }: {
@@ -76,6 +116,7 @@ function SkewMiniChart({
   color: string;
   data: SkewLinePoint[];
   latest: string;
+  insight: string;
   mode: SkewDisplayMode;
   zone: SkewZone | null;
 }) {
@@ -181,9 +222,12 @@ function SkewMiniChart({
   return (
     <div className={styles.miniChart}>
       <div className={styles.metricHeader}>
-        <span className={styles.metricName} style={{ color }}>
-          {title}
-        </span>
+        <div className={styles.metricMeta}>
+          <span className={styles.metricName} style={{ color }}>
+            {title}
+          </span>
+          <span className={styles.metricInsight}>{insight}</span>
+        </div>
         <span className={styles.metricValue} data-zone={zone ?? undefined}>
           {latest}
         </span>
@@ -203,7 +247,7 @@ interface Props {
 export default function SkewHistory({ underlying }: Props) {
   const [window, setWindow] = useState<IvHistoryWindow>('30d');
   const [tenor, setTenor] = useState<IvTenor>('30d');
-  const [mode, setMode] = useState<SkewDisplayMode>('raw');
+  const [mode, setMode] = useState<SkewDisplayMode>('normalized');
 
   const { data } = useIvHistory(underlying, window);
   const result = data?.tenors[tenor];
@@ -217,6 +261,8 @@ export default function SkewHistory({ underlying }: Props) {
   const flyLatest = formatSkewDisplayValue(flyLatestVal, mode);
   const rrZone = zoneFor(rrLatestVal, mode);
   const flyZone = zoneFor(flyLatestVal, mode);
+  const rrInsight = describeMetric(rrLatestVal, rrZone, mode, '25Δ RR');
+  const flyInsight = describeMetric(flyLatestVal, flyZone, mode, '25Δ Fly');
   const coverage = getHistoryCoverage(series, window, ['rr25d', 'bfly25d']);
 
   const logo = getTokenLogo(underlying);
@@ -298,6 +344,10 @@ export default function SkewHistory({ underlying }: Props) {
       <div className={styles.coverage} data-short={coverage.short ? 'true' : undefined}>
         {coverage.label}
       </div>
+      <div className={styles.modeGuide}>
+        <span className={styles.modeGuideTitle}>{MODE_TITLES[mode]}</span>
+        <span className={styles.modeGuideText}>{MODE_DESCRIPTIONS[mode]}</span>
+      </div>
 
       <div className={styles.chartArea}>
         <div className={styles.chartStack}>
@@ -306,6 +356,7 @@ export default function SkewHistory({ underlying }: Props) {
             color={RR_COLOR}
             data={rrData}
             latest={rrLatest}
+            insight={rrInsight}
             mode={mode}
             zone={rrZone}
           />
@@ -314,6 +365,7 @@ export default function SkewHistory({ underlying }: Props) {
             color={FLY_COLOR}
             data={flyData}
             latest={flyLatest}
+            insight={flyInsight}
             mode={mode}
             zone={flyZone}
           />

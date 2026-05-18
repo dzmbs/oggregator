@@ -53,12 +53,13 @@ describe('SkewHistory', () => {
     expect(screen.getByRole('button', { name: 'Raw' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Normalized' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Z-Score' })).toBeTruthy();
-    expect(screen.getByText('-4.0%')).toBeTruthy();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Normalized' }));
     expect(screen.getByText('-8.0% ATM')).toBeTruthy();
+    expect(screen.getByText('Default lens: skew relative to ATM IV')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'Z-Score' }));
     expect(screen.getAllByText('+1.22σ')).toHaveLength(2);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Raw' }));
+    expect(screen.getByText('-4.0%')).toBeTruthy();
   });
 });
