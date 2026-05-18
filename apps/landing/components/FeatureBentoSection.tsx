@@ -15,14 +15,14 @@ export function FeatureBentoSection() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="font-[var(--font-mono)] text-[10px] uppercase tracking-[0.24em] text-zinc-500">
-                Analytic modes
+                Cross-venue lenses
               </p>
               <h3 className="landing-display-value mt-3 text-3xl">
-                One object, four ways to read it.
+                Four lenses. Every venue.
               </h3>
             </div>
             <span className="rounded-full border border-[rgba(237,244,246,0.16)] bg-[rgba(237,244,246,0.06)] px-3 py-2 font-[var(--font-mono)] text-[10px] uppercase tracking-[0.22em] text-[var(--landing-accent)]">
-              Preserve camera context
+              One surface
             </span>
           </div>
 
@@ -53,10 +53,10 @@ export function FeatureBentoSection() {
 
         <section className="landing-panel overflow-hidden rounded-[2rem] p-5 sm:p-6">
           <p className="font-[var(--font-mono)] text-[10px] uppercase tracking-[0.24em] text-zinc-500">
-            Clutter-control rules
+            Cross-venue mechanics
           </p>
-          <h3 className="landing-display-value mt-3 max-w-[11ch] text-3xl">
-            High-density data without dashboard collapse.
+          <h3 className="landing-display-value mt-3 max-w-[14ch] text-3xl">
+            Every venue. Every quote. One schema.
           </h3>
 
           <div className="mt-6 grid gap-3">

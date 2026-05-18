@@ -1,14 +1,12 @@
 'use client';
 
 const TAPE_ITEMS = [
-  {
-    label: 'Polling',
-    value: "@sundarpichai Today, we're starting to roll out end-to-end encryption for RCS",
-  },
+  { label: 'Venue', value: 'Deribit · OKX · Binance · Bybit live' },
   { label: 'Flow', value: 'Thalex private feed synced to portfolio workspace' },
   { label: 'Spot', value: 'BTC $81.3K +2.5%' },
   { label: 'Spot', value: 'ETH $2.1K +1.2%' },
   { label: 'Sponsored', value: 'Coincall low fees + deep options liquidity' },
+  { label: 'Route', value: 'Gate.io · Derive added to best-execution router' },
 ] as const;
 
 export function TopTicker() {

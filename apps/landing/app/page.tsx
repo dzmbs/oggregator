@@ -6,7 +6,9 @@ import { HowItWorksSection } from "@/components/HowItWorksSection";
 import { LandingHeader } from "@/components/LandingHeader";
 import { LeadCaptureSection } from "@/components/LeadCaptureSection";
 import { SectionReveal } from "@/components/SectionReveal";
+import { TerminalShowcase } from "@/components/TerminalShowcase";
 import { TopTicker } from "@/components/TopTicker";
+import { VenueStrip } from "@/components/VenueStrip";
 
 export default function HomePage() {
   return (
@@ -14,6 +16,7 @@ export default function HomePage() {
       <TopTicker />
       <LandingHeader />
       <HeroTerminalSection />
+      <TerminalShowcase />
       <SectionReveal>
         <HowItWorksSection />
       </SectionReveal>
@@ -22,6 +25,7 @@ export default function HomePage() {
       </SectionReveal>
       <FaqSection />
       <LeadCaptureSection />
+      <VenueStrip />
       <Footer />
     </main>
   );

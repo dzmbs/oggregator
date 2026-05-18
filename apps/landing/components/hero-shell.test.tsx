@@ -20,10 +20,10 @@ describe('hero shell', () => {
     expect(
       screen.getAllByText(/thalex private feed synced to portfolio workspace/i).length,
     ).toBeGreaterThan(0);
-    expect(screen.getByRole('link', { name: /how it works/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /^terminal$/i })).toBeInTheDocument();
     expect(screen.getAllByRole('link', { name: /request access/i }).length).toBeGreaterThan(0);
-    expect(screen.getByRole('link', { name: /explore surface/i })).toBeInTheDocument();
-    expect(screen.getByText(/terminal-first options intelligence/i)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /see the terminal/i })).toBeInTheDocument();
+    expect(screen.getByText(/cross-venue options terminal/i)).toBeInTheDocument();
     expect(screen.getAllByLabelText(/interactive 3d volatility surface/i).length).toBeGreaterThan(
       0,
     );

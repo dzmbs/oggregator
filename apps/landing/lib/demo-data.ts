@@ -33,6 +33,19 @@ export interface FaqItem {
   answer: string;
 }
 
+export interface Venue {
+  slug: string;
+  name: string;
+}
+
+export interface ShowcaseFrame {
+  id: string;
+  src: string;
+  eyebrow: string;
+  title: string;
+  detail: string;
+}
+
 export const tickerItems: TickerItem[] = [
   { label: 'BTC 30D IV', value: '54.2%', change: '+1.8%', direction: 'up' },
   { label: 'ETH 25D RR', value: '-3.6', change: '-0.4', direction: 'down' },
@@ -94,129 +107,116 @@ export const commandSequence = [
 
 export const workflowSteps: WorkflowStep[] = [
   {
-    id: 'overview',
+    id: 'surface',
     label: '01',
-    title: 'Overview',
-    description:
-      'Start with the full surface silhouette so regime shifts, event humps, and wing pressure read before any local telemetry competes for attention.',
-    detail:
-      'Camera stays wide. Labels stay quiet. Ghost baseline and major overlays remain visible.',
+    title: 'Surface',
+    description: 'Cross-venue IV surface. Tick-by-tick.',
+    detail: 'Eight venues. One smile.',
   },
   {
-    id: 'regional',
+    id: 'chain',
     label: '02',
-    title: 'Regional focus',
-    description:
-      'Move toward a tenor corridor or skew ridge to reveal cross-sections, venue divergence, and confidence weighting only where the eye is already looking.',
-    detail: 'Proximity brings out local contours, route ribbons, and clustered coordinate labels.',
+    title: 'Chain',
+    description: 'Normalized quotes. Best edge per strike.',
+    detail: 'Deribit · OKX · Binance · Bybit · Thalex · Derive · Coincall · Gate.io.',
   },
   {
-    id: 'point',
+    id: 'portfolio',
     label: '03',
-    title: 'Point detail',
-    description:
-      'Lock a strike and expiry node to inspect exact IV, spread, liquidity, and confidence from an anchored tooltip instead of opening a separate detail card.',
-    detail: 'The camera dive ends with coordinate-bound telemetry and execution-grade precision.',
+    title: 'Portfolio',
+    description: 'Greeks aggregated across venues. Real PnL.',
+    detail: 'Per-venue risk. Per-strategy view.',
   },
 ] as const;
 
 export const spatialModes: SpatialMode[] = [
   {
     id: 'surface',
-    title: 'Surface mode',
-    description:
-      'Keep the whole smile and term topology in view so event humps, wing pressure, and curvature shifts read at a glance.',
-    signal: 'Whole-book regime',
-    emphasis: 'Shape first, labels suppressed until approach',
+    title: 'Surface',
+    description: 'Live IV smile and term across every venue.',
+    signal: 'Cross-venue regime',
+    emphasis: 'One shape. All books.',
   },
   {
     id: 'skew',
-    title: 'Skew mode',
-    description:
-      'Promote downside versus upside asymmetry with directional lighting, ridge callouts, and local slope telemetry.',
-    signal: 'Wing stress',
-    emphasis: 'Downside curvature and smile imbalance',
+    title: 'Skew',
+    description: 'Wing stress and put/call imbalance, ranked.',
+    signal: 'Directional risk',
+    emphasis: 'Find the venue with the cheapest hedge.',
   },
   {
     id: 'term',
-    title: 'Term mode',
-    description:
-      'Snap the camera toward tenor corridors and reveal cross-sections only where expiry structure matters.',
-    signal: 'Tenor migration',
-    emphasis: 'Expiry ridges, humps, and event shelves',
+    title: 'Term',
+    description: 'Tenor structure, event humps, calendar spreads.',
+    signal: 'Expiry edge',
+    emphasis: 'Spot the venue with the steepest curve.',
   },
   {
-    id: 'liquidity',
-    title: 'Liquidity mode',
-    description:
-      'Fade absolute IV noise and elevate quote quality, venue spread ribbons, and executable depth near the focus cone.',
-    signal: 'Execution quality',
-    emphasis: 'Depth and route confidence near the active node',
+    id: 'route',
+    title: 'Route',
+    description: 'Best executable price across all eight venues.',
+    signal: 'Execution edge',
+    emphasis: 'Quote · spread · latency · in one row.',
   },
 ] as const;
 
 export const spatialOverlayRules: SpatialOverlayRule[] = [
   {
-    id: 'proximity',
-    title: 'Progressive disclosure by proximity',
-    description:
-      'Labels and telemetry bloom only inside the active focus cone so the macro surface stays readable from a distance.',
-    detail: 'Far field shows topology, near field shows tradeable precision.',
+    id: 'normalize',
+    title: 'Normalized quotes',
+    description: 'Every venue speaks the same units, conventions, and tick scales.',
+    detail: 'Compare Deribit and Bybit on the same axis. No spreadsheet glue.',
   },
   {
-    id: 'tooltips',
-    title: 'Tooltips anchored to 3D coordinates',
-    description:
-      'Context panels attach to the selected strike and expiry node instead of floating as detached cards.',
-    detail: 'Pinned markers collapse when they compete for the same screen space.',
+    id: 'route',
+    title: 'Best-venue routing',
+    description: 'Live spread, depth, and latency budget per strike, per venue.',
+    detail: 'See which book fills first — before you send the order.',
   },
   {
-    id: 'overlays',
-    title: 'Volumetric overlays with a hard budget',
-    description:
-      'Use one primary overlay and one secondary overlay at most: liquidity fog, venue spread ribbons, or confidence mesh.',
-    detail: 'Opacity and motion encode confidence and recency without drowning the surface.',
+    id: 'feeds',
+    title: 'Venue-tagged feeds',
+    description: 'Every quote, fill, and greek carries its source venue end-to-end.',
+    detail: 'Risk views split per venue automatically. Reconciliation is free.',
   },
   {
-    id: 'transitions',
-    title: 'Macro-to-micro camera transitions',
-    description:
-      'Orbit for regime awareness, wheel into regional focus, then lock a node for exact quotes and Greeks.',
-    detail:
-      'No page change, only a camera dive with local rails and telemetry assembling in place.',
+    id: 'failover',
+    title: 'Failover in the UI',
+    description: 'Degraded feeds show as degraded — never as silent stale state.',
+    detail: 'Health is a first-class surface, not a hidden log line.',
   },
 ] as const;
 
 export const faqItems: FaqItem[] = [
   {
-    question: 'Which exchanges and instruments does Oggregator support?',
+    question: 'Which venues are supported?',
     answer:
-      'The platform is designed for multi-exchange options aggregation with venue-aware context. Final onboarding support depends on the desk setup, instrument mix, and rollout phase, but the architecture is built for fragmented crypto options markets rather than a single-venue view.',
+      'Deribit, OKX, Binance, Bybit, Thalex, Derive, Coincall, and Gate.io — options books, normalized to one schema and one set of conventions.',
   },
   {
-    question: 'How fast is the feed and routing update cycle?',
+    question: 'How fast is the feed?',
     answer:
-      'The terminal is tuned for sub-second visibility with explicit latency budgeting. The goal is not just fast rendering, but fast enough normalized context for routing decisions without hiding state transitions or degraded feeds.',
+      'Sub-second across every venue. Quotes, greeks, and route candidates update tick-by-tick with an explicit latency budget surfaced in the UI.',
   },
   {
-    question: 'Can we connect proprietary or internal desk signals?',
+    question: 'Can we plug in our own signals?',
     answer:
-      'Yes. Internal marks, risk overlays, and desk-specific enrichment can be merged into the same operating surface so routing logic reflects your actual stack instead of a generic market-only view.',
+      'Yes. Internal marks, risk overlays, and desk-specific enrichment merge into the same surface so routing reflects your stack, not a generic market view.',
   },
   {
-    question: 'Is the terminal browser-based, desktop-native, or both?',
+    question: 'Browser or desktop?',
     answer:
-      'The product direction is terminal-first and workflow-first. Delivery shape depends on deployment requirements, but the user experience is designed to feel like a serious pro tool rather than a lightweight marketing dashboard.',
+      'Terminal-first. Delivery shape is decided per desk, but the UX is built to feel like a serious pro tool — not a dashboard.',
   },
   {
-    question: 'How do connectivity failover and venue health monitoring work?',
+    question: 'What happens when a venue goes down?',
     answer:
-      'Operational state is surfaced directly in the interface: venue status, route confidence, and degradation cues are treated as first-class UI elements so traders can see when the market view changes because transport quality changed.',
+      'Degraded feeds show as degraded in the UI. Venue health, route confidence, and stale-quote flags are first-class surface elements.',
   },
   {
-    question: 'Do you expose APIs or command hooks for automation?',
+    question: 'Is there an API?',
     answer:
-      'The platform is designed around command-driven workflows and extensible integration points. Automation scope is shaped during onboarding so the surface can fit desk-specific routing, monitoring, and execution requirements.',
+      'The platform is built around command-driven workflows and extensible hooks. API surface and automation scope are shaped during onboarding.',
   },
 ] as const;
 
@@ -259,6 +259,48 @@ export const testimonials = [
       'It feels like a serious desk product, not another retail dashboard pretending to be institutional.',
     person: 'Founder',
     company: 'Systematic Trading Team',
+  },
+] as const;
+
+export const venues: Venue[] = [
+  { slug: 'deribit', name: 'Deribit' },
+  { slug: 'okx', name: 'OKX' },
+  { slug: 'binance', name: 'Binance' },
+  { slug: 'bybit', name: 'Bybit' },
+  { slug: 'thalex', name: 'Thalex' },
+  { slug: 'derive', name: 'Derive' },
+  { slug: 'coincall', name: 'Coincall' },
+  { slug: 'gate', name: 'Gate.io' },
+] as const;
+
+export const showcaseFrames: ShowcaseFrame[] = [
+  {
+    id: 'chain',
+    src: '/chainview.png',
+    eyebrow: '01 · Chain',
+    title: 'Every venue, one chain.',
+    detail: 'Normalized quotes. Best edge per strike, tagged by venue.',
+  },
+  {
+    id: 'portfolio',
+    src: '/portfolio1.png',
+    eyebrow: '02 · Portfolio',
+    title: 'Greeks across the book.',
+    detail: 'Per-venue, per-strategy. PnL that matches the desk.',
+  },
+  {
+    id: 'route',
+    src: '/showcase/route.png',
+    eyebrow: '03 · Route',
+    title: 'Best executable price.',
+    detail: 'Live spread, depth, latency — across all eight venues.',
+  },
+  {
+    id: 'feed',
+    src: '/showcase/feed.png',
+    eyebrow: '04 · Feed',
+    title: 'Venue-tagged tape.',
+    detail: 'Quotes and fills stream with their source venue end-to-end.',
   },
 ] as const;
 
