@@ -1,5 +1,6 @@
 import type { PositionLeg } from '@oggregator/protocol';
 
+import { naturalKeyOf } from '../../portfolio/position-fold.js';
 import { THALEX_OPTION_SYMBOL_RE } from '../thalex/types.js';
 import type { ThalexPortfolioEntry } from './types.js';
 
@@ -55,7 +56,13 @@ export function thalexPortfolioEntryToLeg(
   const avg = entry.average_price;
   if (avg == null || !Number.isFinite(avg) || avg <= 0) return null;
 
-  const legId = `thalex|${parsed.underlying}|${parsed.expiry}|${parsed.strike}|${parsed.optionRight}`;
+  const legId = naturalKeyOf({
+    underlying: parsed.underlying,
+    expiry: parsed.expiry,
+    strike: parsed.strike,
+    optionRight: parsed.optionRight,
+    source: 'thalex',
+  });
   return {
     legId,
     underlying: parsed.underlying,
@@ -65,6 +72,7 @@ export function thalexPortfolioEntryToLeg(
     size,
     entryPriceUsd: avg,
     entryIv: null,
+    realizedPnlUsd: 0,
     entryTs: nowMs,
     venueHint: 'thalex',
     source: 'thalex',

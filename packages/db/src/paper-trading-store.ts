@@ -89,6 +89,7 @@ export interface PaperTradePositionRow {
   optionRight: 'call' | 'put';
   netQuantity: number;
   avgEntryPriceUsd: number;
+  avgEntryIv: number | null;
   realizedPnlUsd: number;
   openedAt: Date;
   lastFillAt: Date;
@@ -121,6 +122,7 @@ export interface PaperPositionRow {
   optionRight: 'call' | 'put';
   netQuantity: number;
   avgEntryPriceUsd: number;
+  avgEntryIv: number | null;
   realizedPnlUsd: number;
   openedAt: Date;
   lastFillAt: Date;
@@ -477,12 +479,13 @@ export class PostgresPaperTradingStore implements PaperTradingStore {
     await this.pool.query(
       `INSERT INTO paper_positions (
         account_id, underlying, expiry, strike, option_right,
-        net_quantity, avg_entry_price_usd, realized_pnl_usd, opened_at, last_fill_at
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        net_quantity, avg_entry_price_usd, avg_entry_iv, realized_pnl_usd, opened_at, last_fill_at
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        ON CONFLICT (account_id, underlying, expiry, strike, option_right)
        DO UPDATE SET
          net_quantity = EXCLUDED.net_quantity,
          avg_entry_price_usd = EXCLUDED.avg_entry_price_usd,
+         avg_entry_iv = EXCLUDED.avg_entry_iv,
          realized_pnl_usd = EXCLUDED.realized_pnl_usd,
          opened_at = EXCLUDED.opened_at,
          last_fill_at = EXCLUDED.last_fill_at`,
@@ -494,6 +497,7 @@ export class PostgresPaperTradingStore implements PaperTradingStore {
         row.optionRight,
         row.netQuantity,
         row.avgEntryPriceUsd,
+        row.avgEntryIv,
         row.realizedPnlUsd,
         row.openedAt,
         row.lastFillAt,
@@ -670,12 +674,13 @@ export class PostgresPaperTradingStore implements PaperTradingStore {
     await this.pool.query(
       `INSERT INTO paper_trade_positions (
         trade_id, underlying, expiry, strike, option_right,
-        net_quantity, avg_entry_price_usd, realized_pnl_usd, opened_at, last_fill_at
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        net_quantity, avg_entry_price_usd, avg_entry_iv, realized_pnl_usd, opened_at, last_fill_at
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        ON CONFLICT (trade_id, underlying, expiry, strike, option_right)
        DO UPDATE SET
          net_quantity = EXCLUDED.net_quantity,
          avg_entry_price_usd = EXCLUDED.avg_entry_price_usd,
+         avg_entry_iv = EXCLUDED.avg_entry_iv,
          realized_pnl_usd = EXCLUDED.realized_pnl_usd,
          opened_at = EXCLUDED.opened_at,
          last_fill_at = EXCLUDED.last_fill_at`,
@@ -687,6 +692,7 @@ export class PostgresPaperTradingStore implements PaperTradingStore {
         row.optionRight,
         row.netQuantity,
         row.avgEntryPriceUsd,
+        row.avgEntryIv,
         row.realizedPnlUsd,
         row.openedAt,
         row.lastFillAt,
@@ -869,6 +875,7 @@ interface TradePositionRowDb {
   option_right: 'call' | 'put';
   net_quantity: string;
   avg_entry_price_usd: string;
+  avg_entry_iv: string | null;
   realized_pnl_usd: string;
   opened_at: Date;
   last_fill_at: Date;
@@ -901,6 +908,7 @@ interface PositionRowDb {
   option_right: 'call' | 'put';
   net_quantity: string;
   avg_entry_price_usd: string;
+  avg_entry_iv: string | null;
   realized_pnl_usd: string;
   opened_at: Date;
   last_fill_at: Date;
@@ -983,6 +991,7 @@ function mapTradePositionRow(row: TradePositionRowDb): PaperTradePositionRow {
     optionRight: row.option_right,
     netQuantity: Number(row.net_quantity),
     avgEntryPriceUsd: Number(row.avg_entry_price_usd),
+    avgEntryIv: row.avg_entry_iv != null ? Number(row.avg_entry_iv) : null,
     realizedPnlUsd: Number(row.realized_pnl_usd),
     openedAt: row.opened_at,
     lastFillAt: row.last_fill_at,
@@ -1021,6 +1030,7 @@ function mapPositionRow(row: PositionRowDb): PaperPositionRow {
     optionRight: row.option_right,
     netQuantity: Number(row.net_quantity),
     avgEntryPriceUsd: Number(row.avg_entry_price_usd),
+    avgEntryIv: row.avg_entry_iv != null ? Number(row.avg_entry_iv) : null,
     realizedPnlUsd: Number(row.realized_pnl_usd),
     openedAt: row.opened_at,
     lastFillAt: row.last_fill_at,

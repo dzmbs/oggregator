@@ -79,6 +79,8 @@ export {
   PortfolioMetricsSchema,
   PortfolioWsClientMessageSchema,
   PortfolioWsServerMessageSchema,
+  StrategyKindSchema,
+  StrategyGroupSchema,
   type PositionSource,
   type PortfolioSource,
   type PositionLeg,
@@ -97,6 +99,8 @@ export {
   type PortfolioMetrics,
   type PortfolioWsClientMessage,
   type PortfolioWsServerMessage,
+  type StrategyKind,
+  type StrategyGroup,
 } from './portfolio.js';
 
 export {

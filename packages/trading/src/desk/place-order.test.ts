@@ -82,6 +82,7 @@ class StubQuotes implements QuoteProvider {
         bidUsd: 100,
         askUsd: 110,
         markUsd: 105,
+        markIv: null,
         underlyingPriceUsd: this.spot,
         feesTakerUsd: 0,
         bidSize: null,

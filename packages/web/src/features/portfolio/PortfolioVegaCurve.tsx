@@ -26,9 +26,39 @@ function sameLegSignature(left: VegaByStrikeRow[], right: VegaByStrikeRow[]): bo
     const a = left[i];
     const b = right[i];
     if (a == null || b == null) return false;
-    if (a.expiry !== b.expiry || a.strike !== b.strike) return false;
+    if (a.expiry !== b.expiry || a.strike !== b.strike || a.optionRight !== b.optionRight) {
+      return false;
+    }
   }
   return true;
+}
+
+// byStrike rows are now keyed by (expiry, strike, optionRight). For modes
+// where call/put are mathematically equivalent at the same strike (vega,
+// gamma, vanna, volga under Black-76 with r=0) we collapse them onto a
+// single point so the chart isn't double-drawn. Delta is kept split so a
+// straddle at one strike shows as two distinct contributions.
+function mergeRowsForMode(rows: VegaByStrikeRow[], mode: Mode): VegaByStrikeRow[] {
+  if (mode === 'delta') return rows;
+  const acc = new Map<string, VegaByStrikeRow>();
+  for (const row of rows) {
+    const key = `${row.expiry}|${row.strike}`;
+    const prior = acc.get(key);
+    if (prior == null) {
+      acc.set(key, { ...row });
+      continue;
+    }
+    acc.set(key, {
+      ...prior,
+      delta: prior.delta + row.delta,
+      vega: prior.vega + row.vega,
+      gamma: prior.gamma + row.gamma,
+      vanna: prior.vanna + row.vanna,
+      volga: prior.volga + row.volga,
+      contracts: prior.contracts + row.contracts,
+    });
+  }
+  return [...acc.values()];
 }
 
 type Mode = 'delta' | 'vega' | 'gamma' | 'vanna' | 'volga';
@@ -217,10 +247,18 @@ export default function PortfolioVegaCurve({ byStrike, breakEven }: Props) {
     const filtered = activeExpiry
       ? displayByStrike.filter((row) => row.expiry === activeExpiry)
       : displayByStrike;
-    return filtered
-      .map((row) => ({ x: Number(row.strike), y: row[mode] }))
+    const merged = mergeRowsForMode(filtered, mode);
+    return merged
+      .map((row) => ({
+        x: Number(row.strike),
+        y: row[mode],
+        optionRight: row.optionRight,
+      }))
       .filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y))
-      .sort((a, b) => a.x - b.x);
+      .sort((a, b) => {
+        if (a.x !== b.x) return a.x - b.x;
+        return a.optionRight < b.optionRight ? -1 : 1;
+      });
   }, [displayByStrike, activeExpiry, mode]);
 
   const chart = useMemo(() => {
@@ -397,7 +435,7 @@ export default function PortfolioVegaCurve({ byStrike, breakEven }: Props) {
               strokeLinecap="round"
             />
             {points.map((p) => (
-              <g key={`p-${p.x}`}>
+              <g key={`p-${p.x}-${p.optionRight}`}>
                 <title>{`Strike ${p.x.toLocaleString()} • ${meta.label} ${fmtSignedValue(p.y)}`}</title>
                 <circle
                   cx={chart.toX(p.x)}

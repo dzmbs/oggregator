@@ -1,5 +1,6 @@
 import type { PositionLeg } from '@oggregator/protocol';
 
+import { naturalKeyOf } from '../../portfolio/position-fold.js';
 import type { DerivePosition } from './types.js';
 
 function parseInstrumentName(name: string): {
@@ -33,7 +34,13 @@ export function derivePositionToLeg(pos: DerivePosition): PositionLeg | null {
   const entryPriceUsd = Number(pos.average_price);
   if (!Number.isFinite(entryPriceUsd) || entryPriceUsd <= 0) return null;
 
-  const legId = `derive|${parsed.underlying}|${parsed.expiry}|${parsed.strike}|${parsed.optionRight}`;
+  const legId = naturalKeyOf({
+    underlying: parsed.underlying,
+    expiry: parsed.expiry,
+    strike: parsed.strike,
+    optionRight: parsed.optionRight,
+    source: 'derive',
+  });
   return {
     legId,
     underlying: parsed.underlying,
@@ -43,6 +50,7 @@ export function derivePositionToLeg(pos: DerivePosition): PositionLeg | null {
     size,
     entryPriceUsd,
     entryIv: null,
+    realizedPnlUsd: 0,
     entryTs: pos.creation_timestamp,
     venueHint: 'derive',
     source: 'derive',

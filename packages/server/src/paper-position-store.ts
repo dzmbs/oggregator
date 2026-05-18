@@ -1,41 +1,33 @@
-import type {
-  PositionLeg,
-  PositionStore,
-  PositionStoreListener,
+import {
+  naturalKeyOf,
+  type PositionLeg,
+  type PositionStore,
+  type PositionStoreListener,
 } from '@oggregator/core';
+import type { Position } from '@oggregator/trading';
 
 import { positionRepository } from './trading-services.js';
 import { paperEvents } from './routes/paper/events.js';
 
 const POLL_INTERVAL_MS = 1000;
 
-interface Position {
-  key: {
-    accountId: string;
-    underlying: string;
-    expiry: string;
-    strike: number;
-    optionRight: 'call' | 'put';
-  };
-  netQuantity: number;
-  avgEntryPriceUsd: number;
-  openedAt: Date;
-}
-
-function paperLegId(p: Position): string {
-  return `paper|${p.key.underlying}|${p.key.expiry}|${p.key.strike}|${p.key.optionRight}`;
-}
-
 function paperToLeg(p: Position): PositionLeg {
   return {
-    legId: paperLegId(p),
+    legId: naturalKeyOf({
+      underlying: p.key.underlying,
+      expiry: p.key.expiry,
+      strike: p.key.strike,
+      optionRight: p.key.optionRight,
+      source: 'paper',
+    }),
     underlying: p.key.underlying,
     expiry: p.key.expiry,
     strike: p.key.strike,
     optionRight: p.key.optionRight,
     size: p.netQuantity,
     entryPriceUsd: p.avgEntryPriceUsd,
-    entryIv: null,
+    entryIv: p.avgEntryIv,
+    realizedPnlUsd: p.realizedPnlUsd,
     entryTs: p.openedAt.getTime(),
     venueHint: null,
     source: 'paper',
@@ -111,20 +103,29 @@ export class PaperPositionStore implements PositionStore {
   private async refreshAccount(accountId: string): Promise<void> {
     let positions: Position[];
     try {
-      positions = (await positionRepository.listPositions(accountId)) as Position[];
+      positions = await positionRepository.listPositions(accountId);
     } catch {
       return;
     }
     const open = positions.filter((p) => p.netQuantity !== 0);
     const next = new Map<string, PositionLeg>(
-      open.map((p) => [paperLegId(p), paperToLeg(p)]),
+      open.map((p) => {
+        const leg = paperToLeg(p);
+        return [leg.legId, leg];
+      }),
     );
     const prev = this.cache.get(accountId) ?? new Map();
 
     const changedLegIds: string[] = [];
     for (const [legId, leg] of next) {
       const prior = prev.get(legId);
-      if (prior == null || prior.size !== leg.size || prior.entryPriceUsd !== leg.entryPriceUsd) {
+      if (
+        prior == null ||
+        prior.size !== leg.size ||
+        prior.entryPriceUsd !== leg.entryPriceUsd ||
+        prior.entryIv !== leg.entryIv ||
+        prior.realizedPnlUsd !== leg.realizedPnlUsd
+      ) {
         changedLegIds.push(legId);
       }
     }

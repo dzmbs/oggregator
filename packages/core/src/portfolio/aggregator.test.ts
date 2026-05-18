@@ -25,6 +25,7 @@ function makeLeg(partial: Partial<PositionLeg> & { strike: number; size: number 
     entryTs: 1_700_000_000_000,
     venueHint: null,
     source: 'manual',
+    realizedPnlUsd: 0,
     ...partial,
   };
 }
@@ -69,15 +70,29 @@ describe('aggregateGreeksByStrike', () => {
     expect(row70?.delta).toBeCloseTo(0.5, 6);
   });
 
-  it('merges multiple legs at same strike+expiry', () => {
+  it('does not collapse call and put at the same strike+expiry', () => {
     const legs = [
       makeLeg({ strike: 70_000, size: 1 }),
       makeLeg({ strike: 70_000, size: 2, legId: 'leg-a', optionRight: 'put' }),
     ];
     const withMarks = attachMarks(legs, constantMarks);
     const rows = aggregateGreeksByStrike(withMarks);
+    expect(rows).toHaveLength(2);
+    const call = rows.find((r) => r.optionRight === 'call');
+    const put = rows.find((r) => r.optionRight === 'put');
+    expect(call?.contracts).toBe(1);
+    expect(put?.contracts).toBe(2);
+  });
+
+  it('merges same-right legs at one strike with gross contracts', () => {
+    const legs = [
+      makeLeg({ strike: 70_000, size: 1, legId: 'long' }),
+      makeLeg({ strike: 70_000, size: -1, legId: 'short' }),
+    ];
+    const withMarks = attachMarks(legs, constantMarks);
+    const rows = aggregateGreeksByStrike(withMarks);
     expect(rows).toHaveLength(1);
-    expect(rows[0]?.contracts).toBe(3);
+    expect(rows[0]?.contracts).toBe(2);
   });
 });
 

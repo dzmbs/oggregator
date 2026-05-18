@@ -1,0 +1,87 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid #1a1a1a;
+  border-radius: 8px;
+}
+
+.title {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 110px 1fr auto auto auto;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 6px;
+  border: 1px solid #1a1a1a;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: #e0e0e0;
+}
+
+.kind {
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.kind[data-kind='put_spread'],
+.kind[data-kind='call_spread'] {
+  color: #60a5fa;
+}
+
+.kind[data-kind='straddle'],
+.kind[data-kind='strangle'] {
+  color: #a78bfa;
+}
+
+.kind[data-kind='naked'] {
+  color: #94a3b8;
+}
+
+.detail {
+  color: #94a3b8;
+}
+
+.premium {
+  font-variant-numeric: tabular-nums;
+}
+
+.credit {
+  color: #4ade80;
+}
+
+.debit {
+  color: #f87171;
+}
+
+.maxRange {
+  color: #94a3b8;
+  white-space: nowrap;
+}
+
+.be {
+  color: #cbd5e1;
+}
+
+.empty {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: #888;
+}

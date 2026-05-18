@@ -17,7 +17,7 @@ export function HowItWorksSection() {
               key={step.id}
               className="relative overflow-hidden rounded-[1.5rem] border border-white/8 bg-[linear-gradient(90deg,rgba(255,255,255,0.03),rgba(255,255,255,0.01))] px-5 py-5"
             >
-              <div className="absolute inset-y-0 left-0 w-px bg-[linear-gradient(180deg,transparent,rgba(80,210,193,0.8),transparent)]" />
+              <div className="absolute inset-y-0 left-0 w-px bg-[linear-gradient(180deg,transparent,rgba(237,244,246,0.55),transparent)]" />
               <div className="grid gap-5 lg:grid-cols-[120px_1.1fr_0.8fr] lg:items-center">
                 <div>
                   <p className="font-[var(--font-mono)] text-[10px] uppercase tracking-[0.24em] text-zinc-500">

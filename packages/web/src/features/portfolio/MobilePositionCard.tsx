@@ -83,9 +83,19 @@ export default function MobilePositionCard({ leg, be, readOnly, onRemove, removi
 
       <div className={styles.grid}>
         <div className={styles.cell}>
-          <span className={styles.label}>Entry</span>
+          <span className={styles.label}>Entry {isLong ? 'Dr' : 'Cr'}</span>
           <span className={styles.value}>{fmtUsd(leg.entryPriceUsd)}</span>
-          <span className={styles.sub}>{fmtIv(leg.entryIv)}</span>
+          <span
+            className={`${styles.sub} ${leg.entryIvIsModel === true ? styles.ivModel : ''}`}
+            title={
+              leg.entryIvIsModel === true
+                ? 'Entry IV back-solved from entry price + forward'
+                : undefined
+            }
+          >
+            {fmtIv(leg.entryIv)}
+            {leg.entryIvIsModel === true ? '*' : ''}
+          </span>
         </div>
         <div className={styles.cell}>
           <span className={styles.label}>Mark</span>

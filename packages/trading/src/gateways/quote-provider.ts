@@ -10,6 +10,8 @@ export interface QuoteBook {
   bidUsd: number | null;
   askUsd: number | null;
   markUsd: number | null;
+  /** Mark IV at quote time, when the venue publishes one. */
+  markIv: number | null;
   underlyingPriceUsd: number | null;
   /** Absolute USD taker fee per contract (not a rate). */
   feesTakerUsd: number;

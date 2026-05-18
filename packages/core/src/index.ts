@@ -250,6 +250,11 @@ export {
   applyVolShock,
   computeShockPnl,
   computeShockGrid,
+  foldManualLeg,
+  findExistingForInput,
+  naturalKeyOf,
+  type FoldContext,
+  detectStrategyGroups,
 } from './portfolio/index.js';
 export {
   PortfolioRuntime,

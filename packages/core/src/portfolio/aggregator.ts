@@ -24,18 +24,19 @@ function dteDays(expiry: string, nowMs: number): number {
   return Math.max(0, Math.ceil((target - nowMs) / 86_400_000));
 }
 
-function strikeKeyOf(strike: number, expiry: string): string {
-  return `${expiry}|${strike}`;
+function strikeKeyOf(strike: number, expiry: string, optionRight: 'call' | 'put'): string {
+  return `${expiry}|${strike}|${optionRight}`;
 }
 
 export function aggregateGreeksByStrike(legsWithMarks: LegWithMark[]): VegaByStrikeRow[] {
   const acc = new Map<string, VegaByStrikeRow>();
 
   for (const { leg, mark } of legsWithMarks) {
-    const key = strikeKeyOf(leg.strike, leg.expiry);
+    const key = strikeKeyOf(leg.strike, leg.expiry, leg.optionRight);
     const row: VegaByStrikeRow = acc.get(key) ?? {
       strike: leg.strike,
       expiry: leg.expiry,
+      optionRight: leg.optionRight,
       delta: 0,
       vega: 0,
       gamma: 0,
@@ -52,14 +53,17 @@ export function aggregateGreeksByStrike(legsWithMarks: LegWithMark[]): VegaByStr
     row.gamma += (mark.gamma ?? 0) * leg.size;
     row.vanna += vanna * leg.size;
     row.volga += volga * leg.size;
-    row.contracts += leg.size;
+    // Gross open contracts at the strike — same convention as byExpiry so a
+    // long/short pair at one strike doesn't read as zero exposure.
+    row.contracts += Math.abs(leg.size);
 
     acc.set(key, row);
   }
 
   return [...acc.values()].sort((a, b) => {
     if (a.expiry !== b.expiry) return a.expiry < b.expiry ? -1 : 1;
-    return a.strike - b.strike;
+    if (a.strike !== b.strike) return a.strike - b.strike;
+    return a.optionRight < b.optionRight ? -1 : 1;
   });
 }
 

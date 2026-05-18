@@ -15,6 +15,7 @@ function makePos(netQuantity: number, avg: number, realized = 0): Position {
     key: BASE_KEY,
     netQuantity,
     avgEntryPriceUsd: avg,
+    avgEntryIv: null,
     realizedPnlUsd: realized,
     openedAt: new Date('2026-04-17T00:00:00Z'),
     lastFillAt: new Date('2026-04-17T00:00:00Z'),

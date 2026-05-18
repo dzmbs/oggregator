@@ -8,22 +8,17 @@ describe('landing page', () => {
 
     expect(
       screen.getByRole('heading', {
-        name: /the landing page now moves like the app/i,
+        name: /one terminal\. every venue\./i,
       }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole('heading', {
-        name: /one surface, three disclosure depths/i,
+        name: /surface\. chain\. portfolio\./i,
       }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole('heading', {
-        name: /technical answers before the onboarding call/i,
-      }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole('heading', {
-        name: /3d iv surface/i,
+        name: /answers before the call/i,
       }),
     ).toBeInTheDocument();
     expect(screen.getAllByRole('link', { name: /request access/i }).length).toBeGreaterThan(0);

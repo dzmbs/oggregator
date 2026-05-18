@@ -47,3 +47,6 @@ To build the web package directly:
 ```bash
 pnpm --filter @oggregator/web build
 ```
+# Code policy
+
+Do not write comments in code unless necessary — only when the *why* is non-obvious (hidden constraints, workarounds, surprising invariants). Don't restate what the code already says.

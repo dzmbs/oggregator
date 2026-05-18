@@ -21,6 +21,10 @@ export interface Fill {
   // full fills; persisted so partial-fill diagnostics survive a restart.
   requestedQuantity: number;
   priceUsd: UsdAmount;
+  // Implied vol at fill time, when the venue published a mark IV. Folded
+  // into avgEntryIv on Position so paper books keep an entry-IV history
+  // through multiple averaging fills.
+  iv: number | null;
   feesUsd: UsdAmount;
   // Per-contract slippage vs L1 reference (ask for buy, bid for sell). 0 under
   // OptimisticFillModel; positive when RealisticFillModel walked depth or paid

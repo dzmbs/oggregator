@@ -81,6 +81,16 @@
   color: #fbbf24;
 }
 
+.debit {
+  color: #f87171;
+  font-weight: 600;
+}
+
+.credit {
+  color: #4ade80;
+  font-weight: 600;
+}
+
 .beNote {
   color: #fbbf24;
   font-style: italic;

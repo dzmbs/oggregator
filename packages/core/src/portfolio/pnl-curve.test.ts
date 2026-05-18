@@ -19,6 +19,7 @@ function makeLeg(partial: Partial<PositionLeg> & { strike: number; size: number 
     entryTs: NOW,
     venueHint: null,
     source: 'manual',
+    realizedPnlUsd: 0,
     ...partial,
   };
 }

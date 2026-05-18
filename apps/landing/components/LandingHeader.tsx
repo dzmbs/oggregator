@@ -24,7 +24,7 @@ export function LandingHeader() {
         </div>
 
         <div className="flex items-center gap-3">
-          <span className="hidden rounded-full border border-[color:var(--landing-border)] bg-[rgba(80,210,193,0.08)] px-3 py-2 font-[var(--font-mono)] text-[10px] uppercase tracking-[0.24em] text-[var(--landing-accent)] sm:inline-flex">
+          <span className="hidden rounded-full border border-[color:var(--landing-border)] bg-[rgba(237,244,246,0.06)] px-3 py-2 font-[var(--font-mono)] text-[10px] uppercase tracking-[0.24em] text-[var(--landing-accent)] sm:inline-flex">
             Live / institutional preview
           </span>
           <a href="#access" className="landing-button-primary px-5! py-3!">

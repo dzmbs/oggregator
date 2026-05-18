@@ -15,35 +15,35 @@ describe('proof sections', () => {
 
     expect(
       screen.getByRole('heading', {
-        name: /one surface, three disclosure depths\./i,
+        name: /surface\. chain\. portfolio\./i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: /^overview$/i })).toBeInTheDocument();
+    expect(screen.getAllByRole('heading', { name: /^surface$/i }).length).toBeGreaterThan(0);
     expect(
       screen.getByRole('heading', {
-        name: /modes, overlays, and clutter control\./i,
+        name: /cross-venue from the first quote\./i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/one object, four ways to read it/i)).toBeInTheDocument();
-    expect(screen.getByText(/progressive disclosure by proximity/i)).toBeInTheDocument();
-    expect(screen.getByText(/liquidity mode/i)).toBeInTheDocument();
+    expect(screen.getByText(/four lenses\. every venue\./i)).toBeInTheDocument();
+    expect(screen.getAllByText(/normalized quotes/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('heading', { name: /^route$/i }).length).toBeGreaterThan(0);
   });
 
   it('opens and closes FAQ items', () => {
     render(<FaqSection />);
 
     expect(
-      screen.getByText(/the platform is designed for multi-exchange options aggregation/i),
+      screen.getByText(/deribit, okx, binance, bybit, thalex, derive/i),
     ).toBeInTheDocument();
 
     const button = screen.getByRole('button', {
-      name: /how fast is the feed and routing update cycle/i,
+      name: /how fast is the feed/i,
     });
 
     fireEvent.click(button);
 
     expect(
-      screen.getByText(/the terminal is tuned for sub-second visibility/i),
+      screen.getByText(/sub-second across every venue/i),
     ).toBeInTheDocument();
   });
 });

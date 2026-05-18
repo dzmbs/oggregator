@@ -31,6 +31,7 @@ export class PaperFillEngine implements FillEngine {
       benchmarkBidUsd: number | null;
       benchmarkAskUsd: number | null;
       benchmarkMidUsd: number | null;
+      iv: number | null;
       underlyingSpotUsd: number | null;
     }> = [];
 
@@ -79,6 +80,7 @@ export class PaperFillEngine implements FillEngine {
         benchmarkBidUsd: chosen.book.bidUsd,
         benchmarkAskUsd: chosen.book.askUsd,
         benchmarkMidUsd: chosen.book.markUsd,
+        iv: chosen.book.markIv,
         underlyingSpotUsd: chosen.book.underlyingPriceUsd,
       });
     }
@@ -98,6 +100,7 @@ export class PaperFillEngine implements FillEngine {
         quantity: p.filledQuantity,
         requestedQuantity: p.leg.quantity,
         priceUsd: p.priceUsd,
+        iv: p.iv,
         feesUsd: p.feesUsd,
         slippageUsd: p.slippageUsd,
         partialFill: p.partialFill,

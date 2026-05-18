@@ -9,6 +9,7 @@ function bookOf(overrides: Partial<QuoteBook>): QuoteBook {
     bidUsd: 99,
     askUsd: 101,
     markUsd: 100,
+    markIv: null,
     underlyingPriceUsd: 78_000,
     feesTakerUsd: 0,
     bidSize: null,

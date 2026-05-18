@@ -75,6 +75,8 @@ const PositionLegSchema: z.ZodType<PositionLeg> = z.object({
   size: z.number(),
   entryPriceUsd: z.number(),
   entryIv: z.number().nullable(),
+  entryIvIsModel: z.boolean().optional(),
+  realizedPnlUsd: z.number().default(0),
   entryTs: z.number(),
   venueHint: VenueIdSchema.nullable(),
   source: z.enum([
@@ -170,12 +172,26 @@ const PortfolioTotalsSchema = z.object({
 const VegaByStrikeRowSchema = z.object({
   strike: z.number(),
   expiry: z.string(),
+  optionRight: z.enum(['call', 'put']),
   delta: z.number(),
   vega: z.number(),
   gamma: z.number(),
   vanna: z.number(),
   volga: z.number(),
   contracts: z.number(),
+});
+
+const StrategyGroupSchema = z.object({
+  groupId: z.string(),
+  kind: z.enum(['naked', 'call_spread', 'put_spread', 'straddle', 'strangle']),
+  underlying: z.string(),
+  expiry: z.string(),
+  legIds: z.array(z.string()),
+  netEntryPremiumUsd: z.number(),
+  debitOrCredit: z.enum(['debit', 'credit', 'flat']),
+  maxProfitUsd: z.number().nullable(),
+  maxLossUsd: z.number().nullable(),
+  breakEvenSpotsUsd: z.array(z.number()),
 });
 
 const ExpiryBucketRowSchema = z.object({
@@ -243,6 +259,7 @@ const PortfolioMetricsSchema: z.ZodType<PortfolioMetrics> = z.object({
   byExpiry: z.array(ExpiryBucketRowSchema),
   breakEven: z.array(BreakEvenIvRowSchema),
   shockGrid: z.array(z.array(ShockGridCellSchema)),
+  strategies: z.array(StrategyGroupSchema),
 }) as z.ZodType<PortfolioMetrics>;
 
 const VolShockLegResultSchema = z.object({
@@ -290,7 +307,13 @@ const ScenariosResponseSchema = z.object({
 });
 export type ScenariosResponse = z.infer<typeof ScenariosResponseSchema>;
 
-const AddPositionResponseSchema = z.object({ leg: PositionLegSchema });
+// Server returns `{ leg: null, closed: true }` when an upsert closes the
+// position flat; otherwise it returns the merged/created leg.
+const AddPositionResponseSchema = z.union([
+  z.object({ leg: PositionLegSchema, closed: z.literal(true).optional() }),
+  z.object({ leg: z.null(), closed: z.literal(true) }),
+]);
+export type AddPositionResponse = z.infer<typeof AddPositionResponseSchema>;
 const RemovePositionResponseSchema = z.object({
   legId: z.string(),
   removed: z.boolean(),
@@ -318,7 +341,7 @@ export function fetchMetrics(
   return getJson(`/portfolio/metrics?${params.toString()}`, MetricsResponseSchema);
 }
 
-export function addPosition(input: PositionLegInput): Promise<{ leg: PositionLeg }> {
+export function addPosition(input: PositionLegInput): Promise<AddPositionResponse> {
   return postJson('/portfolio/positions', input, AddPositionResponseSchema);
 }
 

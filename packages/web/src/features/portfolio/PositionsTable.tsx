@@ -88,6 +88,7 @@ export default function PositionsTable({
           <th>R</th>
           <th>Size</th>
           <th>Entry $</th>
+          <th>D/C</th>
           <th>Entry IV</th>
           <th>Mark $</th>
           <th>Live IV</th>
@@ -107,6 +108,11 @@ export default function PositionsTable({
                 : styles.cushionNeg;
           const noteLabel = beNoteLabel(be?.beNote);
           const noteTitle = beNoteTitle(be?.beNote);
+          const debitOrCredit = leg.size > 0 ? 'Dr' : 'Cr';
+          const debitOrCreditTitle =
+            leg.size > 0
+              ? `Long leg: $${leg.entryPriceUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })} paid per contract.`
+              : `Short leg: $${leg.entryPriceUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })} received per contract.`;
           return (
             <tr key={leg.legId}>
               <td>{leg.underlying}</td>
@@ -115,7 +121,23 @@ export default function PositionsTable({
               <td>{leg.optionRight === 'call' ? 'C' : 'P'}</td>
               <td className={leg.size > 0 ? styles.long : styles.short}>{leg.size}</td>
               <td>{fmtUsd(leg.entryPriceUsd)}</td>
-              <td>{fmtIv(leg.entryIv)}</td>
+              <td
+                className={leg.size > 0 ? styles.debit : styles.credit}
+                title={debitOrCreditTitle}
+              >
+                {debitOrCredit}
+              </td>
+              <td
+                className={leg.entryIvIsModel === true ? styles.ivModel : undefined}
+                title={
+                  leg.entryIvIsModel === true
+                    ? 'Entry IV back-solved from entry price + forward at upsert time'
+                    : undefined
+                }
+              >
+                {fmtIv(leg.entryIv)}
+                {leg.entryIvIsModel === true ? '*' : ''}
+              </td>
               <td>{fmtUsd(be?.currentMarkUsd)}</td>
               <td
                 className={be?.currentIvIsModel === true ? styles.ivModel : undefined}

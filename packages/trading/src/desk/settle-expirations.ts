@@ -42,6 +42,7 @@ export function buildSettlementFill(input: SettlementInput): Fill | null {
     quantity: qty,
     requestedQuantity: qty,
     priceUsd: intrinsic,
+    iv: null,
     feesUsd: fees,
     slippageUsd: 0,
     partialFill: false,
