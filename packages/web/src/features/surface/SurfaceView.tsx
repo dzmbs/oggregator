@@ -76,12 +76,12 @@ export default function SurfaceView() {
 
         <div className={styles.chartsRow}>
           {showBtc ? (
-            <div className={styles.chartPanel}>
+            <div className={`${styles.chartPanel} ${styles.tallChartPanel}`}>
               <SkewHistory underlying="BTC" />
             </div>
           ) : null}
           {showEth ? (
-            <div className={styles.chartPanel}>
+            <div className={`${styles.chartPanel} ${styles.tallChartPanel}`}>
               <SkewHistory underlying="ETH" />
             </div>
           ) : null}

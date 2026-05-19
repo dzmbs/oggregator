@@ -83,6 +83,11 @@
   background: var(--bg-surface);
   min-width: 0;
   height: 380px;
+  overflow: hidden;
+}
+
+.tallChartPanel {
+  height: 460px;
 }
 
 @media (max-width: 768px) {
@@ -112,5 +117,9 @@
     padding: var(--space-3);
     height: auto;
     min-height: 360px;
+  }
+
+  .tallChartPanel {
+    min-height: 420px;
   }
 }
