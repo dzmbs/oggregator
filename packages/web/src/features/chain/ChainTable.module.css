@@ -3,7 +3,22 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-width: 0;
   border: 1px solid color-mix(in srgb, var(--text-dim) 16%, transparent);
+}
+
+.tableScroll {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.table {
+  width: max(100%, 1500px);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 /* ── Grid template ───────────────────────────────────────────────────────── */
@@ -73,6 +88,7 @@
 
 .list {
   flex: 1;
+  min-height: 0;
   overflow-y: scroll;
 }
 

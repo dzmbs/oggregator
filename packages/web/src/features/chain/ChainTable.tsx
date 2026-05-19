@@ -458,107 +458,111 @@ export default function NewChainTable({
 
   return (
     <div className={styles.wrapper}>
-      <div className={styles.header}>
-        <span className={styles.hdrLabel}>VENUES</span>
-        <span className={styles.hdrLabel} data-align="center" title={GAMMA_TIP}>
-          γ
-        </span>
-        <span className={styles.hdrLabel} data-align="center" title={VEGA_TIP}>
-          ν
-        </span>
-        <span className={styles.hdrLabel} data-align="center" title={DELTA_TIP}>
-          Δ
-        </span>
-        <span className={styles.hdrLabel} data-align="center">
-          IV
-        </span>
-        <span className={styles.hdrLabel} data-align="right">
-          BID
-        </span>
-        <span className={styles.hdrLabel} data-align="center">
-          SPREAD
-        </span>
-        <span className={styles.hdrLabel} data-align="right">
-          ASK
-        </span>
-        <span className={styles.hdrLabel} data-align="center">
-          STRIKE
-        </span>
-        <span className={styles.hdrLabel}>BID</span>
-        <span className={styles.hdrLabel} data-align="center">
-          SPREAD
-        </span>
-        <span className={styles.hdrLabel}>ASK</span>
-        <span className={styles.hdrLabel} data-align="center">
-          IV
-        </span>
-        <span className={styles.hdrLabel} data-align="center" title={DELTA_TIP}>
-          Δ
-        </span>
-        <span className={styles.hdrLabel} data-align="center" title={VEGA_TIP}>
-          ν
-        </span>
-        <span className={styles.hdrLabel} data-align="center" title={GAMMA_TIP}>
-          γ
-        </span>
-        <span className={styles.hdrLabel} data-align="right">
-          VENUES
-        </span>
-      </div>
+      <div className={styles.tableScroll}>
+        <div className={styles.table}>
+          <div className={styles.header}>
+            <span className={styles.hdrLabel}>VENUES</span>
+            <span className={styles.hdrLabel} data-align="center" title={GAMMA_TIP}>
+              γ
+            </span>
+            <span className={styles.hdrLabel} data-align="center" title={VEGA_TIP}>
+              ν
+            </span>
+            <span className={styles.hdrLabel} data-align="center" title={DELTA_TIP}>
+              Δ
+            </span>
+            <span className={styles.hdrLabel} data-align="center">
+              IV
+            </span>
+            <span className={styles.hdrLabel} data-align="right">
+              BID
+            </span>
+            <span className={styles.hdrLabel} data-align="center">
+              SPREAD
+            </span>
+            <span className={styles.hdrLabel} data-align="right">
+              ASK
+            </span>
+            <span className={styles.hdrLabel} data-align="center">
+              STRIKE
+            </span>
+            <span className={styles.hdrLabel}>BID</span>
+            <span className={styles.hdrLabel} data-align="center">
+              SPREAD
+            </span>
+            <span className={styles.hdrLabel}>ASK</span>
+            <span className={styles.hdrLabel} data-align="center">
+              IV
+            </span>
+            <span className={styles.hdrLabel} data-align="center" title={DELTA_TIP}>
+              Δ
+            </span>
+            <span className={styles.hdrLabel} data-align="center" title={VEGA_TIP}>
+              ν
+            </span>
+            <span className={styles.hdrLabel} data-align="center" title={GAMMA_TIP}>
+              γ
+            </span>
+            <span className={styles.hdrLabel} data-align="right">
+              VENUES
+            </span>
+          </div>
 
-      <div className={styles.list} ref={listRef}>
-        <div
-          style={{
-            height: `${rowVirtualizer.getTotalSize()}px`,
-            width: '100%',
-            position: 'relative',
-          }}
-        >
-          {rowVirtualizer.getVirtualItems().map((vItem) => {
-            const s = strikes[vItem.index]!;
-            const isAtm = s.strike === atmStrike;
-            return (
-              <div
-                key={vItem.key}
-                data-index={vItem.index}
-                ref={rowVirtualizer.measureElement}
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: '100%',
-                  transform: `translateY(${vItem.start}px)`,
-                }}
-              >
-                {isAtm && indexPrice != null && (
-                  <div className={styles.atmMarker}>
-                    <div className={styles.atmLine} />
-                    <div className={styles.atmPill}>
-                      <span className={styles.atmPillText}>Index {fmtUsd(indexPrice)}</span>
-                    </div>
-                    <div className={styles.atmLine} />
+          <div className={styles.list} ref={listRef}>
+            <div
+              style={{
+                height: `${rowVirtualizer.getTotalSize()}px`,
+                width: '100%',
+                position: 'relative',
+              }}
+            >
+              {rowVirtualizer.getVirtualItems().map((vItem) => {
+                const s = strikes[vItem.index]!;
+                const isAtm = s.strike === atmStrike;
+                return (
+                  <div
+                    key={vItem.key}
+                    data-index={vItem.index}
+                    ref={rowVirtualizer.measureElement}
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: '100%',
+                      transform: `translateY(${vItem.start}px)`,
+                    }}
+                  >
+                    {isAtm && indexPrice != null && (
+                      <div className={styles.atmMarker}>
+                        <div className={styles.atmLine} />
+                        <div className={styles.atmPill}>
+                          <span className={styles.atmPillText}>Index {fmtUsd(indexPrice)}</span>
+                        </div>
+                        <div className={styles.atmLine} />
+                      </div>
+                    )}
+                    <StrikeRowItem
+                      strike={s}
+                      isAtm={isAtm}
+                      isExpanded={expanded.has(s.strike)}
+                      callItm={indexPrice != null && s.strike < indexPrice}
+                      putItm={indexPrice != null && s.strike > indexPrice}
+                      onToggle={toggleRow}
+                      activeVenues={activeVenues}
+                      activeSet={activeSet}
+                      myIv={myIv}
+                      onQuickTrade={setQuickTrade}
+                      atmStrike={atmStrike}
+                      atmConsensusForward={atmConsensusForward}
+                      indexPrice={indexPrice}
+                      underlying={underlying}
+                      expiry={expiry}
+                    />
                   </div>
-                )}
-                <StrikeRowItem
-                  strike={s}
-                  isAtm={isAtm}
-                  isExpanded={expanded.has(s.strike)}
-                  callItm={indexPrice != null && s.strike < indexPrice}
-                  putItm={indexPrice != null && s.strike > indexPrice}
-                  onToggle={toggleRow}
-                  activeVenues={activeVenues}
-                  activeSet={activeSet}
-                  myIv={myIv}
-                  onQuickTrade={setQuickTrade}
-                  atmStrike={atmStrike}
-                  atmConsensusForward={atmConsensusForward}
-                  indexPrice={indexPrice}
-                  underlying={underlying}
-                  expiry={expiry}
-                />
-              </div>
-            );
-          })}
+                );
+              })}
+            </div>
+          </div>
         </div>
       </div>
 
