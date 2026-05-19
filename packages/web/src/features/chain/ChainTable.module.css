@@ -22,6 +22,24 @@
   overflow-y: scroll;
 }
 
+.header > *,
+.row > * {
+  min-width: 0;
+  position: relative;
+}
+
+.header > :not(:last-child):not(:nth-child(8)):not(:nth-child(9))::after,
+.row > :not(:last-child):not(:nth-child(8)):not(:nth-child(9))::after {
+  content: '';
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  right: 0;
+  width: 1px;
+  background: color-mix(in srgb, var(--text-dim) 24%, transparent);
+  pointer-events: none;
+}
+
 .hdrLabel {
   display: flex;
   align-items: center;
