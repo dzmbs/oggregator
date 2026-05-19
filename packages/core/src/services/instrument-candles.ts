@@ -10,6 +10,7 @@ import {
   THALEX_REST_URL,
 } from '../feeds/shared/endpoints.js';
 import { loadCoincallCredentials, signCoincallRequest } from '../feeds/coincall/rest-client.js';
+import { loadGateioCredentials, signGateioRequest } from '../feeds/gateio/rest-client.js';
 import { feedLogger } from '../utils/logger.js';
 import type {
   InstrumentCandle,
@@ -394,6 +395,61 @@ export async function fetchGateioTrade(
   }));
 }
 
+// Gate.io publishes a sibling auth-gated endpoint for mark-price OHLC at
+//   GET /api/v4/options/mark_price_candlesticks
+// Same row shape as /options/candlesticks ({t,o,h,l,c,v}), but requires the
+// standard v4 signing (KEY/SIGN/Timestamp). Missing credentials → buffer-only
+// fallback at the caller (parallel to fetchCoincallKline).
+export async function fetchGateioMark(
+  symbol: string,
+  interval: InstrumentCandleInterval,
+  range: InstrumentCandleRange,
+): Promise<RawCandle[]> {
+  const credentials = loadGateioCredentials();
+  if (credentials == null) return [];
+
+  const now = Math.floor(Date.now() / 1000);
+  const start = now - Math.floor(RANGE_TO_MS[range] / 1000);
+  const path = '/api/v4/options/mark_price_candlesticks';
+  const { url, headers } = signGateioRequest(
+    'GET',
+    path,
+    {
+      contract: symbol,
+      interval: INTERVAL_TO_GATEIO[interval],
+      from: start,
+      to: now,
+    },
+    credentials,
+  );
+
+  const res = await fetch(`${GATEIO_REST_BASE_URL}${url}`, {
+    method: 'GET',
+    signal: AbortSignal.timeout(10_000),
+    headers: { accept: 'application/json', ...headers },
+  });
+  if (res.status === 404) throw new InstrumentCandlesError('not_found', `Gate.io: ${symbol}`);
+  if (!res.ok) {
+    log.warn({ symbol, status: res.status }, 'gateio mark candles http error');
+    return [];
+  }
+
+  const result = GateioCandleSchema.safeParse(await res.json());
+  if (!result.success) {
+    log.warn({ issues: result.error.issues, symbol }, 'gateio mark candles parse failed');
+    return [];
+  }
+  return result.data.map((row) => ({
+    ts: row.t * 1000,
+    o: Number(row.o),
+    h: Number(row.h),
+    l: Number(row.l),
+    c: Number(row.c),
+    // Mark series carries no volume; the trade-derived candles do.
+    vol: 0,
+  }));
+}
+
 // ── Bybit ──────────────────────────────────────────────────────────
 // Bybit has no /v5/market/kline support for category=option (verified:
 // retCode 10001 PARAMS_ERROR). The mark-price-kline endpoint does work,
@@ -762,9 +818,11 @@ export async function fetchCoincallKline(
 // missing or the endpoint returns nothing, we degrade to buffer-only.
 //
 // Gate.io's public `/options/candlesticks` is trade-derived and returns []
-// for sparse altcoin strikes that never trade. We pair it with the same
-// MarkHistoryBuffer fallback so the chart panel always has at least a mark
-// line to draw, even for untraded strikes.
+// for sparse altcoin strikes that never trade. The sibling
+// `/options/mark_price_candlesticks` carries mark-price OHLC but is
+// auth-gated (signed v4: KEY/SIGN/Timestamp); we sign it when credentials
+// are configured and otherwise fall back to the MarkHistoryBuffer so untraded
+// strikes still get a mark line.
 const SUPPORTED_VENUES = new Set<VenueId>([
   'deribit', 'binance', 'okx', 'gateio', 'bybit', 'derive', 'thalex', 'coincall',
 ]);
@@ -880,17 +938,29 @@ export class InstrumentCandleService {
       case 'gateio': {
         const buffer = this.markHistoryBuffer;
         // /options/candlesticks is trade-derived — empty for untraded strikes.
-        // Pair with buffered marks from the chain adapter's quote recorder so
-        // every gateio strike has at least a mark line once it's been viewed
-        // in the chain.
-        const tradeCandles = await fetchGateioTrade(symbol, interval, range);
+        // /options/mark_price_candlesticks is the auth-gated sibling that
+        // returns mark-price OHLC; we sign it when credentials are set and
+        // overlay the live MarkHistoryBuffer for sub-bucket freshness. With
+        // no credentials we degrade to buffer-only marks, keeping prior
+        // behaviour for unconfigured deployments.
+        const [tradeCandles, markCandles] = await Promise.all([
+          fetchGateioTrade(symbol, interval, range),
+          fetchGateioMark(symbol, interval, range).catch((err: unknown) => {
+            if (err instanceof InstrumentCandlesError) throw err;
+            log.warn({ symbol, err: String(err) }, 'gateio mark fetch error');
+            return [] as RawCandle[];
+          }),
+        ]);
         const bufferedMark = buffer?.getMarkCandles(
           'gateio',
           symbol,
           INTERVAL_TO_MS[interval],
           RANGE_TO_MS[range],
         );
-        return [tradeCandles, bufferedMark ?? []];
+        // REST mark wins when present; live buffer fills the current bucket
+        // (mergeCandlesByTs gives live the tie-break on overlap).
+        const mark = mergeCandlesByTs(markCandles, bufferedMark ?? []);
+        return [tradeCandles, mark];
       }
       case 'coincall': {
         const buffer = this.markHistoryBuffer;

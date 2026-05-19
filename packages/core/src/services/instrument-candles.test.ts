@@ -219,7 +219,9 @@ describe('InstrumentCandleService — Derive buffer integration', () => {
     expect(res.markLine.map((m) => m.c)).toEqual([0.05]);
   });
 
-  it('pairs Gate.io REST candlesticks with buffered mark when REST returns []', async () => {
+  it('pairs Gate.io REST candlesticks with buffered mark when REST returns [] (no creds)', async () => {
+    vi.stubEnv('GATEIO_API_KEY', '');
+    vi.stubEnv('GATEIO_API_SECRET', '');
     fetchSpy.mockResolvedValue(
       new Response(JSON.stringify([]), {
         status: 200,
@@ -231,15 +233,18 @@ describe('InstrumentCandleService — Derive buffer integration', () => {
 
     const res = await svc.getCandles('gateio', 'DOGE_USDT-20260519-0.106-C', '1m', '1d');
 
+    // Without credentials the mark fetcher short-circuits before any fetch,
+    // so only the public trade call hits the wire.
     expect(fetchSpy).toHaveBeenCalledTimes(1);
     expect(fetchSpy.mock.calls[0]?.[0]).toContain('/options/candlesticks');
-    // Trade series empty but mark series populated from buffer — chart can
-    // still draw a synthetic candle from mark for untraded strikes.
+    expect(fetchSpy.mock.calls[0]?.[0]).not.toContain('mark_price_candlesticks');
     expect(res.markLine.map((m) => m.c)).toEqual([0.0005, 0.00052]);
     expect(res.candles.every((c) => c.synthetic === true || c.vol === 0)).toBe(true);
   });
 
-  it('pairs Gate.io REST candlesticks with buffered mark when REST returns trades', async () => {
+  it('pairs Gate.io REST candlesticks with buffered mark when REST returns trades (no creds)', async () => {
+    vi.stubEnv('GATEIO_API_KEY', '');
+    vi.stubEnv('GATEIO_API_SECRET', '');
     fetchSpy.mockResolvedValue(
       new Response(
         JSON.stringify([
@@ -255,6 +260,64 @@ describe('InstrumentCandleService — Derive buffer integration', () => {
     expect(fetchSpy).toHaveBeenCalledTimes(1);
     expect(res.markLine.map((m) => m.c)).toEqual([5.5]);
     expect(res.candles.some((c) => c.vol > 0)).toBe(true);
+  });
+
+  it('signs the Gate.io mark candle request and fills buckets the buffer lacks', async () => {
+    vi.stubEnv('GATEIO_API_KEY', 'test-key');
+    vi.stubEnv('GATEIO_API_SECRET', 'test-secret');
+    fetchSpy.mockImplementation(async (input: unknown) => {
+      const url = typeof input === 'string' ? input : (input as Request).url;
+      if (url.includes('/options/mark_price_candlesticks')) {
+        return new Response(
+          JSON.stringify([
+            { t: Math.floor(BASE_TS / 1000), o: '0.0006', h: '0.0006', l: '0.0006', c: '0.0006', v: 0 },
+            { t: Math.floor((BASE_TS + MIN) / 1000), o: '0.0007', h: '0.0007', l: '0.0007', c: '0.0007', v: 0 },
+          ]),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        );
+      }
+      // Public candlesticks: empty (untraded strike).
+      return new Response(JSON.stringify([]), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    });
+    // Buffer covers only the current bucket with the freshest live sample;
+    // mergeCandlesByTs gives live the tie-break (see comment in service), so
+    // the buffer wins at BASE_TS and REST fills BASE_TS + MIN.
+    buffer.recordMark('gateio', 'DOGE_USDT-20260519-0.106-C', BASE_TS, 0.0005);
+
+    const res = await svc.getCandles('gateio', 'DOGE_USDT-20260519-0.106-C', '1m', '1d');
+
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    const markCall = fetchSpy.mock.calls.find(
+      (c) => typeof c[0] === 'string' && (c[0] as string).includes('mark_price_candlesticks'),
+    );
+    expect(markCall).toBeDefined();
+    const headers = (markCall![1] as RequestInit).headers as Record<string, string>;
+    expect(headers.KEY).toBe('test-key');
+    expect(headers.Timestamp).toMatch(/^\d+$/);
+    expect(headers.SIGN).toMatch(/^[0-9a-f]+$/);
+
+    expect(res.markLine.map((m) => m.c)).toEqual([0.0005, 0.0007]);
+  });
+
+  it('falls back to buffered Gate.io mark when signed REST returns []', async () => {
+    vi.stubEnv('GATEIO_API_KEY', 'test-key');
+    vi.stubEnv('GATEIO_API_SECRET', 'test-secret');
+    fetchSpy.mockResolvedValue(
+      new Response(JSON.stringify([]), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+    buffer.recordMark('gateio', 'DOGE_USDT-20260519-0.106-C', BASE_TS, 0.0005);
+
+    const res = await svc.getCandles('gateio', 'DOGE_USDT-20260519-0.106-C', '1m', '1d');
+
+    // Both endpoints get hit; REST mark empty → buffer fills the line.
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(res.markLine.map((m) => m.c)).toEqual([0.0005]);
   });
 });
 
