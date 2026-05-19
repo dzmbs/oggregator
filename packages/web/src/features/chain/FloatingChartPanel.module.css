@@ -52,6 +52,17 @@
 .intervals, .ranges, .overlays {
   display: flex;
   gap: 2px;
+  align-items: center;
+}
+.countdown {
+  margin-left: 6px;
+  padding: 1px 5px;
+  color: #50D2C1;
+  background: rgba(80, 210, 193, 0.08);
+  border: 1px solid rgba(80, 210, 193, 0.25);
+  border-radius: 2px;
+  font-variant-numeric: tabular-nums;
+  font-size: 10px;
 }
 .toolbar button {
   background: transparent;

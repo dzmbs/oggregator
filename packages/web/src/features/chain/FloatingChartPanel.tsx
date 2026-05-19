@@ -7,6 +7,7 @@ import { VENUES } from '@lib/venue-meta';
 import type { ChartPanel } from './chart-panels-store.js';
 import { useChartPanelsStore } from './chart-panels-store.js';
 import { useInstrumentCandles, useLiveMidFromChain } from './use-instrument-candles.js';
+import { useCandleCountdown } from './candle-countdown.js';
 import { toVenueSymbol, NotSupportedVenueError, isChartSupportedVenue } from './instrument-symbol.js';
 import InstrumentChart from './InstrumentChart.js';
 import styles from './FloatingChartPanel.module.css';
@@ -79,6 +80,7 @@ export default function FloatingChartPanel({ panel }: { panel: ChartPanel }) {
     range: panel.range,
     liveMid,
   });
+  const countdown = useCandleCountdown(panel.interval);
 
   useEffect(() => {
     function onMove(e: PointerEvent) {
@@ -167,6 +169,9 @@ export default function FloatingChartPanel({ panel }: { panel: ChartPanel }) {
                   onClick={() => update(panel.id, { interval: i })}
                 >{i}</button>
               ))}
+              <span className={styles.countdown} title={`Next ${panel.interval} bar closes in ${countdown}`}>
+                {countdown}
+              </span>
             </div>
             <div className={styles.ranges}>
               {RANGES.map((r) => (
@@ -245,6 +250,7 @@ export function MobileChartModal({ panel }: { panel: ChartPanel }) {
     range: panel.range,
     liveMid,
   });
+  const countdown = useCandleCountdown(panel.interval);
 
   return (
     <div className={styles.mobileModal}>
@@ -268,6 +274,9 @@ export function MobileChartModal({ panel }: { panel: ChartPanel }) {
               onClick={() => update(panel.id, { interval: i })}
             >{i}</button>
           ))}
+          <span className={styles.countdown} title={`Next ${panel.interval} bar closes in ${countdown}`}>
+            {countdown}
+          </span>
         </div>
         <div className={styles.ranges}>
           {RANGES.map((r) => (

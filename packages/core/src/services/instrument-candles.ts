@@ -832,6 +832,12 @@ export async function fetchCoincallKline(
 // auth-gated (signed v4: KEY/SIGN/Timestamp); we sign it when credentials
 // are configured and otherwise fall back to the MarkHistoryBuffer so untraded
 // strikes still get a mark line.
+//
+// Deribit's get_mark_price_history is restricted to options that participate
+// in volatility index calculations — every other strike (and all futures/
+// perpetuals) returns []. The MarkHistoryBuffer overlay covers the gap so
+// the chart still shows a live mark line for ordinary strikes the user has
+// open in the chain.
 const SUPPORTED_VENUES = new Set<VenueId>([
   'deribit', 'binance', 'okx', 'gateio', 'bybit', 'derive', 'thalex', 'coincall',
 ]);
@@ -929,11 +935,26 @@ export class InstrumentCandleService {
     range: InstrumentCandleRange,
   ): Promise<[RawCandle[], RawCandle[]]> {
     switch (venue) {
-      case 'deribit':
-        return Promise.all([
+      case 'deribit': {
+        const buffer = this.markHistoryBuffer;
+        // get_mark_price_history is restricted by Deribit to options that
+        // participate in volatility index calculations — all other strikes
+        // (and every future/perpetual) come back as []. Overlay the live
+        // MarkHistoryBuffer so the chart still has a mark line for ordinary
+        // strikes; REST mark wins on overlap when the venue does provide it.
+        const [tradeCandles, markCandles] = await Promise.all([
           fetchDeribitTrade(symbol, interval, range),
           fetchDeribitMark(symbol, interval, range),
         ]);
+        const bufferedMark = buffer?.getMarkCandles(
+          'deribit',
+          symbol,
+          INTERVAL_TO_MS[interval],
+          RANGE_TO_MS[range],
+        );
+        const mark = mergeCandlesByTs(markCandles, bufferedMark ?? []);
+        return [tradeCandles, mark];
+      }
       case 'binance':
         return Promise.all([
           fetchBinanceTrade(symbol, interval, range),

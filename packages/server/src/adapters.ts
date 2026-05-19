@@ -14,12 +14,13 @@ import {
   type TradeRuntime,
 } from '@oggregator/core';
 
+const deribitAdapter = new DeribitWsAdapter();
 const deriveAdapter = new DeriveWsAdapter();
 const coincallAdapter = new CoincallWsAdapter();
 const gateioAdapter = new GateioWsAdapter();
 
 const adapters = [
-  new DeribitWsAdapter(),
+  deribitAdapter,
   new OkxWsAdapter(),
   new BinanceWsAdapter(),
   new BybitWsAdapter(),
@@ -50,6 +51,9 @@ export async function bootstrapAdapters(
   //     many sparse altcoin strikes that never trade
   //   - coincall: kline REST is auth-gated; the WS bsInfo `mp` is already on
   //     the chain socket so this is the cheap source
+  //   - deribit: get_mark_price_history is restricted by the venue to options
+  //     that participate in volatility index calculations; every other strike
+  //     returns []. Recording WS marks lets the chart fall back to live data.
   // The chain adapters subscribe on demand (when a user views the chain), so
   // the buffer warms up alongside whatever the user is browsing.
   const buffer = deps.markHistoryBuffer;
@@ -57,7 +61,7 @@ export async function bootstrapAdapters(
     const markRecorder = (event: QuoteRecorderEvent) => {
       buffer.recordMark(event.venue, event.exchangeSymbol, event.ts, event.markPrice);
     };
-    for (const adapter of [deriveAdapter, coincallAdapter, gateioAdapter]) {
+    for (const adapter of [deribitAdapter, deriveAdapter, coincallAdapter, gateioAdapter]) {
       if (typeof adapter.addQuoteRecorder === 'function') {
         quoteRecorderUnsubs.push(adapter.addQuoteRecorder(markRecorder));
       }
