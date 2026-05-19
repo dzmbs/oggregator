@@ -10,6 +10,7 @@ export const CHART_SUPPORTED_VENUES: readonly VenueId[] = [
   'bybit',
   'derive',
   'thalex',
+  'coincall',
 ];
 
 export function isChartSupportedVenue(v: VenueId): boolean {
@@ -47,6 +48,8 @@ export function toVenueSymbol(args: ToVenueSymbolArgs): string {
       return formatDerive(args);
     case 'thalex':
       return formatThalex(args);
+    case 'coincall':
+      return formatCoincall(args);
     default:
       throw new NotSupportedVenueError(args.venue);
   }
@@ -113,4 +116,12 @@ function formatThalex({ underlying, expiry, strike, type }: ToVenueSymbolArgs): 
   const { day, month, year } = parseExpiry(expiry);
   const yr = String(year).slice(-2);
   return `${underlying}-${day}${MONTHS[month]}${yr}-${String(strike)}-${type === 'call' ? 'C' : 'P'}`;
+}
+
+function formatCoincall({ underlying, expiry, strike, type }: ToVenueSymbolArgs): string {
+  // {BASE}USD-{DDMMMYY}-{STRIKE}-{C|P} — e.g. BTCUSD-27JUN26-70000-C.
+  // Day is unpadded; regex in feeds/coincall/types.ts accepts \d{1,2}.
+  const { day, month, year } = parseExpiry(expiry);
+  const yr = String(year).slice(-2);
+  return `${underlying}USD-${day}${MONTHS[month]}${yr}-${String(strike)}-${type === 'call' ? 'C' : 'P'}`;
 }

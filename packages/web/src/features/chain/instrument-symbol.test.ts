@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import type { VenueId } from '@oggregator/protocol';
 import { toVenueSymbol, NotSupportedVenueError } from './instrument-symbol.js';
 
 describe('toVenueSymbol', () => {
@@ -72,9 +73,17 @@ describe('toVenueSymbol', () => {
     })).toBe('BTC-26JUN26-80000-C');
   });
 
-  it('throws NotSupportedVenueError for unsupported venues', () => {
+  it('formats Coincall BTC call (BASE+USD-DDMMMYY)', () => {
+    expect(toVenueSymbol({
+      venue: 'coincall', underlying: 'BTC', expiry: '2026-06-27',
+      strike: 70000, type: 'call',
+    })).toBe('BTCUSD-27JUN26-70000-C');
+  });
+
+  it('throws NotSupportedVenueError for unknown venues', () => {
     expect(() =>
-      toVenueSymbol({ venue: 'coincall', underlying: 'BTC', expiry: '2026-06-27', strike: 70000, type: 'call' }),
+      // Force an unknown venue at runtime to exercise the default branch.
+      toVenueSymbol({ venue: 'kraken' as unknown as VenueId, underlying: 'BTC', expiry: '2026-06-27', strike: 70000, type: 'call' }),
     ).toThrow(NotSupportedVenueError);
   });
 
