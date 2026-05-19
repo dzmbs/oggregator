@@ -707,13 +707,17 @@ export async function fetchThalexMark(
 }
 
 // ── Coincall ───────────────────────────────────────────────────────
-// Path: GET /open/option/market/kline/v1/{symbol}
-// Probing without auth returns code:4003 "token auth fail" — so we sign
-// every call (HMAC-SHA256, see feeds/coincall/rest-client.ts). The kline
-// endpoint isn't fully documented in the references we have; we go with
-// the same `period` naming Coincall uses on the WS kline channel (m1, m5,
-// m15, h1, h4, d1). If the param schema is wrong, we surface a structured
-// warn and fall back to the live MarkHistoryBuffer in the caller.
+// Path: GET /open/option/market/kline/history/v1/{optionName}
+// Signed (HMAC-SHA256 — see feeds/coincall/rest-client.ts). Required query
+// params per Coincall docs:
+//   period: m1 | m5 | m15 | m30 | h1 | h4 | d1 | w1 | mn1 | quarter
+//   start:  start time in ms
+//   end:    end time in ms
+//   limit:  documented as "must be 1" — server still returns the full bar
+//           series; we send 1 to match the docs verbatim.
+// Response rows use { open, close, low, high, volume, time, period } with
+// `time` in ms and numeric OHLCV. The schema below is intentionally lenient
+// so the WS field naming (ts/t/o/h/l/c/v) parses too.
 const INTERVAL_TO_COINCALL: Record<InstrumentCandleInterval, string> = {
   '1m': 'm1', '5m': 'm5', '15m': 'm15', '1h': 'h1', '4h': 'h4', '1d': 'd1',
 };
@@ -753,18 +757,23 @@ const CoincallKlineResponseSchema = z.object({
 export async function fetchCoincallKline(
   symbol: string,
   interval: InstrumentCandleInterval,
+  range: InstrumentCandleRange,
 ): Promise<RawCandle[]> {
   const credentials = loadCoincallCredentials();
   if (credentials == null) return [];
 
-  const path = `/open/option/market/kline/v1/${symbol}`;
-  // `size` is a best-guess for the row-count param (Coincall accepts the
-  // request without it; with it, more rows come back when the endpoint
-  // supports it — silently ignored otherwise per the lastTrade precedent).
+  const path = `/open/option/market/kline/history/v1/${symbol}`;
+  const end = Date.now();
+  const start = end - RANGE_TO_MS[range];
   const { url, headers } = signCoincallRequest(
     'GET',
     path,
-    { period: INTERVAL_TO_COINCALL[interval], size: 1000 },
+    {
+      end,
+      limit: 1,
+      period: INTERVAL_TO_COINCALL[interval],
+      start,
+    },
     credentials,
   );
 
@@ -969,7 +978,7 @@ export class InstrumentCandleService {
         // mark via bsInfo `mp`, TradeRuntime feeds prints). When REST is
         // empty (auth missing, network error, untraded contract), fall back
         // to buffer alone.
-        const restPromise = fetchCoincallKline(symbol, interval).catch((err: unknown) => {
+        const restPromise = fetchCoincallKline(symbol, interval, range).catch((err: unknown) => {
           if (err instanceof InstrumentCandlesError) throw err;
           log.warn({ symbol, err: String(err) }, 'coincall kline fetch error');
           return [] as RawCandle[];

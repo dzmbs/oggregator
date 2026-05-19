@@ -159,11 +159,15 @@ describe('InstrumentCandleService — Derive buffer integration', () => {
 
     const res = await svc.getCandles('coincall', 'BTCUSD-22MAY26-110000-C', '1m', '1d');
 
-    // REST kline was called once with signed headers.
+    // REST kline was called once with signed headers and the documented
+    // /kline/history/v1 path plus start/end/limit per Coincall's spec.
     expect(fetchSpy).toHaveBeenCalledTimes(1);
     const [calledUrl, calledInit] = fetchSpy.mock.calls[0] as [string, RequestInit];
-    expect(calledUrl).toContain('/open/option/market/kline/v1/BTCUSD-22MAY26-110000-C');
+    expect(calledUrl).toContain('/open/option/market/kline/history/v1/BTCUSD-22MAY26-110000-C');
     expect(calledUrl).toContain('period=m1');
+    expect(calledUrl).toMatch(/start=\d+/);
+    expect(calledUrl).toMatch(/end=\d+/);
+    expect(calledUrl).toContain('limit=1');
     const headers = calledInit.headers as Record<string, string>;
     expect(headers['X-CC-APIKEY']).toBe('test-key');
     expect(headers.sign).toMatch(/^[0-9A-F]+$/);
