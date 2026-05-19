@@ -15,8 +15,10 @@ import {
   disposeServiceStores,
   dvolService,
   flowService,
+  indexPriceService,
   ivHistoryService,
   ivHistoryStore,
+  markHistoryBuffer,
   spotCandleService,
   spotService,
   tradeStore,
@@ -135,6 +137,7 @@ export async function buildApp(): Promise<FastifyInstance> {
     spotService.dispose();
     spotCandleService.dispose();
     dvolService.dispose();
+    indexPriceService.dispose();
     ivHistoryService.dispose();
     disposeServiceStores();
     await disposePortfolioServices();
@@ -181,7 +184,10 @@ export async function buildApp(): Promise<FastifyInstance> {
     });
   }
 
-  bootstrap = bootstrapAdapters(app.log).then(async () => {
+  bootstrap = bootstrapAdapters(app.log, {
+    markHistoryBuffer,
+    tradeRuntime: flowService,
+  }).then(async () => {
     if (shuttingDown) return;
     ready = true;
     try {

@@ -124,12 +124,26 @@ export {
   type SpotSnapshot,
 } from './runtime/spot/index.js';
 
+export {
+  IndexPriceRuntime,
+  type IndexPriceRuntimeStartOptions,
+} from './runtime/index-price/index-price-runtime.js';
+
+export { toGateioRestBase, fromGateioRestBase } from './feeds/gateio/aliases.js';
+
 // services
 export {
   InstrumentCandleService,
   instrumentCandleService,
   InstrumentCandlesError,
+  type InstrumentCandleServiceOptions,
 } from './services/instrument-candles.js';
+export {
+  MarkHistoryBuffer,
+  mergeBaseBuckets,
+  type MarkHistoryBufferOptions,
+  type RawCandle,
+} from './services/mark-history-buffer.js';
 export { DvolService, type DvolSnapshot, type DvolCandle, type HvPoint } from './services/dvol.js';
 export {
   SpotCandleService,

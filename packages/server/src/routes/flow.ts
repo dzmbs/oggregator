@@ -7,7 +7,7 @@ import {
   type TradeEvent,
 } from '@oggregator/core';
 import type { PersistedTradeRecord, TradeHistoryQuery } from '@oggregator/db';
-import { flowService, isFlowReady, spotService, tradeStore } from '../services.js';
+import { flowService, indexPriceService, isFlowReady, spotService, tradeStore } from '../services.js';
 
 interface EnrichedTradeEvent extends TradeEvent {
   tradeUid: string;
@@ -240,7 +240,10 @@ export async function flowRoute(app: FastifyInstance) {
 }
 
 function enrichLiveTrade(trade: TradeEvent): EnrichedTradeEvent {
-  const referencePriceUsd = trade.indexPrice ?? getSpotPriceUsd(trade.underlying);
+  const referencePriceUsd =
+    trade.indexPrice ??
+    getSpotPriceUsd(trade.underlying) ??
+    indexPriceService.get(trade.venue, trade.underlying);
   const amounts = computeLiveTradeAmounts(trade, referencePriceUsd);
 
   return {

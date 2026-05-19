@@ -20,6 +20,7 @@ import {
   THALEX_MARKET_WS_URL,
 } from '../../feeds/shared/endpoints.js';
 import { buildSignedWsUrl } from '../../feeds/coincall/ws-client.js';
+import { toGateioRestBase } from '../../feeds/gateio/aliases.js';
 import { GateioWsEnvelopeSchema, GateioWsTradeSchema } from '../../feeds/gateio/types.js';
 import type { VenueId } from '../../types/common.js';
 import { startEventLoopLagMonitor } from '../../utils/event-loop-lag.js';
@@ -580,8 +581,11 @@ function gateioRowsToTradeEvents(
   rows: z.infer<typeof GateioTradeListSchema>,
   underlying: string,
 ): TradeEvent[] {
-  const base = normalizeTradeUnderlying(underlying);
-  const prefix = `${base}_USDT-`;
+  // `publicBase` is the canonical name surfaced to the rest of the system
+  // (e.g. 'XTI'); `restBase` matches Gate.io's contract prefix (e.g. 'CL').
+  const publicBase = normalizeTradeUnderlying(underlying);
+  const restBase = toGateioRestBase(publicBase);
+  const prefix = `${restBase}_USDT-`;
   const out: TradeEvent[] = [];
   for (const t of rows) {
     if (!t.contract.startsWith(prefix)) continue;
@@ -596,7 +600,7 @@ function gateioRowsToTradeEvents(
       venue: 'gateio',
       tradeId: `${t.contract}:${t.id}`,
       instrument: t.contract,
-      underlying: base,
+      underlying: publicBase,
       side,
       price: priceNum,
       size: magnitude,
@@ -611,9 +615,10 @@ function gateioRowsToTradeEvents(
 }
 
 async function fetchGateioRecentTrades(underlying: string): Promise<TradeEvent[]> {
-  const base = normalizeTradeUnderlying(underlying);
+  const publicBase = normalizeTradeUnderlying(underlying);
+  const restBase = toGateioRestBase(publicBase);
   const url = new URL(GATEIO_OPTIONS_TRADES, GATEIO_REST_BASE_URL);
-  url.searchParams.set('underlying', `${base}_USDT`);
+  url.searchParams.set('underlying', `${restBase}_USDT`);
   url.searchParams.set('limit', String(GATEIO_TRADE_SEED_LIMIT));
   const res = await fetch(url, { signal: AbortSignal.timeout(GATEIO_REST_TIMEOUT_MS) });
   // Gate.io returns 400 CONTRACT_NOT_FOUND for underlyings it doesn't list
@@ -624,7 +629,7 @@ async function fetchGateioRecentTrades(underlying: string): Promise<TradeEvent[]
   const data = (await res.json()) as unknown;
   const parsed = GateioTradeListSchema.safeParse(data);
   if (!parsed.success) return [];
-  return gateioRowsToTradeEvents(parsed.data, base);
+  return gateioRowsToTradeEvents(parsed.data, publicBase);
 }
 
 function chunkArray<T>(items: T[], size: number): T[][] {
@@ -1464,11 +1469,14 @@ export const VENUE_STREAMS: VenueStream[] = [
     },
     seed: fetchGateioRecentTrades,
     connect(ws, underlying) {
-      const base = normalizeTradeUnderlying(underlying);
+      // `restBase` is what Gate.io expects in the contracts query (`CL_USDT`
+      // for the frontend's `XTI`); contract names from the response keep that
+      // prefix and the parse step matches them as-is.
+      const restBase = toGateioRestBase(normalizeTradeUnderlying(underlying));
       // options.trades is per-contract — fetch the live contract list and
       // chunk-subscribe (50 per frame). REST happens async after `open`; trades
       // start flowing on whichever batch lands first.
-      void fetchGateioContractNames(base)
+      void fetchGateioContractNames(restBase)
         .then((contracts) => {
           if (ws.readyState !== WebSocket.OPEN) return;
           const time = Math.floor(Date.now() / 1000);
@@ -1485,7 +1493,7 @@ export const VENUE_STREAMS: VenueStream[] = [
         })
         .catch((err: unknown) => {
           log.warn(
-            { venue: 'gateio', underlying: base, err: String(err) },
+            { venue: 'gateio', underlying: restBase, err: String(err) },
             'gateio trade contract enumeration failed',
           );
         });
