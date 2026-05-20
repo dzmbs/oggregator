@@ -40,3 +40,14 @@
   font-family: var(--font-mono);
   font-size: var(--text-sm);
 }
+
+@media (max-width: 768px) {
+  .wrap {
+    min-height: 280px;
+  }
+
+  .header {
+    flex-wrap: wrap;
+    row-gap: var(--space-1);
+  }
+}

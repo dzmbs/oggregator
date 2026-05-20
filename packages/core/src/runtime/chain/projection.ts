@@ -132,7 +132,7 @@ export class ChainProjection {
       (left, right) => left.strike - right.strike,
     );
     const stats = computeChainStats(strikes, venueChains);
-    const spotPrice = stats.spotIndexUsd ?? stats.indexPriceUsd ?? 0;
+    const spotPrice = stats.indexPriceUsd ?? stats.forwardPriceUsd ?? 0;
     const gex = computeGex([...this.comparisonRows.values()], strikes, spotPrice);
     const patchStrikes = [...changedStrikes]
       .sort((left, right) => left - right)

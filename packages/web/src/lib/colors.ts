@@ -48,6 +48,22 @@ export function spreadLevel(pct: number | null): SpreadLevel {
   return 'red';
 }
 
+// ── Forward drift semaphore ───────────────────────────────────────────────
+// |Δ / atmStrike| expressed in basis points. Below 1 bps the venue's forward
+// is in consensus (any price divergence reflects real MM skew). Above 3 bps
+// the venue's forward is drifting and cheap/expensive option prices are
+// mostly forward, not edge.
+
+export type ForwardLevel = 'green' | 'amber' | 'red' | 'muted';
+
+export function forwardDriftLevel(deltaBps: number | null): ForwardLevel {
+  if (deltaBps == null || !Number.isFinite(deltaBps)) return 'muted';
+  const m = Math.abs(deltaBps);
+  if (m < 1) return 'green';
+  if (m < 3) return 'amber';
+  return 'red';
+}
+
 // ── Venue colors ──────────────────────────────────────────────────────────
 
 export const VENUE_COLORS: Record<string, string> = {
@@ -55,11 +71,46 @@ export const VENUE_COLORS: Record<string, string> = {
   okx: '#e8eaf0',
   binance: '#F0B90B',
   bybit: '#F7A600',
-  derive: '#25FAAF',
+  derive: '#FF8A3D',
+  coincall: '#1FE086',
+  thalex: '#5DADE2',
+  gateio: '#E5374E',
 };
 
 export function venueColor(venueId: string): string {
   return VENUE_COLORS[venueId] ?? '#8b909e';
+}
+
+export const VENUE_GRADIENTS: Record<string, string> = {
+  derive: 'linear-gradient(135deg, #FFB347 0%, #FF6F3C 100%)',
+};
+
+export function venueGradient(venueId: string): string | null {
+  return VENUE_GRADIENTS[venueId] ?? null;
+}
+
+// ── Delta-bucket color ramp ───────────────────────────────────────────────
+// Cool (puts) → bright (ATM) → warm (calls). Used to color the multi-delta
+// term-structure curves so OTM puts and OTM calls visually separate.
+
+export function deltaColor(delta: number): string {
+  if (Math.abs(delta - 0.5) < 1e-6) return '#FFFFFF';
+  if (delta < 0.5) {
+    const t = delta / 0.5;
+    const hue = 210 - 30 * t;
+    const light = 40 + 30 * t;
+    return `hsl(${hue}, 70%, ${light}%)`;
+  }
+  const t = (delta - 0.5) / 0.5;
+  const hue = 50 - 50 * t;
+  const light = 65 - 25 * t;
+  return `hsl(${hue}, 75%, ${light}%)`;
+}
+
+export function deltaLabel(delta: number): string {
+  if (Math.abs(delta - 0.5) < 1e-6) return 'ATM';
+  if (delta < 0.5) return `${Math.round(delta * 100)}Δ Put`;
+  return `${Math.round((1 - delta) * 100)}Δ Call`;
 }
 
 // ── IV surface heatmap color ───────────────────────────────────────────────

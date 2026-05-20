@@ -13,4 +13,6 @@ src/stores/            Zustand (UI state only)
 src/shared-types/      Types mirroring core enrichment output
 ```
 
-TanStack Query for server state. Zustand for UI state. IV stored as fractions, displayed via `fmtIv(v) = v × 100 + "%"`. CSS Modules for all components.
+Notable features: `chain/`, `surface/`, `portfolio/`, `trading/`, `flow/`, `analytics/`, `alpha/`, `dvol/`.
+
+TanStack Query for server state. Zustand for UI state. IV stored as fractions, displayed via `fmtIv(v) = v × 100 + "%"`. CSS Modules for all components. Prefer `@oggregator/protocol` types for portfolio and trading payloads.

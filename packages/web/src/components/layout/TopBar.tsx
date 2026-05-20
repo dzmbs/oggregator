@@ -1,5 +1,9 @@
 import { useAppStore } from '@stores/app-store';
 
+import ExpiryCountdown from '@components/ui/ExpiryCountdown';
+import AccountChip from './AccountChip';
+import FreshnessLabel from './FreshnessLabel';
+import VenueStatusRow from './VenueStatusRow';
 import styles from './TopBar.module.css';
 
 interface Tab {
@@ -16,20 +20,12 @@ interface TopBarProps {
 export default function TopBar({ tabs, onOpenPalette }: TopBarProps) {
   const activeTab = useAppStore((s) => s.activeTab);
   const setActiveTab = useAppStore((s) => s.setActiveTab);
-  const activeVenues = useAppStore((s) => s.activeVenues);
-  const feedStatus = useAppStore((s) => s.feedStatus);
-
-  const { connectionState, failedVenueCount, staleMs } = feedStatus;
-  const activeFeeds = activeVenues.length - failedVenueCount;
-  const isLive = connectionState === 'live';
-  const isWarning = connectionState === 'reconnecting' || connectionState === 'stale';
-  const statusText =
-    isLive && staleMs != null ? `${activeFeeds} feeds · ${staleMs}ms` : `${activeFeeds} feeds`;
+  const connectionState = useAppStore((s) => s.feedStatus.connectionState);
 
   return (
     <header className={styles.bar}>
-      <a href="#" className={styles.logo}>
-        oggregator
+      <a href="#" className={styles.logo} aria-label="oggregator">
+        <img src="/oggregator-logo.svg" alt="oggregator" />
       </a>
 
       <div className={styles.pillGroup} role="tablist">
@@ -49,15 +45,14 @@ export default function TopBar({ tabs, onOpenPalette }: TopBarProps) {
       </div>
 
       <div className={styles.right}>
-        <div className={styles.status}>
-          <span
-            className={styles.statusDot}
-            data-state={connectionState}
-            data-warning={isWarning}
-            data-live={isLive}
-          />
-          <span>{statusText}</span>
+        <ExpiryCountdown />
+        <div className={styles.status} data-state={connectionState}>
+          <VenueStatusRow />
+          <span className={styles.freshness}>
+            <FreshnessLabel />
+          </span>
         </div>
+        <AccountChip />
         <button className={styles.cmdk} onClick={onOpenPalette}>
           ⌘K
         </button>

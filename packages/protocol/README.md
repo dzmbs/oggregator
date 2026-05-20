@@ -1,23 +1,22 @@
 # @oggregator/protocol
 
-Shared Zod schemas and TypeScript types for the chain WebSocket protocol between server and web client.
+Shared Zod schemas and TypeScript types for server/web contracts: chain streaming, paper trading, portfolio analytics, and private venue credentials.
 
 ## What's in here
 
-- `VenueId` — branded union of supported venue identifiers
-- `WsSubscriptionRequest` / `ClientWsMessage` — client to server message schemas
-- `ServerWsMessage` / `SnapshotMeta` — server to client message schemas
-- `VenueFailure` — per-venue error reporting
-- `WsConnectionState` — connection lifecycle states
+- `ws.ts` — chain websocket subscriptions, snapshots, deltas, and venue failure metadata
+- `paper.ts` — paper trading request/response and websocket payloads
+- `portfolio.ts` — positions, portfolio metrics, pnl curve, scenario analysis, and portfolio websocket payloads
+- `venue-credentials.ts` — private venue credential specs and connection status payloads
 
-All schemas are Zod-validated at I/O boundaries. Types are inferred from schemas, no manual type/schema drift.
+All schemas are Zod-validated at I/O boundaries. Types are inferred from schemas so server and web do not drift on payload shape.
 
 ## Usage
 
 ```typescript
-import { ServerWsMessageSchema, type ServerWsMessage } from "@oggregator/protocol";
+import { PortfolioWsServerMessageSchema, type PortfolioWsServerMessage } from '@oggregator/protocol';
 
-const parsed = ServerWsMessageSchema.safeParse(JSON.parse(raw));
+const parsed = PortfolioWsServerMessageSchema.safeParse(JSON.parse(raw));
 if (!parsed.success) return;
 handleMessage(parsed.data);
 ```

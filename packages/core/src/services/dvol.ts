@@ -104,22 +104,47 @@ export class DvolService {
   // ── History fetch ─────────────────────────────────────────────
 
   private async fetchHistory(currency: string): Promise<void> {
-    const oneYearAgo = Date.now() - 365 * 24 * 60 * 60 * 1000;
+    const MS_PER_DAY = 24 * 60 * 60 * 1000;
+    const now = Date.now();
+    const oneYearAgo = now - 365 * MS_PER_DAY;
+    const thirtyDaysAgo = now - 30 * MS_PER_DAY;
 
-    const raw = await this.rpc!.call('public/get_volatility_index_data', {
-      currency,
-      start_timestamp: oneYearAgo,
-      end_timestamp: Date.now(),
-      resolution: '1D',
-    });
+    // Daily for the 52-week IVR window, hourly for the recent overlap with HV.
+    // Hourly matches Deribit HV's native 1h resolution so the chart's categorical
+    // time axis spaces both series at the same cadence — without this, hourly HV
+    // points stretch each daily DVOL bar across 24 slots and the line goes flat.
+    const [dailyRaw, hourlyRaw] = await Promise.all([
+      this.rpc!.call('public/get_volatility_index_data', {
+        currency,
+        start_timestamp: oneYearAgo,
+        end_timestamp: thirtyDaysAgo,
+        resolution: '1D',
+      }),
+      this.rpc!.call('public/get_volatility_index_data', {
+        currency,
+        start_timestamp: thirtyDaysAgo,
+        end_timestamp: now,
+        resolution: '3600',
+      }),
+    ]);
 
-    const parsed = CandlesResultSchema.safeParse(raw);
-    if (!parsed.success || parsed.data.data.length === 0) {
+    const dailyParsed = CandlesResultSchema.safeParse(dailyRaw);
+    const hourlyParsed = CandlesResultSchema.safeParse(hourlyRaw);
+    const dailyData = dailyParsed.success ? dailyParsed.data.data : [];
+    const hourlyData = hourlyParsed.success ? hourlyParsed.data.data : [];
+
+    if (dailyData.length === 0 && hourlyData.length === 0) {
       log.warn({ currency }, 'no DVOL candles returned');
       return;
     }
 
-    const candles = parsed.data.data;
+    const merged = [...dailyData, ...hourlyData].sort((a, b) => a[0] - b[0]);
+    const candles: typeof merged = [];
+    for (const c of merged) {
+      const tail = candles[candles.length - 1];
+      if (tail && tail[0] === c[0]) candles[candles.length - 1] = c;
+      else candles.push(c);
+    }
 
     this.candleHistory.set(
       currency,
@@ -140,7 +165,17 @@ export class DvolService {
     }
 
     const last = candles[candles.length - 1]!;
-    const prev = candles.length >= 2 ? candles[candles.length - 2]! : last;
+
+    // ivChange1d compares against yesterday's close, not the previous candle —
+    // with hourly granularity the previous candle is one hour ago.
+    const todayMidnightMs = Math.floor(now / MS_PER_DAY) * MS_PER_DAY;
+    let prev = last;
+    for (let i = candles.length - 1; i >= 0; i--) {
+      if (candles[i]![0] < todayMidnightMs) {
+        prev = candles[i]!;
+        break;
+      }
+    }
 
     this.snapshots.set(currency, this.buildSnapshot(currency, last[4], prev[4], high52w, low52w));
 
@@ -150,6 +185,8 @@ export class DvolService {
         current: (last[4] / 100).toFixed(4),
         ivr: this.snapshots.get(currency)!.ivr.toFixed(1),
         candles: candles.length,
+        daily: dailyData.length,
+        hourly: hourlyData.length,
       },
       'DVOL history loaded',
     );
@@ -200,6 +237,32 @@ export class DvolService {
       existing.low52w * 100,
     );
     this.snapshots.set(currency, snapshot);
+
+    this.upsertLiveCandle(currency, parsed.data.volatility);
+  }
+
+  /** Keep the current hour's candle in sync with the live push so the chart's right edge advances between Deribit's hourly closes. Hourly buckets align with how `fetchHistory` requests recent candles (resolution='3600'). */
+  private upsertLiveCandle(currency: string, valuePct: number): void {
+    const candles = this.candleHistory.get(currency);
+    if (!candles?.length) return;
+
+    const HOUR_MS = 60 * 60 * 1000;
+    const currentHourMs = Math.floor(Date.now() / HOUR_MS) * HOUR_MS;
+    const last = candles[candles.length - 1]!;
+
+    if (last.timestamp >= currentHourMs) {
+      last.close = valuePct;
+      if (valuePct > last.high) last.high = valuePct;
+      if (valuePct < last.low) last.low = valuePct;
+    } else {
+      candles.push({
+        timestamp: currentHourMs,
+        open: valuePct,
+        high: valuePct,
+        low: valuePct,
+        close: valuePct,
+      });
+    }
   }
 
   // ── Helpers ───────────────────────────────────────────────────
@@ -238,7 +301,7 @@ export class DvolService {
       await Promise.allSettled(
         this.currencies.map(async (currency) => {
           try {
-            await this.fetchHistory(currency);
+            await Promise.all([this.fetchHistory(currency), this.fetchHv(currency)]);
           } catch (err: unknown) {
             log.warn({ currency, err: String(err) }, 'DVOL refresh failed');
           }

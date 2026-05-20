@@ -1,10 +1,13 @@
 import { Pool } from 'pg';
 
 import type {
+  InstrumentListQuery,
+  InstrumentSummary,
   RecentTradeQuery,
   TradeFilterQuery,
   TradeHistoryQuery,
   TradeHistorySummary,
+  TradePruneResult,
   TradeStore,
   TradeVenueSummary,
 } from './trade-store.js';
@@ -18,7 +21,14 @@ export class PostgresTradeStore implements TradeStore {
   constructor(private readonly pool: Pool) {}
 
   static fromConnectionString(connectionString: string): PostgresTradeStore {
-    return new PostgresTradeStore(new Pool({ connectionString }));
+    return new PostgresTradeStore(
+      new Pool({
+        connectionString,
+        connectionTimeoutMillis: 10_000,
+        statement_timeout: 15_000,
+        query_timeout: 15_000,
+      }),
+    );
   }
 
   async writeMany(records: PersistedTradeRecord[]): Promise<void> {
@@ -81,7 +91,7 @@ export class PostgresTradeStore implements TradeStore {
           legs,
           raw
         ) VALUES ${placeholders.join(', ')}
-        ON CONFLICT (trade_uid) DO NOTHING`,
+        ON CONFLICT (trade_uid, trade_ts) DO NOTHING`,
         values,
       );
     }
@@ -171,6 +181,70 @@ export class PostgresTradeStore implements TradeStore {
     };
   }
 
+  async listInstruments(query: InstrumentListQuery): Promise<InstrumentSummary[]> {
+    const built = buildWhere(query);
+    built.values.push(query.limit);
+    const limitParam = `$${built.values.length}`;
+
+    const result = await this.pool.query<InstrumentSummaryRow>(
+      `WITH filtered AS (
+        SELECT
+          instrument_name,
+          trade_ts,
+          price,
+          reference_price_usd,
+          option_type,
+          strike,
+          expiry,
+          ROW_NUMBER() OVER (PARTITION BY instrument_name ORDER BY trade_ts DESC, trade_uid DESC) AS rn
+        FROM flow_trades
+        ${buildWhereSql(built)}
+      ),
+      latest AS (
+        SELECT instrument_name, price, reference_price_usd, option_type, strike, expiry, trade_ts
+        FROM filtered
+        WHERE rn = 1
+      ),
+      counts AS (
+        SELECT instrument_name, COUNT(*)::bigint AS count
+        FROM filtered
+        GROUP BY instrument_name
+      )
+      SELECT
+        latest.instrument_name,
+        counts.count,
+        latest.trade_ts,
+        latest.price,
+        latest.reference_price_usd,
+        latest.option_type,
+        latest.strike,
+        latest.expiry
+      FROM latest
+      JOIN counts USING (instrument_name)
+      ORDER BY counts.count DESC, latest.trade_ts DESC
+      LIMIT ${limitParam}`,
+      built.values,
+    );
+
+    return result.rows.map(mapInstrumentRow);
+  }
+
+  async pruneHistory(beforeTs: Date): Promise<TradePruneResult> {
+    const result = await this.pool.query('DELETE FROM flow_trades WHERE trade_ts < $1', [beforeTs]);
+    return { deleted: result.rowCount ?? 0 };
+  }
+
+  async ensureForwardPartitions(monthsAhead: number): Promise<void> {
+    // Also create the previous month — venues sometimes replay recent trades
+    // with timestamps a few hours/days behind on resubscribe.
+    for (let i = -1; i <= monthsAhead; i += 1) {
+      await this.pool.query(
+        `SELECT flow_trades_ensure_month_partition(now() + ($1 || ' months')::INTERVAL)`,
+        [i],
+      );
+    }
+  }
+
   async dispose(): Promise<void> {
     await this.pool.end();
   }
@@ -197,6 +271,11 @@ function buildWhere(query: TradeFilterQuery): BuiltWhere {
   if (query.venues && query.venues.length > 0) {
     built.values.push(query.venues);
     built.clauses.push(`venue = ANY($${built.values.length}::text[])`);
+  }
+
+  if (query.instrumentName) {
+    built.values.push(query.instrumentName);
+    built.clauses.push(`instrument_name = $${built.values.length}`);
   }
 
   if (query.startTs) {
@@ -317,6 +396,30 @@ function mapVenueSummaryRow(row: VenueSummaryRow): TradeVenueSummary {
     count: Number(row.count),
     premiumUsd: toNumber(row.premium_usd) ?? 0,
     notionalUsd: toNumber(row.notional_usd) ?? 0,
+  };
+}
+
+interface InstrumentSummaryRow {
+  instrument_name: string;
+  count: string;
+  trade_ts: Date;
+  price: string | null;
+  reference_price_usd: string | null;
+  option_type: 'call' | 'put' | null;
+  strike: string | null;
+  expiry: string | null;
+}
+
+function mapInstrumentRow(row: InstrumentSummaryRow): InstrumentSummary {
+  return {
+    instrument: row.instrument_name,
+    count: Number(row.count),
+    lastTs: row.trade_ts,
+    lastPrice: toNumber(row.price),
+    lastReferencePriceUsd: toNumber(row.reference_price_usd),
+    optionType: row.option_type,
+    strike: toNumber(row.strike),
+    expiry: row.expiry,
   };
 }
 

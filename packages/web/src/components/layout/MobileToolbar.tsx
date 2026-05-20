@@ -1,7 +1,6 @@
 import { useState } from 'react';
 
 import { useAppStore } from '@stores/app-store';
-import { useOpenPalette } from './AppShell';
 import { MobileDrawer } from '@components/ui';
 import { getTokenLogo } from '@lib/token-meta';
 import { fmtUsdCompact, formatExpiry, dteDays } from '@lib/format';
@@ -9,6 +8,7 @@ import { useExpiries, useStats } from '@features/chain/queries';
 import VenueSidebar from '@features/chain/VenueSidebar';
 import MyIvInput from '@features/chain/MyIvInput';
 
+import { useOpenPalette } from './palette-context';
 import styles from './MobileToolbar.module.css';
 
 export default function MobileToolbar() {

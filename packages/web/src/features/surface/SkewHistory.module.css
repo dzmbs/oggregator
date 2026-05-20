@@ -1,0 +1,299 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  height: 100%;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.title {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--text-primary);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.tokenLogo {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+}
+
+.toggles {
+  display: inline-flex;
+  gap: var(--space-3);
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.toggleLabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  letter-spacing: 0.04em;
+}
+
+.toggleGroup {
+  display: inline-flex;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.toggleBtn {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-dim);
+  background: transparent;
+  border: none;
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.toggleBtn[data-active='true'] {
+  background: var(--color-accent, #50d2c1);
+  color: #0a0a0a;
+}
+
+.legend {
+  display: inline-flex;
+  gap: var(--space-4);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legendSwatch {
+  width: 14px;
+  height: 3px;
+  border-radius: 1px;
+  flex-shrink: 0;
+}
+
+.coverage {
+  margin-top: calc(var(--space-1) * -1);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+
+.coverage[data-short='true'] {
+  color: var(--color-warning);
+}
+
+.takeaway {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-primary);
+}
+
+.modeGuide {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  align-items: baseline;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+}
+
+.modeGuideTitle {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.modeGuideText {
+  color: var(--text-dim);
+}
+
+.chartArea {
+  flex: 1;
+  min-height: 260px;
+  display: flex;
+}
+
+.chartStack {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-3);
+  width: 100%;
+  min-height: 0;
+}
+
+.miniChart {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-height: 0;
+}
+
+.metricHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+
+.metricMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.metricRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.metricName {
+  font-weight: 700;
+}
+
+.metricBadge {
+  color: var(--text-dim);
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  padding: 0 6px;
+  line-height: 1.6;
+  font-size: 9px;
+}
+
+.metricInsight {
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.metricValue {
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+}
+
+.metricValue[data-zone='normal'] {
+  color: var(--color-profit);
+  border-color: rgba(0, 233, 151, 0.25);
+  background: rgba(0, 233, 151, 0.06);
+}
+
+.metricValue[data-zone='stretched'] {
+  color: var(--color-warning);
+  border-color: rgba(254, 249, 160, 0.25);
+  background: rgba(254, 249, 160, 0.06);
+}
+
+.metricValue[data-zone='extreme'] {
+  color: var(--color-loss);
+  border-color: rgba(203, 56, 85, 0.35);
+  background: rgba(203, 56, 85, 0.08);
+}
+
+.chartWrap {
+  position: relative;
+  flex: 1;
+  min-height: 112px;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.chartCanvas {
+  position: absolute;
+  inset: 0;
+}
+
+.empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-dim);
+  font-style: italic;
+  pointer-events: none;
+}
+
+@media (max-width: 768px) {
+  .header {
+    gap: var(--space-2);
+    row-gap: var(--space-1);
+  }
+
+  .toggles {
+    width: 100%;
+    gap: var(--space-2);
+    justify-content: flex-start;
+  }
+
+  .toggleLabel {
+    display: none;
+  }
+
+  .legend {
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-3);
+  }
+
+  .modeGuide {
+    letter-spacing: 0.02em;
+  }
+
+  .takeaway {
+    font-size: 10px;
+  }
+
+  .metricRow {
+    flex-wrap: wrap;
+    gap: 4px 8px;
+  }
+
+  .metricInsight {
+    white-space: normal;
+  }
+
+  .chartArea {
+    min-height: 240px;
+  }
+
+  .chartStack {
+    gap: var(--space-2);
+  }
+
+  .chartWrap {
+    min-height: 96px;
+  }
+}

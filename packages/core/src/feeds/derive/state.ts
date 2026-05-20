@@ -5,6 +5,7 @@ import type { DeriveInstrument, DeriveTicker } from './types.js';
 export interface DeriveInstrumentDetails {
   base: string;
   expiryRaw: string;
+  expirationTimestampMs: number | null;
   strike: number;
   right: 'call' | 'put';
 }
@@ -37,6 +38,7 @@ export function deriveInstrumentDetails(
     return {
       base: base ?? name.split('-')[0] ?? '',
       expiryRaw: `${yyyy}${mm}${dd}`,
+      expirationTimestampMs: details.expiry * 1000,
       strike,
       right,
     };
@@ -48,6 +50,7 @@ export function deriveInstrumentDetails(
   return {
     base: parts[1]!,
     expiryRaw: parts[2]!,
+    expirationTimestampMs: null,
     strike: Number(parts[3]),
     right: parts[4] === 'C' ? 'call' : 'put',
   };

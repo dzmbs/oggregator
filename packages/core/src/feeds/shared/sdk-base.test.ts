@@ -38,6 +38,14 @@ class TestSdkAdapter extends SdkBaseAdapter {
     return this.normPrice(raw, instrument);
   }
 
+  sweep(now?: number): CachedInstrument[] {
+    return this.sweepExpiredInstruments(now);
+  }
+
+  listCached(): CachedInstrument[] {
+    return [...this.instruments];
+  }
+
   override async fetchOptionChain(_request: ChainRequest): Promise<VenueOptionChain> {
     throw new Error('not implemented');
   }
@@ -102,6 +110,49 @@ describe('SdkBaseAdapter', () => {
     expect(onDelta).toHaveBeenCalledTimes(1);
     const [deltas] = onDelta.mock.calls[0] ?? [];
     expect(deltas).toHaveLength(2);
+  });
+
+  describe('sweepExpiredInstruments', () => {
+    // 2026-04-24 08:00 UTC — canonical 0DTE cutoff for all venues.
+    const EXPIRY_TS = Date.UTC(2026, 3, 24, 8, 0, 0);
+
+    function createExpiring(exchangeSymbol: string, expirationTimestamp: number | null): CachedInstrument {
+      return { ...createInstrument(exchangeSymbol, 70_000), expiry: '2026-04-24', expirationTimestamp };
+    }
+
+    it('removes an instrument whose expirationTimestamp has passed even when the UTC date is still today', () => {
+      const adapter = new TestSdkAdapter();
+      adapter.addInstrument(createExpiring('BTC-260424-70000-C', EXPIRY_TS));
+
+      // One second after 08:00 UTC on the same UTC date.
+      const removed = adapter.sweep(EXPIRY_TS + 1_000);
+
+      expect(removed.map((i) => i.exchangeSymbol)).toEqual(['BTC-260424-70000-C']);
+      expect(adapter.listCached()).toEqual([]);
+    });
+
+    it('keeps an instrument before its expirationTimestamp even on the expiry UTC date', () => {
+      const adapter = new TestSdkAdapter();
+      adapter.addInstrument(createExpiring('BTC-260424-70000-C', EXPIRY_TS));
+
+      // 07:59 UTC on expiry date — not yet expired.
+      const removed = adapter.sweep(EXPIRY_TS - 60_000);
+
+      expect(removed).toEqual([]);
+      expect(adapter.listCached()).toHaveLength(1);
+    });
+
+    it('falls back to date comparison when expirationTimestamp is missing', () => {
+      const adapter = new TestSdkAdapter();
+      adapter.addInstrument(createExpiring('BTC-260424-70000-C', null));
+
+      // Still 2026-04-24 UTC — date-based sweep must not remove it.
+      expect(adapter.sweep(EXPIRY_TS + 60_000)).toEqual([]);
+
+      // 2026-04-25 UTC — date has rolled, date-based sweep removes it.
+      const tomorrow = Date.UTC(2026, 3, 25, 0, 0, 1);
+      expect(adapter.sweep(tomorrow).map((i) => i.exchangeSymbol)).toEqual(['BTC-260424-70000-C']);
+    });
   });
 
   it('returns null USD for inverse prices until the underlying price is known', () => {

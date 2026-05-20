@@ -1,2 +1,11 @@
 packages:
+  - 'apps/*'
   - 'packages/*'
+
+# Supply-chain protection (pnpm 11+ defaults, made explicit here).
+# Defends against the Shai-Hulud class of npm attacks by quarantining
+# fresh publishes and refusing non-registry sources.
+minimumReleaseAge: 1440         # refuse any package version <24h old
+minimumReleaseAgeExclude:
+  - pnpm                        # corepack self-install path triggers the gate
+blockExoticSubdeps: true        # reject git/tarball/file: transitive deps

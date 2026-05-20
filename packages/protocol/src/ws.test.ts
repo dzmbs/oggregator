@@ -85,7 +85,7 @@ describe('ClientWsMessageSchema', () => {
 
 describe('ServerWsMessageSchema', () => {
   const stats = {
-    spotIndexUsd: 70_000,
+    forwardPriceUsd: 70_000,
     indexPriceUsd: 70_000,
     basisPct: 0,
     atmStrike: 70_000,
@@ -93,6 +93,7 @@ describe('ServerWsMessageSchema', () => {
     putCallOiRatio: 1,
     totalOiUsd: 1_000_000,
     skew25d: 0,
+    bfly25d: 0,
   };
 
   it('accepts valid snapshot', () => {
@@ -102,7 +103,7 @@ describe('ServerWsMessageSchema', () => {
       seq: 5,
       request: { underlying: 'BTC', expiry: '2026-03-27', venues: ['deribit'] },
       meta: { generatedAt: 1000, maxQuoteTs: 999, staleMs: 1 },
-      data: { underlying: 'BTC', expiry: '2026-03-27', dte: 7, stats, strikes: [], gex: [] },
+      data: { underlying: 'BTC', expiry: '2026-03-27', expiryTs: null, dte: 7, stats, strikes: [], gex: [] },
     });
     expect(result.success).toBe(true);
   });

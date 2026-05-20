@@ -178,6 +178,8 @@ export class OkxWsAdapter extends SdkBaseAdapter {
 
     const strike = item.stk != null ? Number(item.stk) : Number(match[4]);
 
+    const expTimeMs = item.expTime != null ? Number(item.expTime) : null;
+
     return {
       symbol: this.buildCanonicalSymbol(base, settle, expiry, strike, right),
       exchangeSymbol: item.instId,
@@ -185,6 +187,7 @@ export class OkxWsAdapter extends SdkBaseAdapter {
       quote: 'USD',
       settle,
       expiry,
+      expirationTimestamp: Number.isFinite(expTimeMs) ? expTimeMs : null,
       strike,
       right,
       inverse: settle === base,

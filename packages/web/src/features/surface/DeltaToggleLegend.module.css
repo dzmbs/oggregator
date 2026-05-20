@@ -1,0 +1,107 @@
+.rail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 96px;
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-dim);
+  user-select: none;
+}
+
+.presets {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.presetBtn {
+  flex: 1 0 auto;
+  padding: 2px 6px;
+  font-family: inherit;
+  font-size: 10px;
+  color: var(--text-dim);
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  border-radius: 3px;
+  cursor: pointer;
+  transition:
+    color var(--transition-fast),
+    border-color var(--transition-fast);
+}
+
+.presetBtn:hover {
+  color: var(--text-primary);
+  border-color: var(--text-dim);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  padding: 1px 0;
+}
+
+.checkbox {
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  margin: 0;
+  flex-shrink: 0;
+  cursor: pointer;
+  border: 1.5px solid var(--border-subtle);
+  border-radius: 2px;
+  background: var(--bg-base);
+  position: relative;
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast);
+}
+
+.checkbox:checked {
+  background: var(--color-accent, #50d2c1);
+  border-color: var(--color-accent, #50d2c1);
+}
+
+.checkbox:checked::after {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 0.5px;
+  width: 3px;
+  height: 6px;
+  border: solid #0a0a0a;
+  border-width: 0 1.5px 1.5px 0;
+  transform: rotate(45deg);
+}
+
+.swatch {
+  width: 14px;
+  height: 3px;
+  border-radius: 1px;
+  flex-shrink: 0;
+}
+
+.label {
+  color: var(--text-dim);
+}
+
+.labelAtm {
+  color: var(--text-primary);
+  font-weight: 700;
+}

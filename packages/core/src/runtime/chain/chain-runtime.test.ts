@@ -52,6 +52,7 @@ function makeChain(timestamp: number, bidUsd: number): VenueOptionChain {
         base: 'BTC',
         settle: 'BTC',
         expiry: '2026-03-27',
+        expiryTs: null,
         strike: 70_000,
         right: 'call',
         inverse: true,

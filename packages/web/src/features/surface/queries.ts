@@ -3,7 +3,9 @@ import { useQuery } from '@tanstack/react-query';
 import { useExpiries } from '@features/chain';
 import { VENUE_IDS } from '@lib/venue-meta';
 import { fetchJson } from '@lib/http';
-import type { EnrichedChainResponse, IvSurfaceResponse } from '@shared/enriched';
+import type { EnrichedChainResponse, IvHistoryResponse, IvSurfaceResponse } from '@shared/enriched';
+
+export type IvHistoryWindow = '30d' | '90d';
 
 export const surfaceKeys = {
   surface: (underlying: string, venues: string[]) =>
@@ -19,6 +21,18 @@ export function useSurface(underlying: string, venues: string[]) {
     staleTime: 10_000,
     refetchInterval: 15_000,
     placeholderData: (prev: IvSurfaceResponse | undefined) => prev,
+  });
+}
+
+export function useIvHistory(underlying: string, window: IvHistoryWindow) {
+  return useQuery({
+    queryKey: ['iv-history', underlying, window] as const,
+    queryFn: () =>
+      fetchJson<IvHistoryResponse>(`/iv-history?underlying=${underlying}&window=${window}`),
+    enabled: Boolean(underlying),
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+    placeholderData: (prev: IvHistoryResponse | undefined) => prev,
   });
 }
 

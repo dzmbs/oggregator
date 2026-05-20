@@ -1,12 +1,14 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 
 import { Spinner, EmptyState, VenuePickerButton, AssetPickerButton } from '@components/ui';
 import { VENUES } from '@lib/venue-meta';
 import { useAppStore } from '@stores/app-store';
 import { fmtIv } from '@lib/format';
+import { playTradeCue, tierForNotional } from '@lib/audio';
 import { useFlow, useFlowHistoryPage, useFlowHistorySummary } from './queries';
 import type { HistoryRange, TradeEvent, TradeHistoryCursor } from './queries';
 import BlockFlowView from './BlockFlowView';
+import FlowChartsView from './FlowChartsView';
 import { getCustomRangeFromBounds } from './DateRangePicker';
 import { HistoryControls, getPresetRange, type HistoryPreset } from './HistoryControls';
 import styles from './FlowView.module.css';
@@ -16,7 +18,7 @@ const SHARK_THRESHOLD = 10_000;
 const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 
 type FlowMode = 'all' | 'block';
-type FlowScope = 'tape' | 'history';
+type FlowScope = 'tape' | 'history' | 'charts';
 
 function parseStrikeAndType(instrument: string): { strike: string; type: string } {
   const match = instrument.match(/-(\d+(?:\.\d+)?)-([CP])(?:-|$)/);
@@ -105,7 +107,7 @@ interface TradeRowProps {
   isNew: boolean;
 }
 
-function TradeRow({ trade, isNew }: TradeRowProps) {
+const TradeRow = memo(function TradeRow({ trade, isNew }: TradeRowProps) {
   const meta = VENUES[trade.venue];
   const { strike, type } = parseStrikeAndType(trade.instrument);
   const expiry = parseExpiry(trade.instrument);
@@ -160,7 +162,7 @@ function TradeRow({ trade, isNew }: TradeRowProps) {
       </span>
     </div>
   );
-}
+});
 
 export default function FlowView() {
   const [mode, setMode] = useState<FlowMode>('all');
@@ -171,7 +173,10 @@ export default function FlowView() {
   const [historyCursors, setHistoryCursors] = useState<Array<TradeHistoryCursor | null>>([null]);
   const underlying = useAppStore((s) => s.underlying);
   const activeVenues = useAppStore((s) => s.activeVenues);
-  const { data, isLoading, error } = useFlow(underlying);
+  const soundEnabled = useAppStore((s) => s.soundEnabled);
+  const setSoundEnabled = useAppStore((s) => s.setSoundEnabled);
+  const isLiveTape = mode === 'all' && scope === 'tape';
+  const { data, isLoading, error } = useFlow(underlying, isLiveTape);
   const liveTrades = useMemo(
     () => (data?.trades ?? []).filter((trade) => activeVenues.includes(trade.venue)),
     [activeVenues, data?.trades],
@@ -207,6 +212,13 @@ export default function FlowView() {
   );
   const [seenIds, setSeenIds] = useState<Set<string>>(new Set());
   const prevCountRef = useRef(0);
+  const cueIdsRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    setSeenIds(new Set());
+    prevCountRef.current = 0;
+    cueIdsRef.current = new Set();
+  }, [underlying, isLiveTape]);
 
   useEffect(() => {
     if (!liveTrades.length) return;
@@ -222,6 +234,35 @@ export default function FlowView() {
     const timer = setTimeout(() => setSeenIds(currentIds), 1500);
     return () => clearTimeout(timer);
   }, [liveTrades]);
+
+  useEffect(() => {
+    if (!liveTrades.length) return;
+
+    const previous = cueIdsRef.current;
+    const isFirstTick = previous.size === 0;
+    const nextIds = new Set(liveTrades.map((trade) => trade.tradeUid));
+    cueIdsRef.current = nextIds;
+
+    if (isFirstTick) return;
+    if (!soundEnabled || scope !== 'tape' || mode !== 'all') return;
+
+    const fresh = liveTrades.filter((trade) => !previous.has(trade.tradeUid));
+    if (!fresh.length) return;
+
+    const ranked = fresh
+      .map((trade) => ({
+        trade,
+        notional: trade.notionalUsd ?? trade.premiumUsd ?? 0,
+      }))
+      .filter((entry) => entry.notional >= 10_000)
+      .sort((a, b) => b.notional - a.notional)
+      .slice(0, 3);
+
+    for (const { trade, notional } of ranked) {
+      const tier = tierForNotional(notional);
+      if (tier) playTradeCue(trade.side, tier);
+    }
+  }, [liveTrades, soundEnabled, scope, mode]);
 
   useEffect(() => {
     setHistoryCursors([null]);
@@ -322,7 +363,7 @@ export default function FlowView() {
               <button
                 className={styles.modeBtn}
                 data-active={mode === 'block'}
-                onClick={() => setMode('block')}
+                onClick={() => { setMode('block'); if (scope === 'charts') setScope('tape'); }}
               >
                 🏛 Institutions
               </button>
@@ -342,15 +383,37 @@ export default function FlowView() {
               >
                 History
               </button>
+              {mode === 'all' && (
+                <button
+                  className={styles.modeBtn}
+                  data-active={scope === 'charts'}
+                  onClick={() => setScope('charts')}
+                >
+                  Charts
+                </button>
+              )}
             </div>
             <AssetPickerButton />
             <VenuePickerButton />
+            {scope === 'tape' && mode === 'all' ? (
+              <button
+                className={styles.modeBtn}
+                data-active={soundEnabled}
+                onClick={() => setSoundEnabled(!soundEnabled)}
+                title={soundEnabled ? 'Mute trade sounds' : 'Enable trade sounds'}
+                aria-label={soundEnabled ? 'Mute trade sounds' : 'Enable trade sounds'}
+              >
+                {soundEnabled ? '🔊' : '🔇'}
+              </button>
+            ) : null}
           </div>
           <span className={styles.subtitle}>
             {mode === 'all'
               ? scope === 'tape'
                 ? `${liveTrades.length} live trades · ${activeVenues.length} venues · auto-refreshing`
-                : `${getScopeLabel(scope)} · ${isCustomInitializing ? 'Loading available history…' : getHistorySubtitle(historyRange)} · ${activeVenues.length} venues`
+                : scope === 'charts'
+                  ? `Per-instrument trade chart · ${getHistorySubtitle(historyRange)}`
+                  : `${getScopeLabel(scope)} · ${isCustomInitializing ? 'Loading available history…' : getHistorySubtitle(historyRange)} · ${activeVenues.length} venues`
               : `${scope === 'history' ? `${getHistorySubtitle(historyRange)} · ` : ''}Institutional RFQ & block trades · ${activeVenues.length} venues`}
           </span>
         </div>
@@ -426,6 +489,13 @@ export default function FlowView() {
             )}
           </div>
         </>
+      ) : scope === 'charts' ? (
+        <FlowChartsView
+          historyPreset={historyPreset}
+          historyRange={historyRange}
+          onPresetChange={handlePresetChange}
+          onRangeChange={handleRangeChange}
+        />
       ) : (
         <>
           <div className={styles.tableHeader}>

@@ -1,0 +1,406 @@
+.wrap {
+  position: relative;
+  display: inline-block;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid #2a2a2a;
+  border-radius: 16px;
+  color: #aaa;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.chip:hover {
+  border-color: #50d2c1;
+  color: #e0e0e0;
+}
+
+.chip[data-signed-in] {
+  color: #4ade80;
+  border-color: rgba(74, 222, 128, 0.3);
+}
+
+.dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.7;
+}
+
+.popover {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  background: #0e0e10;
+  border: 1px solid #2a2a2a;
+  border-radius: 10px;
+  padding: 14px;
+  width: 320px;
+  z-index: 50;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.value {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  color: #e0e0e0;
+  word-break: break-all;
+}
+
+.keyRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.key {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  color: #e0e0e0;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 4px 8px;
+  border-radius: 4px;
+  flex: 1;
+}
+
+.smallBtn {
+  background: transparent;
+  border: 1px solid #2a2a2a;
+  border-radius: 4px;
+  color: #aaa;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.smallBtn:hover {
+  border-color: #50d2c1;
+  color: #50d2c1;
+}
+
+.modeRow {
+  display: inline-flex;
+  border: 1px solid #2a2a2a;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.modeBtn {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: #888;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.modeBtn[data-active] {
+  background: rgba(80, 210, 193, 0.18);
+  color: #50d2c1;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: #888;
+}
+
+.field input {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid #2a2a2a;
+  border-radius: 4px;
+  color: #e0e0e0;
+  font-family: inherit;
+  font-size: 12px;
+  padding: 6px 8px;
+}
+
+.field input:focus {
+  outline: none;
+  border-color: #50d2c1;
+}
+
+.primaryBtn {
+  background: #00e997;
+  color: #000;
+  border: none;
+  border-radius: 4px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 8px 14px;
+  cursor: pointer;
+}
+
+.primaryBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.dangerBtn {
+  background: transparent;
+  border: 1px solid rgba(248, 113, 113, 0.4);
+  border-radius: 4px;
+  color: #f87171;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  padding: 6px 14px;
+  cursor: pointer;
+}
+
+.dangerBtn:hover {
+  background: rgba(248, 113, 113, 0.1);
+}
+
+.hint {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: #666;
+  line-height: 1.5;
+}
+
+.error {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: #f87171;
+}
+
+.venueBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 16px;
+  padding: 0 5px;
+  background: rgba(167, 139, 250, 0.18);
+  color: #a78bfa;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 600;
+  margin-left: 2px;
+}
+
+.divider {
+  height: 1px;
+  background: #1f1f24;
+  margin: 4px 0;
+}
+
+.actionRow {
+  display: flex;
+  gap: 8px;
+}
+
+.secondaryBtn {
+  background: transparent;
+  border: 1px solid #2a2a2a;
+  border-radius: 4px;
+  color: #aaa;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.secondaryBtn:hover {
+  border-color: #50d2c1;
+  color: #50d2c1;
+}
+
+.venueChipsRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.venueChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(167, 139, 250, 0.12);
+  border: 1px solid rgba(167, 139, 250, 0.3);
+  border-radius: 999px;
+  padding: 3px 4px 3px 10px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: #cbd5e1;
+}
+
+.venueChipRemove {
+  background: transparent;
+  border: none;
+  color: #888;
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.venueChipRemove:hover {
+  background: rgba(248, 113, 113, 0.18);
+  color: #f87171;
+}
+
+.venueChipStatus {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 1px 5px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  cursor: help;
+}
+
+.venueChipStatus[data-status='available'] {
+  background: rgba(74, 222, 128, 0.18);
+  color: #4ade80;
+}
+
+.venueChipStatus[data-status='planned'],
+.venueChipStatus[data-status='in_progress'] {
+  background: rgba(251, 191, 36, 0.18);
+  color: #fbbf24;
+}
+
+.warning {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.08);
+  border: 1px solid rgba(251, 191, 36, 0.2);
+  border-radius: 4px;
+  padding: 6px 8px;
+  line-height: 1.4;
+}
+
+.codeInline {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: #e0e0e0;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+.backBtn {
+  align-self: flex-start;
+  background: transparent;
+  border: none;
+  color: #888;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  padding: 0;
+  cursor: pointer;
+  margin-bottom: 2px;
+}
+
+.backBtn:hover {
+  color: #50d2c1;
+}
+
+.field select,
+.field textarea {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid #2a2a2a;
+  border-radius: 4px;
+  color: #e0e0e0;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  padding: 6px 8px;
+}
+
+.field textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.field select:focus,
+.field textarea:focus {
+  outline: none;
+  border-color: #50d2c1;
+}
+
+.venueMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+}
+
+.venueMetaStatus {
+  padding: 2px 6px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.venueMetaStatus[data-status='planned'] {
+  background: rgba(251, 191, 36, 0.15);
+  color: #fbbf24;
+}
+
+.venueMetaStatus[data-status='in_progress'] {
+  background: rgba(96, 165, 250, 0.15);
+  color: #60a5fa;
+}
+
+.venueMetaStatus[data-status='available'] {
+  background: rgba(74, 222, 128, 0.15);
+  color: #4ade80;
+}
+
+.venueMetaScheme {
+  color: #888;
+}
+
+.venueMetaLink {
+  margin-left: auto;
+  color: #60a5fa;
+  text-decoration: none;
+}
+
+.venueMetaLink:hover {
+  text-decoration: underline;
+}

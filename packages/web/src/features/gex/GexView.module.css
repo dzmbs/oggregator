@@ -194,6 +194,14 @@
   border-top: 1px solid var(--border-subtle);
 }
 
+.explainCaveat {
+  font-size: var(--text-xs);
+  color: var(--text-dim);
+  line-height: 1.5;
+  padding-left: var(--space-1);
+  border-left: 2px solid color-mix(in srgb, var(--accent-primary) 35%, transparent);
+}
+
 .explainToggle {
   display: flex;
   align-items: center;

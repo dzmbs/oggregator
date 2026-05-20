@@ -50,14 +50,18 @@
   color: var(--accent-primary);
 }
 
-.atmBadge {
-  font-size: 8px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  padding: 1px 5px;
-  border-radius: 3px;
-  background: var(--accent-primary);
-  color: var(--bg-base);
+.strikeDist {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+.card[data-atm="true"] .strikeDist {
+  color: var(--accent-primary);
+  opacity: 0.85;
 }
 
 .chevron {
@@ -132,57 +136,57 @@
   object-fit: contain;
 }
 
-/* Key metrics — 2-col compact grid */
+/* Key metrics — 3-col grid (BID | SPR | ASK / IV | Δ).
+   Label stacks above value so the value baselines align across cells —
+   pills (SpreadPill, IvChip) don't push their plain-text neighbors. */
 .sideRow {
   display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 1px 6px;
-  align-items: center;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  align-items: start;
 }
 
 .sideMetric {
   display: flex;
-  align-items: center;
-  gap: 3px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
   min-width: 0;
+  overflow: hidden;
 }
 
 .metricLabel {
-  font-size: 9px;
+  font-size: 8px;
   font-weight: 700;
   color: var(--text-dim);
-  min-width: 18px;
-  flex-shrink: 0;
+  letter-spacing: 0.06em;
+  line-height: 1;
 }
 
-.metricValue {
+.metricBid,
+.metricAsk,
+.metricDelta {
   font-size: 12px;
   font-weight: 600;
-  color: var(--text-primary);
   font-variant-numeric: tabular-nums;
+  line-height: 1.1;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .metricBid {
-  font-size: 12px;
-  font-weight: 600;
   color: var(--color-profit);
-  font-variant-numeric: tabular-nums;
 }
 
 .metricAsk {
-  font-size: 12px;
-  font-weight: 600;
   color: var(--color-loss);
-  font-variant-numeric: tabular-nums;
 }
 
 .metricDelta {
-  font-size: 12px;
   color: var(--text-tertiary);
-  font-variant-numeric: tabular-nums;
+  font-weight: 500;
 }
 
 /* ── Expanded venue detail ───────────────────────────── */

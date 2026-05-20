@@ -1,0 +1,203 @@
+.wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  overflow: hidden;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.venuePicker {
+  display: flex;
+  align-items: center;
+  background: var(--bg-base);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 2px;
+  gap: 1px;
+  height: 30px;
+}
+
+.venueBtn {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  padding: 0 10px;
+  height: 100%;
+  border: none;
+  border-radius: calc(var(--radius-md) - 2px);
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+.venueBtn[data-active="true"] {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+.chartCard {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  overflow: hidden;
+}
+
+.chartHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.chartTitle {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 0.03em;
+}
+
+.stats {
+  display: flex;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.statLabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.statValue {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.chartArea {
+  flex: 1;
+  position: relative;
+  min-height: 360px;
+}
+
+.chartWrap {
+  position: absolute;
+  inset: 0;
+}
+
+.chartOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 10, 10, 0.6);
+  pointer-events: none;
+}
+
+.legend {
+  display: flex;
+  gap: var(--space-4);
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-dim);
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legendDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.legendDot[data-side="buy"] {
+  background: #1fe086;
+}
+
+.legendDot[data-side="sell"] {
+  background: #f76464;
+}
+
+.legendDot[data-block] {
+  background: transparent;
+  border: 2px solid #ffd166;
+}
+
+.tooltip {
+  position: absolute;
+  z-index: 5;
+  pointer-events: none;
+  background: var(--bg-base);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 8px 10px;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  min-width: 180px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tooltipRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.tooltipLabel {
+  color: var(--text-dim);
+}
+
+.tooltipValue {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.tooltipValue[data-side="buy"] {
+  color: #1fe086;
+}
+
+.tooltipValue[data-side="sell"] {
+  color: #f76464;
+}
+
+.tooltipBadge {
+  align-self: flex-start;
+  padding: 1px 6px;
+  background: rgba(255, 209, 102, 0.15);
+  color: #ffd166;
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  font-weight: 700;
+}

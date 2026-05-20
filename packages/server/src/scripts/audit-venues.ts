@@ -64,7 +64,7 @@ interface OurStrike {
 interface OurChain {
   underlying: string;
   expiry: string;
-  stats: { spotIndexUsd: number | null; indexPriceUsd: number | null };
+  stats: { forwardPriceUsd: number | null; indexPriceUsd: number | null };
   strikes: OurStrike[];
 }
 interface HealthBody {
@@ -750,7 +750,7 @@ async function main(): Promise<void> {
 
   console.log(`${C.dim}Fetching our chain from backend...${C.reset}`);
   const chain = await fetchOurChain(underlying, expiry);
-  const spot = chain.stats.spotIndexUsd;
+  const spot = chain.stats.indexPriceUsd ?? chain.stats.forwardPriceUsd;
 
   // Focus on liquid strikes near the money
   const activeStrikes = chain.strikes.filter(

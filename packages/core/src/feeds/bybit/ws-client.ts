@@ -128,14 +128,13 @@ export class BybitWsAdapter extends SdkBaseAdapter {
   }
 
   /**
-   * Polls `get_instruments` for each baseCoin and subscribes any symbols
-   * not yet in our instrument map. Called every 10 minutes to pick up new
-   * strikes and expiries listed after boot without a server restart.
-   *
-   * Only adds instruments — expired ones are left in place and simply stop
-   * receiving ticker pushes, which is harmless for a read-only display.
+   * Polls `get_instruments` for each baseCoin, sweeps expired instruments,
+   * and subscribes any symbols not yet in our instrument map. Called every
+   * 10 minutes to pick up new strikes/expiries and drop settled ones.
    */
   private async refreshInstruments(): Promise<void> {
+    this.sweepExpiredState();
+
     const activeSymbols = new Set<string>();
     const newInstruments: CachedInstrument[] = [];
 
@@ -159,7 +158,11 @@ export class BybitWsAdapter extends SdkBaseAdapter {
             if (this.instrumentMap.has(item.symbol)) continue;
             if (item.status !== 'Trading') continue;
             const inst = this.parseInstrument(item);
-            if (inst) newInstruments.push(inst);
+            if (!inst) continue;
+            // Guard against the exchange still flagging a post-expiry instrument
+            // as Trading — without this, sweepExpiredState() would re-add it.
+            if (this.isExpiredInstrument(inst)) continue;
+            newInstruments.push(inst);
           }
 
           cursor = parsed.result.nextPageCursor || undefined;
@@ -240,6 +243,8 @@ export class BybitWsAdapter extends SdkBaseAdapter {
     // item.settleCoin is authoritative — regex suffix is fallback for edge cases
     const settle = item.settleCoin || match[5] || 'USDT';
 
+    const deliveryMs = item.deliveryTime != null ? Number(item.deliveryTime) : null;
+
     return {
       symbol: this.buildCanonicalSymbol(base, settle, expiry, Number(strikeStr), right),
       exchangeSymbol: item.symbol,
@@ -247,6 +252,7 @@ export class BybitWsAdapter extends SdkBaseAdapter {
       quote: item.quoteCoin,
       settle,
       expiry,
+      expirationTimestamp: Number.isFinite(deliveryMs) ? deliveryMs : null,
       strike: Number(strikeStr),
       right,
       inverse: false,
@@ -438,6 +444,27 @@ export class BybitWsAdapter extends SdkBaseAdapter {
 
   private sendJson(payload: Record<string, unknown>): void {
     this.wsClient?.send(payload);
+  }
+
+  private sweepExpiredState(): void {
+    const removed = this.sweepExpiredInstruments();
+    if (removed.length === 0) return;
+
+    const expiredTopics = buildBybitExpiredTopics(
+      this.subscriptions,
+      removed.map((i) => i.exchangeSymbol),
+    );
+
+    if (expiredTopics.length > 0 && this.wsClient?.isConnected) {
+      for (let i = 0; i < expiredTopics.length; i += BYBIT_MAX_TOPICS_PER_BATCH) {
+        this.sendJson({
+          op: 'unsubscribe',
+          args: expiredTopics.slice(i, i + BYBIT_MAX_TOPICS_PER_BATCH),
+        });
+      }
+    }
+
+    log.info({ count: removed.length }, 'removed expired instruments');
   }
 
   override async dispose(): Promise<void> {

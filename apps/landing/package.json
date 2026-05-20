@@ -1,0 +1,42 @@
+{
+  "name": "@oggregator/landing",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "next start",
+    "lint": "pnpm --dir ../.. exec biome lint apps/landing",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest",
+    "test:run": "vitest run"
+  },
+  "dependencies": {
+    "@react-three/fiber": "9.6.1",
+    "@vercel/analytics": "2.0.1",
+    "@vercel/speed-insights": "2.0.0",
+    "framer-motion": "12.38.0",
+    "next": "16.2.6",
+    "plotly.js-gl3d-dist-min": "3.5.0",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "react-plotly.js": "2.6.0",
+    "three": "0.184.0",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@testing-library/jest-dom": "6.9.1",
+    "@testing-library/react": "16.3.2",
+    "@types/node": "^20",
+    "@types/react-plotly.js": "2.6.4",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@types/three": "0.184.1",
+    "jsdom": "29.1.1",
+    "tailwindcss": "^4",
+    "typescript": "^5",
+    "vitest": "4.1.5"
+  }
+}

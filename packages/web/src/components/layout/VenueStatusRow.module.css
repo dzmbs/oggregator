@@ -1,0 +1,36 @@
+.row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.dot {
+  position: relative;
+  display: block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-disabled);
+  transition: background var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.dot[data-state="live"] {
+  background: var(--color-profit);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--color-profit) 60%, transparent);
+}
+
+.dot[data-state="failed"] {
+  background: var(--color-loss);
+}
+
+.dot[data-state="inactive"] {
+  background: var(--text-disabled);
+  opacity: 0.4;
+}
+
+@media (max-width: 768px) {
+  .dot {
+    width: 6px;
+    height: 6px;
+  }
+}

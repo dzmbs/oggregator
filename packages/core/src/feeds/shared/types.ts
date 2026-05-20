@@ -30,6 +30,12 @@ export interface OptionVenueAdapter {
   /** List available expiry dates for an underlying (YYYY-MM-DD format) */
   listExpiries(underlying: string): Promise<string[]>;
 
+  /**
+   * List available expiries with an exact UTC ms timestamp when the venue
+   * exposes one. `expiryTs: null` falls back to the 08:00 UTC convention.
+   */
+  listExpiryTimestamps?(underlying: string): Promise<Array<{ expiry: string; expiryTs: number | null }>>;
+
   /** Fetch a snapshot of all options for an underlying+expiry */
   fetchOptionChain(request: ChainRequest): Promise<VenueOptionChain>;
 

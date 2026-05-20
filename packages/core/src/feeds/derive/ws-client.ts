@@ -166,6 +166,7 @@ export class DeriveWsAdapter extends SdkBaseAdapter {
       quote: inst.quote_currency ?? 'USDC',
       settle,
       expiry,
+      expirationTimestamp: details.expirationTimestampMs,
       strike: details.strike,
       right: details.right,
       inverse: false,

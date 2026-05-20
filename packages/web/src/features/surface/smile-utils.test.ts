@@ -163,20 +163,30 @@ describe('extractSmile — delta mode', () => {
     makeStrike(80000, 0.65, 0.60, 0.10, -0.90),
   ];
 
-  it('maps put deltas to x = |delta| and call deltas to x = 1 - delta', () => {
+  it('maps OTM put deltas to x = |delta| and OTM call deltas to x = 1 - delta', () => {
     const result = extractSmile(strikes, ['deribit'], 70000, 'delta');
 
-    // 60k: put delta -0.20 → x=0.20, putIv=55; call delta 0.80 → x=1-0.80=0.20, callIv=58
-    // Both land in bucket 0.20: averaged = (55 + 58) / 2 = 56.5
+    // 60k: put delta -0.20 (OTM, |δ| ≤ 0.5) → x=0.20, putIv=55. Call delta
+    // 0.80 is ITM and dropped, so only the put IV lands in bucket 0.20.
     const bucket020 = result.find((p) => p.strike === 0.20);
     expect(bucket020).toBeDefined();
-    expect(bucket020!.iv).toBeCloseTo(56.5, 1);
+    expect(bucket020!.iv).toBeCloseTo(55, 1);
 
-    // 75k: put delta -0.70 → x=0.70; call delta 0.30 → x=0.70
-    // Both in bucket 0.70: putIv=52, callIv=56, avg=(52+56)/2=54
+    // 75k: put delta -0.70 is ITM (|δ| > 0.5) and dropped. Call delta 0.30
+    // (OTM) → x=0.70, callIv=56. Only the call IV lands in bucket 0.70.
     const bucket070 = result.find((p) => p.strike === 0.70);
     expect(bucket070).toBeDefined();
-    expect(bucket070!.iv).toBeCloseTo(54, 1);
+    expect(bucket070!.iv).toBeCloseTo(56, 1);
+  });
+
+  it('drops ITM legs so they do not pollute the opposite wing', () => {
+    // 80k call delta 0.10 is OTM → keep at x=0.90 (callIv=65).
+    // 80k put delta -0.90 is ITM → drop (would otherwise also land at x=0.90).
+    // Bucket 0.90 should reflect the call IV only, not a put/call average.
+    const result = extractSmile(strikes, ['deribit'], 70000, 'delta');
+    const bucket090 = result.find((p) => p.strike === 0.90);
+    expect(bucket090).toBeDefined();
+    expect(bucket090!.iv).toBeCloseTo(65, 1);
   });
 
   it('filters out extreme deltas (< 0.03 or > 0.97)', () => {

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 
 import { useAppStore } from '@stores/app-store';
-import { useOpenPalette } from '@components/layout';
+import { useOpenPalette } from '@components/layout/palette-context';
 import { VENUES } from '@lib/venue-meta';
 
 import { useChainQuery, useExpiries } from '../chain/queries';
@@ -72,7 +72,7 @@ export default function DebugChain() {
 
       {data && (
         <div className={styles.stats}>
-          <span>Spot: {fmt(data.stats.spotIndexUsd, 0)}</span>
+          <span>Forward: {fmt(data.stats.forwardPriceUsd, 0)}</span>
           <span>ATM IV: {pct(data.stats.atmIv)}</span>
           <span>Skew25d: {pct(data.stats.skew25d)}</span>
           <span>ATM Strike: {data.stats.atmStrike}</span>

@@ -1,9 +1,10 @@
 import { useMemo, useState, useCallback, useEffect } from 'react';
 
 import { useAppStore } from '@stores/app-store';
-import { AssetPickerButton, VenuePickerButton } from '@components/ui';
+import { AssetPickerButton, DropdownPicker, VenuePickerButton } from '@components/ui';
 import { useChainQuery, useExpiries } from '@features/chain/queries';
 import { fmtUsd, formatExpiry, dteDays } from '@lib/format';
+import { VENUE_LIST, VENUES } from '@lib/venue-meta';
 import { useStrategyStore } from './strategy-store';
 import {
   computePayoff,
@@ -13,9 +14,15 @@ import {
   type Leg,
 } from './payoff';
 import { repriceLeg } from './reprice';
-import { buildShareUrl, decodeStrategy } from './share';
+import { STRATEGY_PARAM_KEYS, buildShareUrl, decodeStrategy } from './share';
 import PayoffChart from './PayoffChart';
+import PayoffChartV2, { pickCandleSpec } from './PayoffChartV2';
+import SnapshotBanner from './SnapshotBanner';
+import { isSpotCandleCurrency, useSpotCandles } from './queries';
 import VenueSlideover from './VenueSlideover';
+import type { StrategyRouting } from '@features/builder/round-trip';
+import { legsToOrderRequest, useCreateTrade } from '@features/trading';
+import { useAppStore as _useAppStoreForTabSwitch } from '@stores/app-store';
 import StrategyTemplates, {
   buildTemplateVariant,
   clearActiveTemplateDrag,
@@ -32,6 +39,8 @@ interface LegRowProps {
   onRemove: () => void;
   onUpdate: (id: string, patch: Partial<Leg>) => void;
 }
+
+const BEST_ROUTE_VALUE = '__best-route__';
 
 function resolveBuilderExpiry(preferredExpiry: string, expiries: string[]): string {
   if (preferredExpiry && expiries.includes(preferredExpiry)) return preferredExpiry;
@@ -165,6 +174,85 @@ export default function ArchitectView() {
   const [copied, setCopied] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [builderError, setBuilderError] = useState<string | null>(null);
+  const [paperStatus, setPaperStatus] = useState<string | null>(null);
+  const [routeVenue, setRouteVenue] = useState(BEST_ROUTE_VALUE);
+  const [variant, setVariant] = useState<'v1' | 'v2'>('v1');
+
+  const setActiveTab = _useAppStoreForTabSwitch((s) => s.setActiveTab);
+  const createTrade = useCreateTrade();
+
+  useEffect(() => {
+    if (routeVenue !== BEST_ROUTE_VALUE && !activeVenues.includes(routeVenue)) {
+      setRouteVenue(BEST_ROUTE_VALUE);
+    }
+  }, [activeVenues, routeVenue]);
+
+  const pricingVenues = useMemo(
+    () => (routeVenue === BEST_ROUTE_VALUE ? activeVenues : [routeVenue]),
+    [routeVenue, activeVenues],
+  );
+
+  const unroutableLegs = useMemo(() => {
+    if (routeVenue === BEST_ROUTE_VALUE || !chain || legs.length === 0) return [];
+    return legs.filter(
+      (leg) =>
+        repriceLeg(
+          chain,
+          [routeVenue],
+          {
+            type: leg.type,
+            direction: leg.direction,
+            strike: leg.strike,
+            expiry: builderExpiry,
+            quantity: leg.quantity,
+          },
+          { exactStrike: true },
+        ) == null,
+    );
+  }, [routeVenue, chain, legs, builderExpiry]);
+
+  const routeOptions = useMemo(
+    () => [
+      {
+        value: BEST_ROUTE_VALUE,
+        label: 'Best route',
+        meta:
+          activeVenues.length === 1
+            ? VENUES[activeVenues[0] ?? '']?.label ?? '1 venue'
+            : `${activeVenues.length} venues`,
+      },
+      ...VENUE_LIST.filter((venue) => activeVenues.includes(venue.id)).map((venue) => ({
+        value: venue.id,
+        label: venue.label,
+        meta: 'Only',
+      })),
+    ],
+    [activeVenues],
+  );
+
+  async function handleSendToPaper(routing?: StrategyRouting) {
+    if (legs.length === 0) return;
+    setPaperStatus(null);
+    try {
+      const req = legsToOrderRequest(legs, underlying, pricingVenues, routing);
+      const strategyName = detectStrategy(legs);
+      const result = await createTrade.mutateAsync({
+        label: strategyName,
+        strategyName,
+        order: req,
+      });
+      const filledVenues = Array.from(new Set(result.fills.map((fill) => fill.venue)));
+      const fillSummary =
+        filledVenues.length === 1
+          ? VENUES[filledVenues[0] ?? '']?.label ?? filledVenues[0]
+          : `${filledVenues.length} venues`;
+      setPaperStatus(`Filled on ${fillSummary} - switching to Paper tab`);
+      setShowVenues(false);
+      setTimeout(() => setActiveTab('trading'), 400);
+    } catch (err) {
+      setPaperStatus(err instanceof Error ? err.message : 'Paper order failed');
+    }
+  }
 
   useEffect(() => {
     setBuilderError(null);
@@ -172,22 +260,19 @@ export default function ArchitectView() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const encoded = params.get('strategy');
-    if (!encoded) return;
-
-    const decoded = decodeStrategy(encoded);
+    const decoded = decodeStrategy(params);
     if (!decoded) return;
 
     clearLegs();
     for (const leg of decoded.legs) addLeg(leg, decoded.underlying);
     setBuilderExpiry(decoded.legs[0]?.expiry ?? '');
 
-    params.delete('strategy');
+    for (const k of STRATEGY_PARAM_KEYS) params.delete(k);
     const clean = params.toString();
     window.history.replaceState({}, '', clean ? `?${clean}` : window.location.pathname);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const spotPrice = chain?.stats.spotIndexUsd ?? chain?.stats.indexPriceUsd ?? 0;
+  const spotPrice = chain?.stats.forwardPriceUsd ?? chain?.stats.indexPriceUsd ?? 0;
   const availableStrikes = useMemo(() => chain?.strikes.map((s) => s.strike) ?? [], [chain]);
 
   const repriceStrategyLeg = useCallback(
@@ -196,7 +281,7 @@ export default function ArchitectView() {
 
       return repriceLeg(
         chain,
-        activeVenues,
+        pricingVenues,
         {
           type: patch.type ?? leg.type,
           direction: patch.direction ?? leg.direction,
@@ -207,7 +292,7 @@ export default function ArchitectView() {
         { exactStrike },
       );
     },
-    [activeVenues, builderExpiry, chain],
+    [pricingVenues, builderExpiry, chain],
   );
 
   const handleLegUpdate = useCallback(
@@ -281,6 +366,19 @@ export default function ArchitectView() {
 
   const hasScenarios = ivShift !== 0 || dteShift !== 0;
 
+  const candleSpec = useMemo(() => pickCandleSpec(legs), [legs]);
+  const candleAvailable = isSpotCandleCurrency(underlying);
+  const {
+    data: spotCandlesData,
+    dataUpdatedAt: spotCandlesUpdatedAt,
+    isLoading: spotCandlesLoading,
+    isFetching: spotCandlesFetching,
+    isError: spotCandlesIsError,
+    error: spotCandlesError,
+    refetch: refetchSpotCandles,
+  } = useSpotCandles(underlying, candleSpec.resolutionSec, candleSpec.buckets);
+  const spotCandlesEmpty = spotCandlesData != null && spotCandlesData.candles.length === 0;
+
   function handleCopyUrl() {
     const url = buildShareUrl(legs, underlying);
     navigator.clipboard.writeText(url);
@@ -311,7 +409,9 @@ export default function ArchitectView() {
     }
 
     setBuilderError(null);
-    clearLegs();
+    // Drop appends — drags are how the user composes a custom multi-leg
+    // strategy (e.g. straddle + put spread). Click-to-apply on the card
+    // still replaces, since that gesture means "use this template".
     for (const leg of result.legs) addLeg(leg, underlying);
   }
 
@@ -367,6 +467,42 @@ export default function ArchitectView() {
               </button>
             )}
 
+            {legs.length > 0 && (
+              <div className={styles.paperTradeControls}>
+                <span className={styles.paperTradeLabel}>Route</span>
+                <DropdownPicker
+                  options={routeOptions}
+                  value={routeVenue}
+                  onChange={setRouteVenue}
+                />
+                {unroutableLegs.length > 0 && (
+                  <div className={styles.routeUnroutable}>
+                    {unroutableLegs.length === legs.length
+                      ? `No legs have a quote on ${VENUES[routeVenue]?.label ?? routeVenue}.`
+                      : `${unroutableLegs.length} of ${legs.length} legs have no quote on ${VENUES[routeVenue]?.label ?? routeVenue}.`}{' '}
+                    Pick another venue or switch to Best route.
+                  </div>
+                )}
+              </div>
+            )}
+
+            {legs.length > 0 && (
+              <button
+                className={styles.compareBtn}
+                onClick={() => handleSendToPaper()}
+                disabled={createTrade.isPending}
+                style={{ marginTop: 8 }}
+              >
+                {createTrade.isPending ? 'Sending…' : 'Send to paper'}
+              </button>
+            )}
+
+            {paperStatus && (
+              <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 6 }}>
+                {paperStatus}
+              </div>
+            )}
+
             {legs.length === 0 && (
               <div className={styles.emptyLegs}>
                 Pick a template, add custom legs, or drag strikes on the chart.
@@ -377,6 +513,7 @@ export default function ArchitectView() {
           <div className={styles.chartCol}>
             <div
               className={`${styles.chartPanel} ${dragOver ? styles.chartPanelDragOver : ''}`}
+              data-variant={variant}
               onDragOver={(e) => {
                 e.preventDefault();
                 e.dataTransfer.dropEffect = 'copy';
@@ -457,44 +594,99 @@ export default function ArchitectView() {
                 </div>
               ) : (
                 <>
-                  <div className={styles.chartTitle}>P&L at Expiry</div>
-                  <PayoffChart
-                    points={payoffPoints}
-                    breakevens={metrics?.breakevens ?? []}
-                    spotPrice={spotPrice}
-                    legs={legs}
-                    maxProfit={metrics?.maxProfit ?? null}
-                    maxLoss={metrics?.maxLoss ?? null}
-                    strikes={availableStrikes}
-                    onLegStrikeDrag={handleLegStrikeDrag}
-                    scenarioIvPoints={scenarioIvPoints}
-                    scenarioDtePoints={scenarioDtePoints}
-                  />
-                  {hasScenarios && (
-                    <div className={styles.scenarioLegend}>
-                      <span className={styles.legendItem}>
-                        <span className={`${styles.legendDot} ${styles.legendDotBase}`} />
-                        <span className={styles.legendLabel}>At expiry</span>
-                      </span>
-                      {ivShift !== 0 && (
-                        <span className={styles.legendItem}>
-                          <span className={`${styles.legendDot} ${styles.legendDotIv}`} />
-                          <span className={styles.legendLabel}>
-                            IV {ivShift > 0 ? '+' : ''}
-                            {ivShift}%
-                          </span>
-                        </span>
-                      )}
-                      {dteShift !== 0 && (
-                        <span className={styles.legendItem}>
-                          <span className={`${styles.legendDot} ${styles.legendDotDte}`} />
-                          <span className={styles.legendLabel}>
-                            {dteShift > 0 ? '+' : ''}
-                            {dteShift}d DTE
-                          </span>
-                        </span>
-                      )}
+                  <div className={styles.chartTitleRow}>
+                    <div className={styles.chartTitle}>
+                      {variant === 'v1' ? 'P&L at Expiry' : 'Spot vs Break-even Zones'}
                     </div>
+                    <div className={styles.variantToggle}>
+                      <button
+                        className={styles.variantBtn}
+                        data-active={variant === 'v1'}
+                        data-variant="v1"
+                        onClick={() => setVariant('v1')}
+                      >
+                        V1
+                      </button>
+                      <button
+                        className={styles.variantBtn}
+                        data-active={variant === 'v2'}
+                        data-variant="v2"
+                        onClick={() => setVariant('v2')}
+                      >
+                        V2
+                      </button>
+                    </div>
+                  </div>
+
+                  {variant === 'v1' ? (
+                    <>
+                      <PayoffChart
+                        points={payoffPoints}
+                        breakevens={metrics?.breakevens ?? []}
+                        spotPrice={spotPrice}
+                        legs={legs}
+                        maxProfit={metrics?.maxProfit ?? null}
+                        maxLoss={metrics?.maxLoss ?? null}
+                        strikes={availableStrikes}
+                        onLegStrikeDrag={handleLegStrikeDrag}
+                        scenarioIvPoints={scenarioIvPoints}
+                        scenarioDtePoints={scenarioDtePoints}
+                      />
+                      {hasScenarios && (
+                        <div className={styles.scenarioLegend}>
+                          <span className={styles.legendItem}>
+                            <span className={`${styles.legendDot} ${styles.legendDotBase}`} />
+                            <span className={styles.legendLabel}>At expiry</span>
+                          </span>
+                          {ivShift !== 0 && (
+                            <span className={styles.legendItem}>
+                              <span className={`${styles.legendDot} ${styles.legendDotIv}`} />
+                              <span className={styles.legendLabel}>
+                                IV {ivShift > 0 ? '+' : ''}
+                                {ivShift}%
+                              </span>
+                            </span>
+                          )}
+                          {dteShift !== 0 && (
+                            <span className={styles.legendItem}>
+                              <span className={`${styles.legendDot} ${styles.legendDotDte}`} />
+                              <span className={styles.legendLabel}>
+                                {dteShift > 0 ? '+' : ''}
+                                {dteShift}d DTE
+                              </span>
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      {candleAvailable && (
+                        <SnapshotBanner
+                          dataUpdatedAt={spotCandlesUpdatedAt}
+                          refreshIntervalMs={120_000}
+                          hasData={spotCandlesData != null}
+                          isFetching={spotCandlesFetching}
+                          isError={spotCandlesIsError}
+                          errorMessage={
+                            spotCandlesError instanceof Error ? spotCandlesError.message : null
+                          }
+                          isEmpty={spotCandlesEmpty}
+                          onRetry={() => {
+                            void refetchSpotCandles();
+                          }}
+                        />
+                      )}
+                      <PayoffChartV2
+                        candles={spotCandlesData?.candles ?? []}
+                        breakevens={metrics?.breakevens ?? []}
+                        spotPrice={spotPrice}
+                        legs={legs}
+                        loading={spotCandlesLoading && candleAvailable}
+                        available={candleAvailable}
+                        onSwitchToV1={() => setVariant('v1')}
+                      />
+                    </>
                   )}
                 </>
               )}
@@ -506,15 +698,21 @@ export default function ArchitectView() {
               <span className={styles.rightSectionTitle}>Metrics</span>
               <div className={styles.metricsGrid}>
                 <div className={styles.metricCard}>
-                  <span className={styles.metricCardLabel}>Net</span>
+                  <span className={styles.metricCardLabel}>
+                    {metrics
+                      ? metrics.netDebit < 0
+                        ? 'Debit'
+                        : metrics.netDebit > 0
+                          ? 'Credit'
+                          : 'Net'
+                      : 'Net'}
+                  </span>
                   <span
                     className={styles.metricCardVal}
                     data-positive={metrics ? metrics.netDebit > 0 : undefined}
                     data-negative={metrics ? metrics.netDebit < 0 : undefined}
                   >
-                    {metrics
-                      ? `${metrics.netDebit > 0 ? '+' : ''}${fmtUsd(metrics.netDebit)}`
-                      : '–'}
+                    {metrics ? fmtUsd(Math.abs(metrics.netDebit)) : '–'}
                   </span>
                 </div>
                 <div className={styles.metricCard}>
@@ -539,14 +737,17 @@ export default function ArchitectView() {
                   <span className={styles.metricCardLabel}>Breakeven</span>
                   <span className={styles.metricCardVal}>
                     {metrics && metrics.breakevens.length > 0
-                      ? metrics.breakevens.map((b) => `$${(b / 1000).toFixed(1)}k`).join(', ')
+                      ? metrics.breakevens.map((b) => fmtUsd(b)).join(', ')
                       : '–'}
                   </span>
                 </div>
               </div>
             </div>
 
-            <div className={styles.rightSection}>
+            <div
+              className={styles.rightSection}
+              data-partial={metrics ? metrics.greeksMissingLegs > 0 : undefined}
+            >
               <span className={styles.rightSectionTitle}>Greeks</span>
               <div className={styles.greeksGrid}>
                 <div className={styles.greekCard}>
@@ -574,6 +775,11 @@ export default function ArchitectView() {
                   </span>
                 </div>
               </div>
+              {metrics && metrics.greeksMissingLegs > 0 && (
+                <span className={styles.greeksPartial}>
+                  {legs.length - metrics.greeksMissingLegs}/{legs.length} legs reporting
+                </span>
+              )}
             </div>
 
             <div className={styles.rightSection}>
@@ -665,6 +871,8 @@ export default function ArchitectView() {
             chain={chain ?? null}
             activeVenues={activeVenues}
             onClose={() => setShowVenues(false)}
+            onSendToPaper={(routing) => handleSendToPaper(routing)}
+            isSending={createTrade.isPending}
           />
         </>
       )}

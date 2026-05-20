@@ -1,8 +1,11 @@
 import type {
+  InstrumentListQuery,
+  InstrumentSummary,
   RecentTradeQuery,
   TradeFilterQuery,
   TradeHistoryQuery,
   TradeHistorySummary,
+  TradePruneResult,
   TradeStore,
 } from './trade-store.js';
 import type { PersistedTradeRecord } from './types.js';
@@ -34,6 +37,16 @@ export class NoopTradeStore implements TradeStore {
   ): Promise<TradeHistorySummary> {
     return EMPTY_SUMMARY;
   }
+
+  async listInstruments(_query: InstrumentListQuery): Promise<InstrumentSummary[]> {
+    return [];
+  }
+
+  async pruneHistory(_beforeTs: Date): Promise<TradePruneResult> {
+    return { deleted: 0 };
+  }
+
+  async ensureForwardPartitions(_monthsAhead: number): Promise<void> {}
 
   async dispose(): Promise<void> {}
 }

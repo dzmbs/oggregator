@@ -86,6 +86,8 @@ export const DeribitInstrumentSchema = z.object({
   min_trade_amount: z.number().optional(),
   maker_commission: z.number().optional(),
   taker_commission: z.number().optional(),
+  // Exact expiry in ms UTC — precise enough for 0DTE countdowns.
+  expiration_timestamp: z.number().optional(),
 });
 export type DeribitInstrument = z.infer<typeof DeribitInstrumentSchema>;
 

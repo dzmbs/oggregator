@@ -217,6 +217,9 @@ export default function PayoffChart({
       }
 
       // ── Draggable leg handles ───────────────────────────────
+      const strikeSpanK = (layout.maxX - layout.minX) / 1000;
+      const strikeDecimals =
+        strikeSpanK >= 10 ? 1 : strikeSpanK >= 2 ? 2 : strikeSpanK >= 0.5 ? 3 : 4;
       const uniqueStrikes = [...new Set(lg.map((l) => l.strike))];
       for (const strike of uniqueStrikes) {
         if (strike < layout.minX || strike > layout.maxX) continue;
@@ -256,7 +259,7 @@ export default function PayoffChart({
         ctx.fillStyle = isDragging ? '#50D2C1' : '#666';
         ctx.font = "10px 'IBM Plex Mono', monospace";
         ctx.textAlign = 'center';
-        ctx.fillText(`${(strike / 1000).toFixed(1)}k`, x, h - PAD.bottom + 14);
+        ctx.fillText(`${(strike / 1000).toFixed(strikeDecimals)}k`, x, h - PAD.bottom + 14);
 
         // Leg type labels above handle
         const labels = legsAtStrike.map(
@@ -283,17 +286,23 @@ export default function PayoffChart({
         ctx.fillStyle = '#50D2C1';
         ctx.font = "bold 11px 'IBM Plex Mono', monospace";
         ctx.textAlign = 'center';
-        ctx.fillText(`→ ${(dragState.currentStrike / 1000).toFixed(1)}k`, gx, PAD.top - 6);
+        ctx.fillText(
+          `→ ${(dragState.currentStrike / 1000).toFixed(strikeDecimals)}k`,
+          gx,
+          PAD.top - 6,
+        );
       }
 
-      // X-axis labels
+      // X-axis labels — cap at 5 ticks, scale precision to span so labels don't collide
       ctx.fillStyle = '#444';
       ctx.font = "10px 'IBM Plex Mono', monospace";
       ctx.textAlign = 'center';
-      const xTicks = Math.min(6, Math.floor(layout.cw / 80));
+      const xTicks = Math.min(5, Math.floor(layout.cw / 100));
+      const spanK = (layout.maxX - layout.minX) / 1000;
+      const xDecimals = spanK >= 10 ? 0 : spanK >= 2 ? 1 : spanK >= 0.5 ? 2 : 3;
       for (let i = 0; i <= xTicks; i++) {
         const price = layout.minX + (i / xTicks) * (layout.maxX - layout.minX);
-        ctx.fillText(`$${(price / 1000).toFixed(0)}k`, toX(price), h - 6);
+        ctx.fillText(`$${(price / 1000).toFixed(xDecimals)}k`, toX(price), h - 6);
       }
 
       // Y-axis
@@ -349,7 +358,7 @@ export default function PayoffChart({
         ctx.fillStyle = '#888';
         ctx.font = "10px 'IBM Plex Mono', monospace";
         ctx.textAlign = 'left';
-        ctx.fillText(`Price  $${(hoverInfo.price / 1000).toFixed(1)}k`, tx + 8, ty + 16);
+        ctx.fillText(`Price  ${fmtUsd(hoverInfo.price)}`, tx + 8, ty + 16);
 
         ctx.fillStyle = hoverInfo.pnl >= 0 ? '#00E997' : '#CB3855';
         ctx.font = "bold 12px 'IBM Plex Mono', monospace";

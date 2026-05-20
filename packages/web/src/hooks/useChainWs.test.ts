@@ -88,9 +88,10 @@ function snapshot(subId: string, seq: number, underlying = 'BTC'): ServerWsMessa
     data: {
       underlying,
       expiry: '2026-03-27',
+      expiryTs: null,
       dte: 7,
       stats: {
-        spotIndexUsd: 70_500,
+        forwardPriceUsd: 70_500,
         indexPriceUsd: 70_500,
         basisPct: 0,
         atmStrike: 70_000,
@@ -98,6 +99,7 @@ function snapshot(subId: string, seq: number, underlying = 'BTC'): ServerWsMessa
         putCallOiRatio: 1,
         totalOiUsd: 1,
         skew25d: 0,
+        bfly25d: 0,
       },
       strikes: [],
       gex: [],
@@ -128,7 +130,7 @@ function deltaMsg(subId: string, seq: number): ServerWsMessage {
     deltas: [{ venue: 'deribit', symbol: 'BTC/USD:USDC-260327-70000-C', ts: Date.now() }],
     patch: {
       stats: {
-        spotIndexUsd: 70500,
+        forwardPriceUsd: 70500,
         indexPriceUsd: 70500,
         basisPct: 0,
         atmStrike: 70000,
@@ -136,6 +138,7 @@ function deltaMsg(subId: string, seq: number): ServerWsMessage {
         putCallOiRatio: 1,
         totalOiUsd: 1,
         skew25d: 0,
+        bfly25d: 0,
       },
       strikes: [
         {
@@ -258,6 +261,8 @@ describe('useChainWs', () => {
     await act(() => {
       ws.pushMessage(deltaMsg(subId, 2));
     });
+    // Deltas are coalesced per animation frame — advance past the rAF fallback timer.
+    await act(() => vi.advanceTimersByTimeAsync(30));
 
     const key = chainKeys.chain('BTC', '2026-03-27', ['deribit']);
     const cached = queryClient.getQueryData(key) as Record<string, unknown> | undefined;

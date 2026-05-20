@@ -8,7 +8,9 @@ export function fmtUsd(v: number | null | undefined): string {
   const sign = v < 0 ? '-' : '';
   const abs = Math.abs(v);
   if (abs >= 100) return `${sign}$${abs.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
-  return `${sign}$${abs.toFixed(2)}`;
+  if (abs >= 1) return `${sign}$${abs.toFixed(2)}`;
+  if (abs >= 0.01) return `${sign}$${abs.toFixed(4)}`;
+  return `${sign}$${abs.toFixed(6)}`;
 }
 
 function compactNum(v: number): string {
@@ -52,10 +54,33 @@ export function fmtCompact(v: number | null | undefined): string {
   return compactNum(v);
 }
 
-export function dteDays(expiry: string): number {
+export function dteDays(expiry: string, expiryTs?: number | null): number {
   const now = Date.now();
-  const exp = new Date(expiry + 'T08:00:00Z').getTime();
+  const exp = expiryTs ?? new Date(expiry + 'T08:00:00Z').getTime();
   return Math.max(0, Math.ceil((exp - now) / 86_400_000));
+}
+
+export interface TimeToExpiry {
+  totalMs: number;
+  days: number;
+  hours: number;
+  minutes: number;
+  seconds: number;
+  expired: boolean;
+}
+
+export function timeToExpiry(expiry: string, expiryTs?: number | null): TimeToExpiry {
+  const target = expiryTs ?? new Date(expiry + 'T08:00:00Z').getTime();
+  const totalMs = Math.max(0, target - Date.now());
+  const totalSec = Math.floor(totalMs / 1000);
+  return {
+    totalMs,
+    days: Math.floor(totalSec / 86_400),
+    hours: Math.floor((totalSec % 86_400) / 3600),
+    minutes: Math.floor((totalSec % 3600) / 60),
+    seconds: totalSec % 60,
+    expired: totalMs === 0,
+  };
 }
 
 export function formatExpiry(iso: string): string {

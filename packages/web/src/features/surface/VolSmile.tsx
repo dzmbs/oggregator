@@ -69,7 +69,7 @@ function useVolSmileChart(
 
     for (const chain of chains) {
       if (hiddenExpiries.has(chain.expiry)) continue;
-      const spot = chain.stats.spotIndexUsd;
+      const spot = chain.stats.forwardPriceUsd;
       const points = extractSmile(chain.strikes, activeVenues, spot, xAxisMode);
       if (points.length < 3) continue;
 

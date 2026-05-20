@@ -147,19 +147,40 @@
 /* ── Mobile ────────────────────────────────────── */
 
 @media (max-width: 768px) {
+  .header {
+    gap: var(--space-2);
+  }
+
+  .xAxisToggle {
+    margin-left: 0;
+  }
+
   .body {
     flex-direction: column;
+    gap: var(--space-2);
   }
 
   .sidebar {
     width: 100%;
     flex-direction: row;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     overflow-x: auto;
-    overflow-y: visible;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    flex-shrink: 0;
+    padding-bottom: 2px;
+  }
+
+  .sidebar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .expiryBtn {
+    flex: 0 0 auto;
   }
 
   .chartArea {
-    min-height: 250px;
+    flex: 1;
+    min-height: 240px;
   }
 }

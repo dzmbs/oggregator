@@ -641,7 +641,7 @@
 
 .dragHint {
   position: absolute;
-  bottom: 6px;
+  top: 6px;
   right: 10px;
   font-family: var(--font-mono);
   font-size: 9px;
@@ -669,6 +669,31 @@
 
 .compareBtn:hover {
   background: color-mix(in srgb, var(--accent-primary) 18%, transparent);
+}
+
+.paperTradeControls {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.paperTradeLabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.routeUnroutable {
+  font-size: 11px;
+  color: var(--color-loss);
+  padding: var(--space-1) var(--space-2);
+  background: color-mix(in srgb, var(--color-loss) 8%, transparent);
+  border-radius: var(--radius-sm);
+  margin-top: 6px;
 }
 
 .backdrop {
@@ -799,6 +824,8 @@
   background: var(--bg-elevated);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
+  /* allow breakeven card to wrap when listing up to 4 values */
+  min-width: 0;
 }
 
 .metricCardLabel {
@@ -815,6 +842,7 @@
   font-weight: 700;
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
 }
 
 .metricCardVal[data-positive="true"] {
@@ -848,6 +876,17 @@
 .greekCardVal {
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
+}
+
+.rightSection[data-partial='true'] .greekCardVal {
+  opacity: 0.6;
+}
+
+.greeksPartial {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--text-dim);
 }
 
 /* ── Scenario sliders ────────────────────────────────── */
@@ -1049,9 +1088,15 @@
 /* ── Mobile ──────────────────────────────────────────── */
 
 @media (max-width: 768px) {
+  .view {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
   .mainArea {
     padding: var(--space-3);
     gap: var(--space-2);
+    overflow: visible;
+    flex: 0 0 auto;
   }
 
   .title {
@@ -1063,12 +1108,26 @@
 
   .splitBody {
     grid-template-columns: 1fr;
+    overflow: visible;
+    flex: 0 0 auto;
+    min-height: 0;
+  }
+  .controlsCol,
+  .rightCol {
+    overflow: visible;
+    min-height: 0;
+  }
+  .chartCol {
+    height: auto;
+    min-height: 0;
   }
   .rightCol {
     order: -1;
   }
   .chartPanel {
-    min-height: 300px;
+    flex: 0 0 auto;
+    height: 320px;
+    min-height: 320px;
   }
 
   .templateCard {
@@ -1089,4 +1148,205 @@
   .legInputRow {
     gap: var(--space-1);
   }
+}
+
+/* ── Builder V2: variant toggle + candle chart ─────────────── */
+
+.chartTitleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+  flex-shrink: 0;
+}
+
+.variantToggle {
+  display: flex;
+  gap: 1px;
+  background: var(--bg-base);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 2px;
+  height: 26px;
+}
+
+.variantBtn {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 0 10px;
+  height: 100%;
+  border: none;
+  border-radius: calc(var(--radius-md) - 2px);
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.variantBtn:hover {
+  color: var(--text-secondary);
+}
+
+.variantBtn[data-active="true"][data-variant="v1"] {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.variantBtn[data-active="true"][data-variant="v2"] {
+  background: linear-gradient(135deg, #CB3855 0%, #8B1E2E 100%);
+  color: #FFFFFF;
+  box-shadow: 0 1px 6px rgba(203, 56, 85, 0.35);
+}
+
+.chartPanel[data-variant="v2"] {
+  border-color: transparent;
+  background:
+    linear-gradient(var(--bg-surface), var(--bg-surface)) padding-box,
+    linear-gradient(135deg, rgba(203, 56, 85, 0.6), rgba(139, 30, 46, 0.2)) border-box;
+  border: 1px solid transparent;
+}
+
+.snapshotBanner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 6px 10px;
+  background: rgba(203, 56, 85, 0.08);
+  border: 1px solid rgba(203, 56, 85, 0.25);
+  border-radius: var(--radius-md);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  margin-bottom: var(--space-2);
+  flex-shrink: 0;
+}
+
+.snapshotDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #CB3855;
+  box-shadow: 0 0 6px rgba(203, 56, 85, 0.7);
+  flex-shrink: 0;
+}
+
+.snapshotPrimary {
+  color: #F0A0B0;
+  font-weight: 700;
+}
+
+.snapshotSecondary {
+  color: var(--text-dim);
+  margin-left: auto;
+}
+
+.snapshotBanner[data-state="loading"] .snapshotDot {
+  animation: snapshotPulse 1.4s ease-in-out infinite;
+}
+
+.snapshotBanner[data-state="error"] {
+  background: rgba(203, 56, 85, 0.14);
+  border-color: rgba(203, 56, 85, 0.45);
+}
+
+.snapshotBanner[data-state="error"] .snapshotDot {
+  background: #CB3855;
+  box-shadow: 0 0 8px rgba(203, 56, 85, 0.9);
+}
+
+.snapshotRetry {
+  background: rgba(203, 56, 85, 0.18);
+  color: #F0A0B0;
+  border: 1px solid rgba(203, 56, 85, 0.4);
+  border-radius: var(--radius-sm);
+  padding: 2px 8px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.snapshotRetry:hover {
+  background: rgba(203, 56, 85, 0.28);
+}
+
+@keyframes snapshotPulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+.chartV2Frame {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.chartV2Inner {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.chartV2Wrap {
+  position: absolute;
+  inset: 0;
+}
+
+.chartV2Overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 10, 10, 0.5);
+  z-index: 2;
+}
+
+.chartV2EmptyState {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-6);
+  text-align: center;
+}
+
+.chartV2EmptyTitle {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.chartV2EmptyDetail {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-dim);
+  max-width: 320px;
+  line-height: 1.5;
+}
+
+.chartV2EmptyBtn {
+  margin-top: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 8px 14px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.chartV2EmptyBtn:hover {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
 }

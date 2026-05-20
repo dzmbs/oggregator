@@ -1,0 +1,30 @@
+.pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  padding: 2px 6px;
+  letter-spacing: 0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+.pill[data-level="green"] {
+  color: var(--color-profit);
+  background: color-mix(in srgb, var(--color-profit) 12%, transparent);
+}
+
+.pill[data-level="amber"] {
+  color: var(--color-warning);
+  background: color-mix(in srgb, var(--color-warning) 12%, transparent);
+}
+
+.pill[data-level="red"] {
+  color: var(--color-loss);
+  background: color-mix(in srgb, var(--color-loss) 12%, transparent);
+}
+
+.pill[data-level="muted"] {
+  color: var(--text-dim);
+}

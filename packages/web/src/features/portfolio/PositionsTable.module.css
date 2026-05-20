@@ -1,0 +1,98 @@
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+}
+
+.table th,
+.table td {
+  padding: 6px 8px;
+  text-align: right;
+  border-bottom: 1px solid #1a1a1a;
+}
+
+.table th:first-child,
+.table td:first-child,
+.table th:nth-child(2),
+.table td:nth-child(2) {
+  text-align: left;
+}
+
+.table th {
+  color: #888;
+  font-weight: 500;
+  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+}
+
+.long {
+  color: #4ade80;
+}
+
+.short {
+  color: #f87171;
+}
+
+.cushionPos {
+  color: #4ade80;
+}
+
+.cushionNeg {
+  color: #f87171;
+}
+
+.cushionNeutral {
+  color: #888;
+}
+
+.remove {
+  background: transparent;
+  border: 1px solid #2a2a2a;
+  border-radius: 4px;
+  color: #888;
+  cursor: pointer;
+  padding: 2px 8px;
+  font-family: inherit;
+}
+
+.remove:hover {
+  border-color: #f87171;
+  color: #f87171;
+}
+
+.empty {
+  padding: 24px;
+  text-align: center;
+  color: #666;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+}
+
+.cardList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+}
+
+.ivModel {
+  color: #fbbf24;
+}
+
+.debit {
+  color: #f87171;
+  font-weight: 600;
+}
+
+.credit {
+  color: #4ade80;
+  font-weight: 600;
+}
+
+.beNote {
+  color: #fbbf24;
+  font-style: italic;
+  cursor: help;
+}

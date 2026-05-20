@@ -54,3 +54,23 @@ export interface ChainResponse {
   venues: VenueChain[];
   comparison: Comparison;
 }
+
+// Mirrors core's SpotCandle in packages/core/src/services/spot-candles.ts.
+// Web does not depend on @oggregator/core; types are duplicated by convention.
+export interface SpotCandle {
+  timestamp: number; // milliseconds, UTC
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+}
+
+export type SpotCandleCurrency = 'BTC' | 'ETH';
+export type SpotCandleResolutionSec = 60 | 300 | 1800 | 3600 | 14400 | 86400;
+
+export interface SpotCandlesResponse {
+  currency: SpotCandleCurrency;
+  resolution: SpotCandleResolutionSec;
+  count: number;
+  candles: SpotCandle[];
+}

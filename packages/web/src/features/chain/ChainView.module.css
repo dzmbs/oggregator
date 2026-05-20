@@ -17,6 +17,11 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  transition: opacity 120ms ease-out;
+}
+
+.tableArea[data-stale="true"] {
+  opacity: 0.55;
 }
 
 .tableControls {
@@ -68,4 +73,36 @@
 
 .mstChevron[data-expanded="true"] {
   transform: rotate(90deg);
+}
+
+.calcFab {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-default);
+  border-radius: 50%;
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  font-size: 20px;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  z-index: 40;
+  transition: all var(--transition-fast);
+}
+
+.calcFab:hover {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+  transform: translateY(-1px);
+}
+
+.calcFab[data-active="true"] {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+  background: var(--accent-primary-bg);
 }

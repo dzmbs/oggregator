@@ -1,5 +1,8 @@
 import { BaseAdapter } from './base.js';
+import { feedLogger } from '../../utils/logger.js';
 import type { VenueCapabilities, StreamHandlers } from './types.js';
+
+const recorderLog = feedLogger('sdk-base');
 import type {
   ChainRequest,
   VenueOptionChain,
@@ -22,6 +25,9 @@ const FEE_CAP: Record<VenueId, number> = {
   bybit: 0.125, // 12.5% of option price
   binance: 0.1, // 10% of option price
   derive: 0.125, // 12.5% of option premium
+  coincall: 0.125, // 12.5% of option premium
+  thalex: 0.125, // 12.5% of option premium
+  gateio: 0.125, // venue-published price_limit_fee_rate on every options contract
 };
 
 export interface CachedInstrument {
@@ -31,6 +37,7 @@ export interface CachedInstrument {
   quote: string;
   settle: string;
   expiry: string;
+  expirationTimestamp?: number | null;
   strike: number;
   right: OptionRight;
   inverse: boolean;
@@ -41,6 +48,15 @@ export interface CachedInstrument {
   makerFee: number | null;
   takerFee: number | null;
 }
+
+export interface QuoteRecorderEvent {
+  venue: VenueId;
+  exchangeSymbol: string;
+  ts: number;
+  markPrice: number;
+}
+
+export type QuoteRecorder = (event: QuoteRecorderEvent) => void;
 
 export interface LiveQuote {
   bidPrice: number | null;
@@ -141,6 +157,25 @@ export abstract class SdkBaseAdapter extends BaseAdapter {
     return [...expiries].sort();
   }
 
+  async listExpiryTimestamps(
+    underlying: string,
+  ): Promise<Array<{ expiry: string; expiryTs: number | null }>> {
+    const byExpiry = new Map<string, number | null>();
+    for (const inst of this.instruments) {
+      if (inst.base !== underlying) continue;
+      const ts = inst.expirationTimestamp ?? null;
+      const prev = byExpiry.get(inst.expiry);
+      if (prev === undefined) {
+        byExpiry.set(inst.expiry, ts);
+      } else if (ts != null && (prev == null || ts < prev)) {
+        byExpiry.set(inst.expiry, ts);
+      }
+    }
+    return [...byExpiry.entries()]
+      .map(([expiry, expiryTs]) => ({ expiry, expiryTs }))
+      .sort((a, b) => a.expiry.localeCompare(b.expiry));
+  }
+
   override fetchOptionChain(request: ChainRequest): Promise<VenueOptionChain> {
     const matching = this.instruments.filter(
       (i) => i.base === request.underlying && i.expiry === request.expiry,
@@ -231,6 +266,19 @@ export abstract class SdkBaseAdapter extends BaseAdapter {
   // ── internal helpers ──────────────────────────────────────────
 
   protected deltaHandlers = new Set<StreamHandlers>();
+  private quoteRecorders = new Set<QuoteRecorder>();
+
+  /**
+   * Register a recorder that observes every mark-price update emitted by this
+   * adapter. Used to feed the cross-venue MarkHistoryBuffer for venues without
+   * a REST mark-history endpoint (Derive). Returns an unsubscribe handle.
+   */
+  addQuoteRecorder(recorder: QuoteRecorder): () => void {
+    this.quoteRecorders.add(recorder);
+    return () => {
+      this.quoteRecorders.delete(recorder);
+    };
+  }
 
   /** Broadcast venue connection state to all registered handlers. */
   protected emitStatus(state: VenueConnectionState, message?: string): void {
@@ -250,6 +298,25 @@ export abstract class SdkBaseAdapter extends BaseAdapter {
 
     for (const update of updates) {
       this.quoteStore.set(update.exchangeSymbol, update.quote);
+
+      if (this.quoteRecorders.size > 0 && update.quote.markPrice != null) {
+        const event: QuoteRecorderEvent = {
+          venue: this.venue,
+          exchangeSymbol: update.exchangeSymbol,
+          ts: update.quote.timestamp,
+          markPrice: update.quote.markPrice,
+        };
+        for (const recorder of this.quoteRecorders) {
+          try {
+            recorder(event);
+          } catch (err: unknown) {
+            recorderLog.warn(
+              { venue: event.venue, exchangeSymbol: event.exchangeSymbol, err: String(err) },
+              'quote recorder threw — continuing fanout',
+            );
+          }
+        }
+      }
 
       if (this.deltaHandlers.size === 0) continue;
 
@@ -308,6 +375,7 @@ export abstract class SdkBaseAdapter extends BaseAdapter {
       base: inst.base,
       settle: inst.settle,
       expiry: inst.expiry,
+      expiryTs: inst.expirationTimestamp ?? null,
       strike: inst.strike,
       right: inst.right,
       inverse: inst.inverse,
@@ -465,9 +533,17 @@ export abstract class SdkBaseAdapter extends BaseAdapter {
     return removed;
   }
 
-  protected sweepExpiredInstruments(now = Date.now()): CachedInstrument[] {
+  // Prefer the venue-reported expiration timestamp so intraday 0DTE
+  // (08:00 UTC) is removed right at the cutoff, not after the UTC date rolls.
+  protected isExpiredInstrument(instrument: CachedInstrument, now = Date.now()): boolean {
+    const ts = instrument.expirationTimestamp;
+    if (ts != null && Number.isFinite(ts)) return ts <= now;
     const today = new Date(now).toISOString().slice(0, 10);
-    return this.removeCachedInstruments((instrument) => instrument.expiry < today);
+    return instrument.expiry < today;
+  }
+
+  protected sweepExpiredInstruments(now = Date.now()): CachedInstrument[] {
+    return this.removeCachedInstruments((instrument) => this.isExpiredInstrument(instrument, now));
   }
 
   // ── symbol normalization ──────────────────────────────────────

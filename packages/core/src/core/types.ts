@@ -63,6 +63,9 @@ export interface NormalizedOptionContract {
   base: string;
   settle: string;
   expiry: string;
+  // Exact expiry in ms UTC when the venue exposes it — enables sub-day countdowns.
+  // null means fall back to the 08:00 UTC convention on `expiry`.
+  expiryTs: number | null;
   strike: number;
   right: OptionRight;
   inverse: boolean;

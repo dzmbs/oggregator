@@ -63,6 +63,10 @@ function SideSummary({ side, type, itm, venues }: SideSummaryProps) {
           <span className={styles.metricBid}>{fmtUsd(bba.bid)}</span>
         </div>
         <div className={styles.sideMetric}>
+          <span className={styles.metricLabel}>SPR</span>
+          <SpreadPill spreadPct={bestQ?.spreadPct ?? null} />
+        </div>
+        <div className={styles.sideMetric}>
           <span className={styles.metricLabel}>ASK</span>
           <span className={styles.metricAsk}>{fmtUsd(bba.ask)}</span>
         </div>
@@ -145,13 +149,17 @@ export default function MobileStrikeCard({
   const callItm = indexPrice != null && strike.strike < indexPrice;
   const putItm = indexPrice != null && strike.strike > indexPrice;
   const venues = Object.keys(strike.call.venues).filter((v) => activeVenues.includes(v));
+  const distLabel =
+    indexPrice != null && indexPrice !== 0
+      ? `${(strike.strike - indexPrice) / indexPrice >= 0 ? '+' : ''}${(((strike.strike - indexPrice) / indexPrice) * 100).toFixed(1)}%`
+      : null;
 
   return (
     <div className={styles.card} data-atm={isAtm} data-expanded={isExpanded}>
       <button className={styles.cardHeader} onClick={onToggle}>
         <div className={styles.strikeInfo}>
-          {isAtm && <span className={styles.atmBadge}>ATM</span>}
           <span className={styles.strikeNum}>{strike.strike.toLocaleString()}</span>
+          {distLabel && <span className={styles.strikeDist}>{distLabel}</span>}
         </div>
         <span className={styles.chevron} data-expanded={isExpanded}>
           ›

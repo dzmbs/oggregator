@@ -88,6 +88,122 @@
   object-fit: contain;
 }
 
+/* ── Mode + tenor segmented controls ───────────── */
+
+.modeSegmented,
+.tenorSegmented {
+  display: inline-flex;
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.modeSegmented {
+  margin-left: auto;
+}
+
+.seg,
+.segActive {
+  padding: 3px 10px;
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: inherit;
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.seg:hover {
+  color: var(--text-primary);
+}
+
+.segActive {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+/* ── Multi-delta layout ────────────────────────── */
+
+.multiControls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-shrink: 0;
+}
+
+.multiLayout {
+  display: flex;
+  gap: var(--space-3);
+  flex: 1;
+  min-height: 250px;
+}
+
+.multiLayout .chartArea {
+  flex: 1;
+}
+
+.tooltip {
+  position: absolute;
+  pointer-events: none;
+  background: rgba(10, 11, 14, 0.96);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm, 4px);
+  padding: 6px 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-primary);
+  z-index: 10;
+  max-height: 280px;
+  overflow-y: auto;
+  min-width: 140px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.tooltipHead {
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 2px;
+}
+
+.tooltipList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.tooltipRow {
+  display: grid;
+  grid-template-columns: 14px 1fr auto;
+  gap: 6px;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.tooltipSwatch {
+  width: 10px;
+  height: 3px;
+  border-radius: 1px;
+}
+
+.tooltipLabel {
+  color: var(--text-dim);
+}
+
+.tooltipValue {
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
 /* ── Chart area ────────────────────────────────── */
 
 .chartArea {
@@ -101,4 +217,21 @@
   inset: 0;
   border-radius: var(--radius-md);
   overflow: hidden;
+}
+
+@media (max-width: 768px) {
+  .header {
+    flex-wrap: wrap;
+    row-gap: var(--space-2);
+  }
+
+  .legend {
+    margin-left: 0;
+    flex-basis: 100%;
+    gap: var(--space-3);
+  }
+
+  .chartArea {
+    min-height: 220px;
+  }
 }

@@ -9,6 +9,13 @@ export interface SmilePoint {
 
 export const DELTA_BUCKET_SIZE = 0.05;
 
+// Some venues stamp markIv: 0 (or NaN) for strikes with no quote rather than
+// null. Treat anything ≤ 0 or non-finite as missing so it doesn't drag the
+// cross-venue average toward zero.
+function isValidIv(iv: number | null | undefined): iv is number {
+  return iv != null && Number.isFinite(iv) && iv > 0;
+}
+
 export function averageIv(
   venues: Record<string, { markIv?: number | null } | undefined>,
   activeVenues: string[],
@@ -16,8 +23,9 @@ export function averageIv(
   let sum = 0;
   let count = 0;
   for (const [venueId, quote] of Object.entries(venues)) {
-    if (!activeVenues.includes(venueId) || quote?.markIv == null) continue;
-    sum += quote.markIv;
+    if (!activeVenues.includes(venueId)) continue;
+    if (!isValidIv(quote?.markIv)) continue;
+    sum += quote!.markIv as number;
     count += 1;
   }
   return count > 0 ? sum / count : null;
@@ -59,15 +67,18 @@ export function extractSmile(
 
   for (const s of strikes) {
     if (xAxis === 'delta') {
+      // OTM-only convention: puts on the left wing (|δ| ≤ 0.5), calls on the
+      // right wing (δ ≤ 0.5). ITM legs are dropped — they map to the opposite
+      // wing where their wide spreads/stale marks would distort the smile.
       const putIv = averageIv(s.put.venues, activeVenues);
       const putDelta = averageDelta(s.put.venues, activeVenues);
-      if (putIv != null && putDelta != null && putDelta < -0.02) {
+      if (putIv != null && putDelta != null && putDelta < -0.02 && putDelta >= -0.5) {
         points.push({ strike: Math.abs(putDelta), iv: putIv * 100 });
       }
 
       const callIv = averageIv(s.call.venues, activeVenues);
       const callDelta = averageDelta(s.call.venues, activeVenues);
-      if (callIv != null && callDelta != null && callDelta > 0.02) {
+      if (callIv != null && callDelta != null && callDelta > 0.02 && callDelta <= 0.5) {
         points.push({ strike: 1 - callDelta, iv: callIv * 100 });
       }
     } else {

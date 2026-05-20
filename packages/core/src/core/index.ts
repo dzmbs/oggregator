@@ -35,11 +35,13 @@ export { EMPTY_GREEKS } from './types.js';
 export {
   buildEnrichedChain,
   computeIvSurface,
+  computeSmile,
   computeTermStructure,
   computeDte,
   enrichComparisonRow,
   computeChainStats,
   computeGex,
+  combineGex,
 } from './enrichment.js';
 
 export type {
@@ -48,6 +50,8 @@ export type {
   EnrichedSide,
   VenueQuote,
   IvSurfaceRow,
+  SmilePoint,
+  SmileCurve,
   GexStrike,
   ChainStats,
   TermStructure,

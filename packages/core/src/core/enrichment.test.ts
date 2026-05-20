@@ -4,7 +4,10 @@ import {
   computeDte,
   computeGex,
   computeIvSurface,
+  computeIvSurfaceFine,
+  computeSmile,
   computeTermStructure,
+  FINE_DELTA_GRID,
   type EnrichedStrike,
   type VenueQuote,
 } from './enrichment.js';
@@ -107,6 +110,7 @@ describe('enrichment', () => {
             base: 'BTC',
             settle: 'USDT',
             expiry: '2026-03-28',
+            expiryTs: null,
             strike: 60_000,
             right: 'call',
             inverse: false,
@@ -149,7 +153,7 @@ describe('enrichment', () => {
 
     const stats = computeChainStats([createStrike(60_000)], venueChains);
 
-    expect(stats.spotIndexUsd).toBe(66_000);
+    expect(stats.forwardPriceUsd).toBe(66_000);
     expect(stats.indexPriceUsd).toBe(65_500);
   });
 
@@ -165,6 +169,7 @@ describe('enrichment', () => {
             base: 'BTC',
             settle: 'BTC',
             expiry: '2026-03-28',
+            expiryTs: null,
             strike: 70_000,
             right: 'call',
             inverse: true,
@@ -210,6 +215,7 @@ describe('enrichment', () => {
             base: 'BTC',
             settle: 'BTC',
             expiry: '2026-03-28',
+            expiryTs: null,
             strike: 70_000,
             right: 'put',
             inverse: true,
@@ -283,6 +289,7 @@ describe('enrichment', () => {
             base: 'BTC',
             settle: 'BTC',
             expiry: '2026-03-30',
+            expiryTs: null,
             strike: 58_000,
             right: 'call',
             inverse: true,
@@ -391,6 +398,90 @@ describe('enrichment', () => {
     expect(surface.delta10p).toBe(0.8);
   });
 
+  it('builds the fine 19-bucket surface with OTM-only side filtering', () => {
+    const strikes: EnrichedStrike[] = [
+      {
+        strike: 60_000,
+        call: {
+          bestIv: 0.7,
+          bestVenue: 'deribit',
+          venues: { deribit: createVenueQuote({ delta: 0.1, markIv: 0.7 }) },
+        },
+        put: {
+          // ITM put at this strike (|δ|=0.9) — must NOT pollute the call wing.
+          bestIv: 0.95,
+          bestVenue: 'deribit',
+          venues: { deribit: createVenueQuote({ delta: -0.9, markIv: 0.95 }) },
+        },
+      },
+      {
+        strike: 70_000,
+        call: {
+          bestIv: 0.5,
+          bestVenue: 'deribit',
+          venues: { deribit: createVenueQuote({ delta: 0.5, markIv: 0.5 }) },
+        },
+        put: {
+          bestIv: 0.55,
+          bestVenue: 'deribit',
+          venues: { deribit: createVenueQuote({ delta: -0.5, markIv: 0.55 }) },
+        },
+      },
+      {
+        strike: 80_000,
+        call: {
+          // ITM call (δ=0.9) — must NOT pollute the put wing at x=0.10.
+          bestIv: 0.95,
+          bestVenue: 'deribit',
+          venues: { deribit: createVenueQuote({ delta: 0.9, markIv: 0.95 }) },
+        },
+        put: {
+          bestIv: 0.7,
+          bestVenue: 'deribit',
+          venues: { deribit: createVenueQuote({ delta: -0.1, markIv: 0.7 }) },
+        },
+      },
+    ];
+
+    const fine = computeIvSurfaceFine('2026-03-28', 7, strikes);
+    expect(fine.expiry).toBe('2026-03-28');
+    expect(fine.dte).toBe(7);
+    expect(fine.ivs).toHaveLength(FINE_DELTA_GRID.length);
+
+    const at = (target: number) =>
+      fine.ivs[FINE_DELTA_GRID.findIndex((d) => Math.abs(d - target) < 1e-9)] ?? null;
+
+    // OTM call δ=0.10 → bucket 1−0.10 = 0.90.
+    expect(at(0.9)).toBeCloseTo(0.7, 6);
+    // OTM put δ=−0.10 → bucket |δ| = 0.10.
+    expect(at(0.1)).toBeCloseTo(0.7, 6);
+    // ATM put and ATM call (δ=±0.5) both land at 0.50 — averaged.
+    expect(at(0.5)).toBeCloseTo((0.5 + 0.55) / 2, 6);
+    // ITM legs were dropped: 0.95 must not appear anywhere on the grid.
+    expect(fine.ivs.every((v) => v == null || v <= 0.8)).toBe(true);
+  });
+
+  it('rejects out-of-range fine-surface IVs (zero, negative, NaN, > 5)', () => {
+    const strikes: EnrichedStrike[] = [
+      {
+        strike: 60_000,
+        call: {
+          bestIv: null,
+          bestVenue: 'deribit',
+          venues: { deribit: createVenueQuote({ delta: 0.1, markIv: 0 }) },
+        },
+        put: {
+          bestIv: null,
+          bestVenue: 'deribit',
+          venues: { deribit: createVenueQuote({ delta: -0.1, markIv: 99 }) },
+        },
+      },
+    ];
+    const fine = computeIvSurfaceFine('2026-03-28', 7, strikes);
+    // Both quotes were invalid → grid is all-null.
+    expect(fine.ivs.every((v) => v == null)).toBe(true);
+  });
+
   it('returns null surface points when no strike is close to the target delta', () => {
     const strikes: EnrichedStrike[] = [
       {
@@ -472,6 +563,7 @@ describe('enrichment', () => {
             base: 'BTC',
             settle: 'BTC',
             expiry: '2026-03-28',
+            expiryTs: null,
             strike: 67_000,
             right: 'call',
             inverse: true,
@@ -517,7 +609,7 @@ describe('enrichment', () => {
       '2026-03-28',
       7,
       strikes,
-      stats.indexPriceUsd ?? stats.spotIndexUsd,
+      stats.indexPriceUsd ?? stats.forwardPriceUsd,
     );
 
     expect(stats.atmStrike).toBe(67_000);
@@ -623,6 +715,7 @@ describe('enrichment', () => {
             base: 'BTC',
             settle: 'BTC',
             expiry: '2026-03-28',
+            expiryTs: null,
             strike: 70_000,
             right: 'call',
             inverse: true,
@@ -669,6 +762,51 @@ describe('enrichment', () => {
     expect(stats.atmIv).toBe(0.5);
     expect(stats.putCallOiRatio).toBeCloseTo(1.4, 6);
     expect(stats.totalOiUsd).toBe(1_680_000);
-    expect(stats.skew25d).toBeCloseTo(0.15, 6);
+    expect(stats.skew25d).toBeCloseTo(-0.15, 6);
+  });
+
+  it('computeSmile emits per-strike OTM-blended IV with interpolated ATM + skew', () => {
+    const side = (iv: number | null) => ({
+      bestIv: iv,
+      bestVenue: 'deribit' as const,
+      venues: { deribit: createVenueQuote({ markIv: iv }) },
+    });
+    const strikes: EnrichedStrike[] = [
+      { strike: 90, call: side(0.8), put: side(0.75) },
+      { strike: 100, call: side(0.65), put: side(0.65) },
+      { strike: 110, call: side(0.7), put: side(0.85) },
+    ];
+
+    const smile = computeSmile(strikes, 100);
+
+    expect(smile.points.map((p) => p.blendedIv)).toEqual([0.75, 0.65, 0.7]);
+    expect(smile.points.map((p) => p.moneyness)).toEqual([0.9, 1.0, 1.1]);
+    expect(smile.atmIv).toBe(0.65);
+    expect(smile.skew!).toBeCloseTo((0.75 - 0.7) / 0.65, 10);
+  });
+
+  // Strike grid centered on spot=100 with the ATM blend window at ±2.5% (97.5..102.5).
+  // Asymmetric put/call IVs verify the linear seam-blend rather than a hard switch.
+  it('computeSmile linearly blends put/call IVs inside the ±2.5% ATM window', () => {
+    const side = (iv: number | null) => ({
+      bestIv: iv,
+      bestVenue: 'deribit' as const,
+      venues: { deribit: createVenueQuote({ markIv: iv }) },
+    });
+    const strikes: EnrichedStrike[] = [
+      { strike: 95, call: side(0.7), put: side(0.55) }, // outside, below → put
+      { strike: 99, call: side(0.68), put: side(0.62) }, // inside, w=0.3
+      { strike: 100, call: side(0.66), put: side(0.6) }, // inside, w=0.5
+      { strike: 101, call: side(0.65), put: side(0.59) }, // inside, w=0.7
+      { strike: 105, call: side(0.62), put: side(0.5) }, // outside, above → call
+    ];
+
+    const smile = computeSmile(strikes, 100);
+
+    expect(smile.points[0]!.blendedIv).toBeCloseTo(0.55, 10);
+    expect(smile.points[4]!.blendedIv).toBeCloseTo(0.62, 10);
+    expect(smile.points[1]!.blendedIv).toBeCloseTo(0.7 * 0.62 + 0.3 * 0.68, 10);
+    expect(smile.points[2]!.blendedIv).toBeCloseTo(0.5 * 0.6 + 0.5 * 0.66, 10);
+    expect(smile.points[3]!.blendedIv).toBeCloseTo(0.3 * 0.59 + 0.7 * 0.65, 10);
   });
 });

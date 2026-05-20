@@ -3,14 +3,30 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-width: 0;
+  border: 1px solid color-mix(in srgb, var(--text-dim) 16%, transparent);
+}
+
+.tableScroll {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.table {
+  width: max(100%, 1500px);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 /* ── Grid template ───────────────────────────────────────────────────────── */
-/* VENUES | γ | ν | Δ | IV | SPREAD | BID | ASK | STRIKE | BID | ASK | SPREAD | IV | Δ | ν | γ | VENUES */
+/* VENUES | γ | ν | Δ | IV | BID | SPREAD | ASK | STRIKE | BID | SPREAD | ASK | IV | Δ | ν | γ | VENUES */
 
 .header {
   display: grid;
-  grid-template-columns: 1fr 50px 50px 60px 72px 72px 80px 80px 100px 80px 80px 72px 72px 60px 50px 50px 1fr;
+  grid-template-columns: 1fr 50px 50px 60px 72px 92px 72px 92px 100px 92px 72px 92px 72px 60px 50px 50px 1fr;
   border-bottom: 1px solid var(--border-default);
   background: var(--bg-elevated);
   flex-shrink: 0;
@@ -20,6 +36,24 @@
   height: 38px;
   align-items: center;
   overflow-y: scroll;
+}
+
+.header > *,
+.row > * {
+  min-width: 0;
+  position: relative;
+}
+
+.header > :not(:last-child):not(:nth-child(8)):not(:nth-child(9))::after,
+.row > :not(:last-child):not(:nth-child(8)):not(:nth-child(9))::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: 1px;
+  background: color-mix(in srgb, var(--text-dim) 28%, transparent);
+  pointer-events: none;
 }
 
 .hdrLabel {
@@ -54,6 +88,7 @@
 
 .list {
   flex: 1;
+  min-height: 0;
   overflow-y: scroll;
 }
 
@@ -96,8 +131,13 @@
 /* ── Row ──────────────────────────────────────────────────────────────────── */
 
 .rowWrap {
-  border-bottom: 1px solid var(--border-subtle);
+  border-top: 1px solid color-mix(in srgb, var(--text-dim) 10%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--text-dim) 10%, transparent);
   contain: layout style;
+}
+
+.list > div > div:first-child .rowWrap {
+  border-top: none;
 }
 
 .rowWrap:last-child {
@@ -106,13 +146,14 @@
 
 .row {
   display: grid;
-  grid-template-columns: 1fr 50px 50px 60px 72px 72px 80px 80px 100px 80px 80px 72px 72px 60px 50px 50px 1fr;
+  grid-template-columns: 1fr 50px 50px 60px 72px 92px 72px 92px 100px 92px 72px 92px 72px 60px 50px 50px 1fr;
   align-items: center;
   height: 48px;
   cursor: pointer;
   transition: background var(--transition-fast);
   outline: none;
   font-variant-numeric: tabular-nums;
+  background: color-mix(in srgb, var(--bg-base) 92%, white 8%);
 }
 
 .row:hover {
@@ -184,7 +225,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  padding: 0 8px;
+  padding: 0 4px;
 }
 
 .askCell {
@@ -195,7 +236,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  padding: 0 8px;
+  padding: 0 4px;
 }
 
 .clickable {
@@ -230,6 +271,7 @@
 .ivCell {
   display: flex;
   align-items: center;
+  justify-content: center;
   padding: 0 6px;
 }
 
@@ -238,23 +280,32 @@
 }
 
 .deltaCell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: var(--text-sm);
   color: var(--text-tertiary);
   font-variant-numeric: tabular-nums;
   padding: 0 6px;
+  text-align: center;
 }
 
 .greekCell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: var(--text-sm);
   color: var(--text-dim);
   font-variant-numeric: tabular-nums;
   padding: 0 6px;
+  text-align: center;
   white-space: nowrap;
 }
 
 .spreadCell {
   display: flex;
   align-items: center;
+  justify-content: center;
   padding: 0 6px;
 }
 
@@ -266,48 +317,84 @@
   text-align: right;
 }
 
-/* ── ITM tinting ──────────────────────────────────────────────────────────── */
+/* ── Moneyness tinting ────────────────────────────────────────────────────── */
+/* ATM (teal): pill + row tint handled above via [data-atm="true"].
+   ITM calls: left-side cells tinted green — strike below spot.
+   ITM puts:  right-side cells tinted red — strike above spot.
+   OTM: default (no tint) — the neutral baseline makes ITM pop by contrast. */
 
 .itmCall {
-  background: rgba(0, 233, 151, 0.025);
+  background: rgba(0, 233, 151, 0.07);
+  box-shadow: inset 2px 0 0 rgba(0, 233, 151, 0.35);
 }
 
 .itmPut {
-  background: rgba(203, 56, 85, 0.025);
+  background: rgba(203, 56, 85, 0.07);
+  box-shadow: inset -2px 0 0 rgba(203, 56, 85, 0.35);
+}
+
+.row:hover .itmCall {
+  background: rgba(0, 233, 151, 0.11);
+}
+
+.row:hover .itmPut {
+  background: rgba(203, 56, 85, 0.11);
 }
 
 /* ── Strike center ────────────────────────────────────────────────────────── */
 
 .strikeCenter {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  display: grid;
+  grid-auto-rows: min-content;
+  justify-items: center;
+  align-content: center;
   height: 48px;
-  gap: 2px;
-}
-
-.atmBadge {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  padding: 1px 5px;
-  border-radius: 2px;
-  background: var(--accent-primary);
-  color: var(--bg-base);
-  line-height: 1.4;
+  gap: 1px;
+  width: 100%;
+  text-align: center;
 }
 
 .strikeNum {
+  display: block;
   font-family: var(--font-mono);
   font-size: var(--text-lg);
   font-weight: 600;
   color: var(--text-secondary);
   letter-spacing: 0.02em;
   font-variant-numeric: tabular-nums;
+  line-height: 1;
+  max-width: 100%;
   white-space: nowrap;
+  text-align: center;
 }
 
 .strikeCenter[data-atm="true"] .strikeNum {
   color: var(--accent-primary);
+}
+
+/* Strike number inherits the moneyness color — mirrors the ATM treatment. */
+.strikeCenter[data-moneyness="itm-call"] .strikeNum {
+  color: color-mix(in srgb, var(--color-profit) 75%, var(--text-secondary));
+}
+
+.strikeCenter[data-moneyness="itm-put"] .strikeNum {
+  color: color-mix(in srgb, var(--color-loss) 75%, var(--text-secondary));
+}
+
+.strikeDist {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  max-width: 100%;
+  text-align: center;
+}
+
+.strikeCenter[data-atm="true"] .strikeDist {
+  color: var(--accent-primary);
+  opacity: 0.85;
 }

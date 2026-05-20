@@ -33,6 +33,15 @@ export interface StrategyMetrics {
   netGamma: number | null;
   netTheta: number | null;
   netVega: number | null;
+  /** Worst-case missing-leg count across the four greeks. 0 = fully reported. */
+  greeksMissingLegs: number;
+}
+
+/** Total strategy P&L at expiry for a single underlying price. Used by V2 chart for zone classification. */
+export function pnlAtPrice(legs: Leg[], underlyingPrice: number): number {
+  let total = 0;
+  for (const leg of legs) total += legPnlAtExpiry(leg, underlyingPrice);
+  return total;
 }
 
 /** P&L of a single leg at expiry for a given underlying price. */
@@ -49,6 +58,41 @@ function legPnlAtExpiry(leg: Leg, underlyingPrice: number): number {
   return sign * (intrinsicValue - leg.entryPrice) * leg.quantity;
 }
 
+/**
+ * Half-width of the price grid used by computePayoff / computeScenarioPayoff.
+ *
+ * The grid must cover every theoretical break-even, otherwise findBreakevens
+ * silently drops the ones that fall outside it and the V2 zone shading paints
+ * a single (-∞, upperBE) region that probes positive in the actual profit
+ * tail — turning the whole loss zone green. A long straddle at a near-the-
+ * money strike with rich premium hits this case (BEs at strike ± Σpremium,
+ * which can sit ~30% outside spot for long-DTE ATM contracts).
+ *
+ * Σ|entryPrice × qty| is an upper bound on how far any BE can be from the
+ * nearest strike, so anchoring the half-width on (max strike-to-spot distance
+ * + Σ premium × margin) guarantees both BEs land inside with room to spare.
+ */
+function computeRangeHalf(
+  legs: Leg[],
+  spotPrice: number,
+  minStrike: number,
+  maxStrike: number,
+): number {
+  const totalPremium = legs.reduce(
+    (s, l) => s + Math.abs(l.entryPrice) * l.quantity,
+    0,
+  );
+  const maxStrikeDistFromSpot = Math.max(
+    Math.abs(maxStrike - spotPrice),
+    Math.abs(minStrike - spotPrice),
+  );
+  return Math.max(
+    (maxStrike - minStrike) * 1.5,
+    spotPrice * 0.3,
+    maxStrikeDistFromSpot + totalPremium * 1.5,
+  );
+}
+
 /** Compute total strategy P&L across a range of underlying prices. */
 export function computePayoff(legs: Leg[], spotPrice: number, numPoints = 200): PayoffPoint[] {
   if (legs.length === 0) return [];
@@ -57,9 +101,8 @@ export function computePayoff(legs: Leg[], spotPrice: number, numPoints = 200): 
   const minStrike = Math.min(...strikes);
   const maxStrike = Math.max(...strikes);
 
-  // Range: ±30% around the strike range, centered on spot
   const rangeCenter = spotPrice;
-  const rangeHalf = Math.max((maxStrike - minStrike) * 1.5, spotPrice * 0.3);
+  const rangeHalf = computeRangeHalf(legs, spotPrice, minStrike, maxStrike);
   const low = Math.max(0, rangeCenter - rangeHalf);
   const high = rangeCenter + rangeHalf;
   const step = (high - low) / numPoints;
@@ -101,14 +144,15 @@ export function computeMetrics(legs: Leg[], spotPrice: number): StrategyMetrics 
   const maxPnl = Math.max(...pnls);
   const minPnl = Math.min(...pnls);
 
-  // Check if profit/loss is unbounded by comparing edge values.
-  // If P&L keeps growing/falling at the extremes, it's unlimited.
-  const firstPnl = pnls[0] ?? 0;
-  const lastPnl = pnls[pnls.length - 1] ?? 0;
-  const edgeMax = Math.max(firstPnl, lastPnl);
-  const edgeMin = Math.min(firstPnl, lastPnl);
-  const profitUnbounded = Math.abs(edgeMax - maxPnl) < 1;
-  const lossUnbounded = Math.abs(edgeMin - minPnl) < 1;
+  // Detect unbounded P&L by slope at the range edges: if the curve is still
+  // changing at the boundary, extrapolating further keeps growing / falling.
+  // Bounded strategies plateau before the edge so both slopes go to ~0.
+  const n = pnls.length;
+  const highSlope = (pnls[n - 1] ?? 0) - (pnls[n - 2] ?? 0);
+  const lowSlope = (pnls[1] ?? 0) - (pnls[0] ?? 0);
+  const FLAT_EPS = 1;
+  const profitUnbounded = highSlope > FLAT_EPS || lowSlope < -FLAT_EPS;
+  const lossUnbounded = highSlope < -FLAT_EPS || lowSlope > FLAT_EPS;
   const maxProfit = profitUnbounded ? null : maxPnl;
   const maxLoss = lossUnbounded ? null : minPnl;
 
@@ -117,28 +161,41 @@ export function computeMetrics(legs: Leg[], spotPrice: number): StrategyMetrics 
     return sum + sign * leg.entryPrice * leg.quantity;
   }, 0);
 
-  const sumGreek = (pick: (l: Leg) => number | null): number | null => {
+  const sumGreek = (
+    pick: (l: Leg) => number | null,
+  ): { value: number | null; missing: number } => {
     let total = 0;
-    let hasAny = false;
+    let reported = 0;
+    let missing = 0;
     for (const leg of legs) {
       const val = pick(leg);
-      if (val == null) continue;
-      hasAny = true;
+      if (val == null) {
+        missing++;
+        continue;
+      }
+      reported++;
       const sign = leg.direction === 'buy' ? 1 : -1;
       total += sign * val * leg.quantity;
     }
-    return hasAny ? total : null;
+    return { value: reported > 0 ? total : null, missing };
   };
 
+  const delta = sumGreek((l) => l.delta);
+  const gamma = sumGreek((l) => l.gamma);
+  const theta = sumGreek((l) => l.theta);
+  const vega = sumGreek((l) => l.vega);
+  const greeksMissingLegs = Math.max(delta.missing, gamma.missing, theta.missing, vega.missing);
+
   return {
-    maxProfit: maxProfit != null ? maxPnl : null,
-    maxLoss: maxLoss != null ? minPnl : null,
+    maxProfit,
+    maxLoss,
     breakevens: findBreakevens(payoff),
     netDebit,
-    netDelta: sumGreek((l) => l.delta),
-    netGamma: sumGreek((l) => l.gamma),
-    netTheta: sumGreek((l) => l.theta),
-    netVega: sumGreek((l) => l.vega),
+    netDelta: delta.value,
+    netGamma: gamma.value,
+    netTheta: theta.value,
+    netVega: vega.value,
+    greeksMissingLegs,
   };
 }
 
@@ -186,7 +243,7 @@ export function computeScenarioPayoff(
   const minStrike = Math.min(...strikes);
   const maxStrike = Math.max(...strikes);
   const rangeCenter = spotPrice;
-  const rangeHalf = Math.max((maxStrike - minStrike) * 1.5, spotPrice * 0.3);
+  const rangeHalf = computeRangeHalf(legs, spotPrice, minStrike, maxStrike);
   const low = Math.max(0, rangeCenter - rangeHalf);
   const high = rangeCenter + rangeHalf;
   const step = (high - low) / numPoints;
@@ -267,7 +324,6 @@ export function detectStrategy(legs: Leg[]): string {
     const calls = sorted.filter((l) => l.type === 'call');
     const puts = sorted.filter((l) => l.type === 'put');
 
-    // Iron condor: buy put, sell put, sell call, buy call
     if (calls.length === 2 && puts.length === 2) {
       const buyPuts = puts.filter((l) => l.direction === 'buy');
       const sellPuts = puts.filter((l) => l.direction === 'sell');
@@ -280,7 +336,31 @@ export function detectStrategy(legs: Leg[]): string {
         buyCalls.length === 1 &&
         sellCalls.length === 1
       ) {
-        return 'Iron Condor';
+        const bp = buyPuts[0]!.strike;
+        const sp = sellPuts[0]!.strike;
+        const sc = sellCalls[0]!.strike;
+        const bc = buyCalls[0]!.strike;
+
+        // Iron Condor: shorts in middle, longs as wings, no strike overlap.
+        // Layout: long put < short put < short call < long call.
+        if (bp < sp && sp < sc && sc < bc) return 'Iron Condor';
+
+        // Iron Butterfly: short straddle at the body, long strangle wings.
+        // Layout: long put < short put == short call < long call.
+        if (bp < sp && sp === sc && sc < bc) return 'Iron Butterfly';
+
+        // Reverse Iron Condor: longs in middle, shorts as wings.
+        if (sp < bp && bp < bc && bc < sc) return 'Reverse Iron Condor';
+
+        // Reverse Iron Butterfly: long straddle body, short strangle wings.
+        if (sp < bp && bp === bc && bc < sc) return 'Reverse Iron Butterfly';
+
+        // Straddle Spread: long straddle at one strike, short straddle at the
+        // other. Two unique strikes, both options at each strike share a
+        // direction. Bullish if the long straddle is at the lower strike.
+        if (bp === bc && sp === sc && bp !== sp) {
+          return bp < sp ? 'Long Straddle Spread' : 'Short Straddle Spread';
+        }
       }
     }
   }

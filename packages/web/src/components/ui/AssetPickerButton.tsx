@@ -1,5 +1,5 @@
 import { useAppStore } from '@stores/app-store';
-import { useOpenPalette } from '@components/layout';
+import { useOpenPalette } from '@components/layout/palette-context';
 import { getTokenLogo } from '@lib/token-meta';
 
 import styles from './AssetPickerButton.module.css';

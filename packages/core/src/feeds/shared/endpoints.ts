@@ -36,3 +36,46 @@ export const BINANCE_BLOCK_TRADES = '/eapi/v1/blockTrades';
 export const DERIVE_WS_URL = 'wss://api.lyra.finance/ws';
 export const DERIVE_REST_BASE_URL = 'https://api.lyra.finance';
 export const DERIVE_GET_TRADE_HISTORY = '/public/get_trade_history';
+
+// ── Coincall ────────────────────────────────────────────────────────
+// Public WS still requires signed query params (code, uuid, ts, sign, apiKey) —
+// every Coincall market channel (bsInfo, tOption, orderBook, kline, lastTrade)
+// shares the same authenticated endpoint. See ws-client.ts for signing.
+export const COINCALL_MARKET_WS_URL = 'wss://ws.coincall.com/options';
+export const COINCALL_REST_BASE_URL = 'https://api.coincall.com';
+export const COINCALL_INSTRUMENTS = '/open/option/getInstruments';
+// Per-symbol "most recent trade" endpoint. The docs label it SIGNED but the
+// endpoint is accessible unauthenticated — used only for bulk seeding.
+export const COINCALL_LAST_TRADE = '/open/option/trade/lasttrade/v1';
+export const COINCALL_CONFIG = '/open/public/config/v1';
+export const COINCALL_TIME = '/time';
+
+// ── Thalex ──────────────────────────────────────────────────────────
+// Public market data requires no auth. Only private/* channels need a
+// JWT signed with the account's RSA key. See:
+//   https://thalex.com/docs/info.md  (section: Authentication)
+// Testnet swap is https://testnet.thalex.com + wss://testnet.thalex.com.
+export const THALEX_MARKET_WS_URL = 'wss://thalex.com/ws/api/v2';
+export const THALEX_REST_URL = 'https://thalex.com/api/v2';
+export const THALEX_INSTRUMENTS = '/public/instruments';
+export const THALEX_SYSTEM_INFO = '/public/system_info';
+
+// ── Gate.io ──────────────────────────────────────────────────────
+// Public market data requires no auth. Testnet swaps the WS host for
+// wss://ws-testnet.gate.com/v4/ws/options/usdt.
+//   REST spec:  https://www.gate.com/docs/developers/apiv4/en/
+//   WS spec:    https://www.gate.com/docs/developers/options/ws/en/
+//   Model defs: https://github.com/gateio/gateapi-python/tree/master/docs
+//
+// Gate options are USDT-settled (linear). Only the USDT WS host is wired
+// here — the inverse BTC host (op-ws.gateio.live/v4/ws/btc) is intentionally
+// omitted because no aggregator code currently consumes inverse options.
+export const GATEIO_OPTIONS_WS_URL = 'wss://op-ws.gateio.live/v4/ws/usdt';
+export const GATEIO_REST_BASE_URL = 'https://api.gateio.ws';
+export const GATEIO_OPTIONS_UNDERLYINGS = '/api/v4/options/underlyings';
+export const GATEIO_OPTIONS_EXPIRATIONS = '/api/v4/options/expirations';
+export const GATEIO_OPTIONS_CONTRACTS = '/api/v4/options/contracts';
+export const GATEIO_OPTIONS_TICKERS = '/api/v4/options/tickers';
+export const GATEIO_OPTIONS_UNDERLYING_TICKER = '/api/v4/options/underlying/tickers';
+export const GATEIO_OPTIONS_ORDER_BOOK = '/api/v4/options/order_book';
+export const GATEIO_OPTIONS_TRADES = '/api/v4/options/trades';

@@ -1,9 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 
 import { useAppStore } from '@stores/app-store';
-import { useChainQuery, useExpiries, useStats } from './queries';
-import { useChainWs } from '@hooks/useChainWs';
-import { useOpenPalette } from '@components/layout';
+import { useChainQuery, useExpiries, useStats, usePrefetchChain } from './queries';
+import { useOpenPalette } from '@components/layout/palette-context';
 import { Spinner, EmptyState } from '@components/ui';
 import { useIsMobile } from '@hooks/useIsMobile';
 import { fmtIv, fmtUsdCompact } from '@lib/format';
@@ -13,6 +12,7 @@ import StatStrip from './StatStrip';
 import ChainTable from './ChainTable';
 import VenueSidebar from './VenueSidebar';
 import MyIvInput from './MyIvInput';
+import OptionCalculator from './OptionCalculator';
 import styles from './ChainView.module.css';
 
 export default function ChainView() {
@@ -23,30 +23,34 @@ export default function ChainView() {
   const toggleVenue = useAppStore((s) => s.toggleVenue);
   const setActiveVenues = useAppStore((s) => s.setActiveVenues);
   const myIv = useAppStore((s) => s.myIv);
+  const connectionState = useAppStore((s) => s.feedStatus.connectionState);
+  const failedVenues = useAppStore((s) => s.feedStatus.failedVenues);
   const openPalette = useOpenPalette();
 
   const { data: expiriesData } = useExpiries(underlying);
   const expiries = expiriesData?.expiries ?? [];
   const expiryByVenue = expiriesData?.byVenue;
 
-  const { data: chain, isLoading, error } = useChainQuery(underlying, expiry, activeVenues);
-  const { data: marketStats } = useStats(underlying);
-  const setFeedStatus = useAppStore((s) => s.setFeedStatus);
-  const { connectionState, staleMs, failedVenues } = useChainWs({
-    underlying,
-    expiry,
-    venues: activeVenues,
+  // Once the WS is live it delivers a snapshot on every resubscribe (tenor /
+  // underlying / venue change), so the REST fetch is redundant and only races
+  // the WS write into the same cache key — causing a visible double-render on
+  // every tenor click. Keep REST as bootstrap / fallback when WS isn't live.
+  const { data: chain, isLoading, error } = useChainQuery(underlying, expiry, activeVenues, {
+    enabled: connectionState !== 'live',
   });
+  const { data: marketStats } = useStats(underlying);
 
-  useEffect(() => {
-    setFeedStatus({ connectionState, failedVenueCount: failedVenues.length, staleMs });
-  }, [connectionState, failedVenues.length, staleMs, setFeedStatus]);
+  // Hold the most recent chain across tenor swaps so the table doesn't unmount
+  // during the ~50ms gap between subscribe and snapshot. Once placeholderData
+  // is gone, query.data is briefly `undefined` on each tenor change; we keep
+  // the table mounted with the previous chain dimmed, then swap in fresh data
+  // when it lands. Avoids losing virtualizer / expanded-row state.
+  const lastChainRef = useRef<typeof chain>(undefined);
+  if (chain) lastChainRef.current = chain;
+  const displayChain = chain ?? lastChainRef.current;
+  const isStale = !chain && lastChainRef.current != null;
 
-  useEffect(() => {
-    if (expiries.length > 0 && !expiry) {
-      setExpiry(expiries[0]!);
-    }
-  }, [expiries, expiry, setExpiry]);
+  const prefetchChain = usePrefetchChain(underlying, activeVenues);
 
   // Only auto-reset venue selection when the underlying changes — not on every
   // expiry switch. Without this guard, manually toggling a venue off and then
@@ -63,6 +67,7 @@ export default function ChainView() {
 
   const isMobile = useIsMobile();
   const [statsExpanded, setStatsExpanded] = useState(false);
+  const [calcOpen, setCalcOpen] = useState(false);
 
   const myIvFloat = myIv !== '' ? parseFloat(myIv) / 100 : null;
   const myIvValid = myIvFloat != null && !Number.isNaN(myIvFloat) && myIvFloat > 0;
@@ -72,14 +77,15 @@ export default function ChainView() {
       <div className={styles.view}>
         <div className={styles.main}>
           {/* Collapsible stats summary */}
-          {chain && (
+          {displayChain && (
             <button
               className={styles.mobileStatsToggle}
               onClick={() => setStatsExpanded((v) => !v)}
             >
               <span className={styles.mstLabel}>
-                ATM {fmtIv(chain.stats.atmIv)} · P/C {chain.stats.putCallOiRatio?.toFixed(2) ?? '—'}{' '}
-                · OI {fmtUsdCompact(chain.stats.totalOiUsd)}
+                ATM {fmtIv(displayChain.stats.atmIv)} · P/C{' '}
+                {displayChain.stats.putCallOiRatio?.toFixed(2) ?? '—'} · OI{' '}
+                {fmtUsdCompact(displayChain.stats.totalOiUsd)}
               </span>
               <span className={styles.mstChevron} data-expanded={statsExpanded}>
                 ›
@@ -87,19 +93,19 @@ export default function ChainView() {
             </button>
           )}
 
-          {statsExpanded && chain && (
+          {statsExpanded && displayChain && (
             <StatStrip
-              stats={chain.stats}
-              underlying={chain.underlying}
-              dte={chain.dte}
+              stats={displayChain.stats}
+              underlying={displayChain.underlying}
+              dte={displayChain.dte}
               connectionState={connectionState}
               marketStats={marketStats}
             />
           )}
 
-          <div className={styles.tableArea}>
-            {isLoading && !chain && <Spinner size="lg" label="Loading chain data…" />}
-            {error && !chain && (
+          <div className={styles.tableArea} data-stale={isStale}>
+            {isLoading && !displayChain && <Spinner size="lg" label="Loading chain data…" />}
+            {error && !displayChain && (
               <EmptyState
                 icon="⚠"
                 title="Failed to load chain"
@@ -108,20 +114,22 @@ export default function ChainView() {
                 }
               />
             )}
-            {chain && chain.strikes.length === 0 && (
+            {displayChain && displayChain.strikes.length === 0 && (
               <EmptyState
                 icon="∅"
                 title="No options data"
                 detail={`No venues returned data for ${underlying} ${expiry}.`}
               />
             )}
-            {chain && chain.strikes.length > 0 && (
+            {displayChain && displayChain.strikes.length > 0 && (
               <ChainTable
-                strikes={chain.strikes}
-                atmStrike={chain.stats.atmStrike}
-                indexPrice={chain.stats.indexPriceUsd}
+                strikes={displayChain.strikes}
+                atmStrike={displayChain.stats.atmStrike}
+                indexPrice={displayChain.stats.indexPriceUsd}
                 activeVenues={activeVenues}
                 myIv={myIvValid ? myIvFloat : null}
+                expiry={expiry}
+                underlying={underlying}
               />
             )}
           </div>
@@ -141,19 +149,20 @@ export default function ChainView() {
       <div className={styles.main}>
         <ExpiryBar
           underlying={underlying}
-          spotPrice={chain?.stats.spotIndexUsd}
+          spotPrice={displayChain?.stats.forwardPriceUsd}
           spotChange={marketStats?.spot?.change24hPct}
           expiries={expiries}
           selected={expiry}
           onSelect={setExpiry}
           onChangeAsset={openPalette}
+          onPrefetch={prefetchChain}
         />
 
-        {chain && (
+        {displayChain && (
           <StatStrip
-            stats={chain.stats}
-            underlying={chain.underlying}
-            dte={chain.dte}
+            stats={displayChain.stats}
+            underlying={displayChain.underlying}
+            dte={displayChain.dte}
             connectionState={connectionState}
             marketStats={marketStats}
           />
@@ -163,9 +172,9 @@ export default function ChainView() {
           <MyIvInput />
         </div>
 
-        <div className={styles.tableArea}>
-          {isLoading && !chain && <Spinner size="lg" label="Loading chain data…" />}
-          {error && !chain && (
+        <div className={styles.tableArea} data-stale={isStale}>
+          {isLoading && !displayChain && <Spinner size="lg" label="Loading chain data…" />}
+          {error && !displayChain && (
             <EmptyState
               icon="⚠"
               title="Failed to load chain"
@@ -174,24 +183,45 @@ export default function ChainView() {
               }
             />
           )}
-          {chain && chain.strikes.length === 0 && (
+          {displayChain && displayChain.strikes.length === 0 && (
             <EmptyState
               icon="∅"
               title="No options data"
               detail={`No venues returned data for ${underlying} ${expiry}. The expiry may only be listed on venues that are currently unavailable.`}
             />
           )}
-          {chain && chain.strikes.length > 0 && (
+          {displayChain && displayChain.strikes.length > 0 && (
             <ChainTable
-              strikes={chain.strikes}
-              atmStrike={chain.stats.atmStrike}
-              indexPrice={chain.stats.indexPriceUsd}
+              strikes={displayChain.strikes}
+              atmStrike={displayChain.stats.atmStrike}
+              indexPrice={displayChain.stats.indexPriceUsd}
               activeVenues={activeVenues}
               myIv={myIvValid ? myIvFloat : null}
+              expiry={expiry}
+              underlying={underlying}
             />
           )}
         </div>
       </div>
+
+      <button
+        type="button"
+        className={styles.calcFab}
+        data-active={calcOpen}
+        onClick={() => setCalcOpen((v) => !v)}
+        aria-label="Toggle option calculator"
+        title="Option Calculator"
+      >
+        ⌥
+      </button>
+      {calcOpen && (
+        <OptionCalculator
+          defaultUnderlying={underlying}
+          defaultExpiry={expiry}
+          defaultSpot={displayChain?.stats.indexPriceUsd}
+          onClose={() => setCalcOpen(false)}
+        />
+      )}
     </div>
   );
 }

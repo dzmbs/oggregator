@@ -1,6 +1,6 @@
 # @oggregator/server
 
-Fastify REST + WebSocket API. Bootstraps venue adapters from `@oggregator/core`, serves enriched chain data, flow routes, readiness, and the production SPA.
+Fastify REST + WebSocket API. Bootstraps venue adapters from `@oggregator/core`, serves enriched chain data, paper trading, portfolio analytics, flow routes, readiness, and the production SPA.
 
 ## Commands
 
@@ -24,10 +24,21 @@ src/
     underlyings.ts   GET /api/underlyings
     expiries.ts      GET /api/expiries?underlying=BTC
     chains.ts        GET /api/chains?underlying=BTC&expiry=2026-03-28&venues=deribit,okx
-    ws-chain.ts      WS /ws/chain
+    surface.ts       GET /api/surface?underlying=BTC
+    stats.ts         GET /api/stats?underlying=BTC
+    dvol-history.ts  GET /api/dvol-history?currency=BTC
+    iv-history.ts    GET /api/iv-history?underlying=BTC&window=90d
+    spot-candles.ts  GET /api/spot-candles?underlying=BTC
     flow.ts          GET /api/flow?underlying=BTC
     block-flow.ts    GET /api/block-flow?underlying=BTC
-    surface.ts       GET /api/surface?underlying=BTC (returns surface grid + termStructure + venueAtm)
+    news.ts          GET /api/news
+    regime.ts        GET /api/regime?underlying=BTC
+    spots.ts         GET /api/spots
+    paper/           REST paper trading endpoints
+    portfolio/       REST portfolio positions, metrics, scenarios, credentials
+    ws-chain.ts      WS /ws/chain
+    portfolio/ws.ts  WS /ws/portfolio
+    paper/ws.ts      WS /ws/paper
 ```
 
 ## Non-obvious decisions
@@ -36,10 +47,14 @@ src/
 
 - **Server imports only from `@oggregator/core` package root** — never from internal feeds/core paths. If something is needed, it must be exported from core's `index.ts`.
 
+- **Protocol contracts live in `@oggregator/protocol`** — server and web share Zod schemas for chain, paper, portfolio, and private-venue credential payloads. Route handlers should validate at the boundary and avoid hand-maintained duplicate DTOs.
+
 - **New venues need zero route changes** — add the adapter in `adapters.ts`, call `registerAdapter()`, all routes pick it up via `getAllAdapters()`.
 
 - **Auto-subscribes on first request** — `chains.ts` calls `ensureSubscribed()` per venue/underlying on first `/api/chains` request, opening WS connections lazily.
 
 - **Chain browser transport is WS-first** — `ws-chain.ts` coalesces venue deltas and pushes enriched snapshots every 200ms. It does not forward raw exchange ticks one-by-one.
+
+- **Portfolio transport is runtime-backed** — `/portfolio/*` routes and `WS /ws/portfolio` read from the shared in-memory position store plus live market marks. The REST side stays mutation-oriented; the WS side pushes recomputed metrics and changed leg IDs.
 
 - **Enrichment happens per request / push** — each `/api/chains` call and each `WS /ws/chain` snapshot rebuilds the enriched response from the current QuoteStore. No caching layer between store and response.

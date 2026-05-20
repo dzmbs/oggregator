@@ -1,0 +1,208 @@
+.cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-2) 0;
+  min-width: 100px;
+  flex-shrink: 0;
+  position: relative;
+  cursor: help;
+}
+
+.label {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.dots {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 16px;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  box-shadow: 0 0 6px transparent;
+  transition: box-shadow 120ms ease;
+}
+
+.cell:hover .dot {
+  box-shadow: 0 0 8px currentColor;
+}
+
+.dot[data-tone="bull"] {
+  background: var(--color-profit);
+  color: var(--color-profit);
+}
+.dot[data-tone="bear"] {
+  background: var(--color-loss);
+  color: var(--color-loss);
+}
+.dot[data-tone="mixed"] {
+  background: var(--color-warning);
+  color: var(--color-warning);
+}
+.dot[data-tone="neutral"] {
+  background: var(--text-dim);
+  color: var(--text-dim);
+}
+.dot[data-tone="unknown"] {
+  background: transparent;
+  border: 1px dashed var(--border-subtle);
+}
+
+.sub {
+  font-size: var(--text-2xs);
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+/* ── Tooltip panel (positioned by HoverTooltip portal) ──── */
+
+.panel {
+  width: 320px;
+  padding: 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  font-size: var(--text-2xs);
+  color: var(--text-primary);
+}
+
+.tipHeader {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+}
+
+.tipRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.tipBadge {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 4px;
+  background: var(--text-dim);
+}
+.tipBadge[data-tone="bull"] {
+  background: var(--color-profit);
+}
+.tipBadge[data-tone="bear"] {
+  background: var(--color-loss);
+}
+.tipBadge[data-tone="mixed"] {
+  background: var(--color-warning);
+}
+.tipBadge[data-tone="neutral"] {
+  background: var(--text-dim);
+}
+.tipBadge[data-tone="unknown"] {
+  background: transparent;
+  border: 1px dashed var(--border-subtle);
+}
+
+.tipPair {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: var(--text-2xs);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.tipNow {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  margin-top: 1px;
+}
+
+.tipDivider {
+  height: 1px;
+  background: var(--border-subtle);
+  margin: 8px 0;
+}
+
+.tipMatrixTitle {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+
+.tipList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: var(--text-2xs);
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.tipList strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.tipLegend {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: var(--text-2xs);
+  color: var(--text-dim);
+}
+
+.tipLegend .tipBadge {
+  margin-top: 0;
+  margin-left: 4px;
+}
+
+.tipCaveat {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-subtle);
+  font-size: 10px;
+  color: var(--text-dim);
+  line-height: 1.45;
+  font-style: italic;
+}
+
+/* ── Mobile ──────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .cell {
+    min-width: unset;
+    padding: 4px 8px;
+  }
+  .label {
+    font-size: 9px;
+  }
+  .sub {
+    font-size: 9px;
+  }
+  .panel {
+    width: min(320px, calc(100vw - 16px));
+  }
+}

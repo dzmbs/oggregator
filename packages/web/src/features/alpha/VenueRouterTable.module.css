@@ -1,0 +1,237 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.title {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.subtitle {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+}
+
+.leg {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  position: relative;
+}
+
+.leg[data-kind="short"] {
+  border-left: 2px solid var(--color-profit);
+}
+
+.leg[data-kind="long"] {
+  border-left: 2px solid var(--color-loss);
+}
+
+.legHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.legHeading {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+}
+
+.legStrike {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-dim);
+}
+
+.empty {
+  padding: var(--space-3);
+  font-size: var(--text-xs);
+  color: var(--text-dim);
+  text-align: center;
+}
+
+.table {
+  display: flex;
+  flex-direction: column;
+}
+
+.thead,
+.row {
+  display: grid;
+  grid-template-columns: 1.6fr 0.7fr 0.8fr 0.6fr 0.6fr 0.9fr;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 6px 4px;
+  font-size: var(--text-xs);
+  font-family: var(--font-mono);
+}
+
+.thead {
+  color: var(--text-dim);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-bottom: 1px dashed var(--border-subtle);
+}
+
+.row {
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  border-bottom: 1px solid transparent;
+  transition: background var(--transition-fast);
+}
+
+.row:hover {
+  background: var(--bg-hover);
+}
+
+.row[data-best="true"] {
+  background: color-mix(in srgb, var(--accent-primary) 5%, transparent);
+  box-shadow: inset 2px 0 0 var(--accent-primary);
+}
+
+.venueCell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.venueLabel {
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.badge {
+  display: inline-block;
+  padding: 1px 4px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 3px;
+  color: var(--text-dim);
+}
+
+.cell {
+  text-align: right;
+}
+
+.cell[data-win="true"] {
+  color: var(--accent-primary);
+  font-weight: 700;
+}
+
+.alignRight {
+  text-align: right;
+}
+
+.sum {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.sumLabel {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.sumValue {
+  font-family: var(--font-mono);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.sumValue[data-kind="credit"] {
+  color: var(--color-profit);
+}
+
+/* ── Mobile: collapse the 6-col grid into a 2-line card per venue ──── */
+@media (max-width: 600px) {
+  .wrap {
+    padding: var(--space-3);
+    gap: var(--space-3);
+  }
+
+  .thead {
+    display: none;
+  }
+
+  .row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 2px var(--space-2);
+    padding: 8px 4px;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .row:last-child {
+    border-bottom: none;
+  }
+
+  .row > .venueCell {
+    flex: 1 1 60%;
+    min-width: 0;
+  }
+
+  /* Final cell is the "net after fees" — keep it large and aligned right. */
+  .row > .cell:nth-child(6) {
+    flex: 0 0 auto;
+    text-align: right;
+    font-size: var(--text-sm);
+    font-weight: 700;
+  }
+
+  /* IV · exec price · size · fee collapse into a dim caption line. */
+  .row > .cell:nth-child(2),
+  .row > .cell:nth-child(3),
+  .row > .cell:nth-child(4),
+  .row > .cell:nth-child(5) {
+    flex: 1 1 auto;
+    text-align: left;
+    font-size: 10px;
+    color: var(--text-dim);
+  }
+
+  /* Prefix the caption cells with their label so users still know what each is. */
+  .row > .cell:nth-child(2)::before { content: 'IV '; opacity: 0.6; }
+  .row > .cell:nth-child(3)::before { content: 'px '; opacity: 0.6; }
+  .row > .cell:nth-child(4)::before { content: 'sz '; opacity: 0.6; }
+  .row > .cell:nth-child(5)::before { content: 'fee '; opacity: 0.6; }
+
+  .leg {
+    padding: var(--space-2);
+  }
+}

@@ -16,6 +16,7 @@ function buildChain(): VenueOptionChain {
         base: 'BTC',
         settle: 'USDC',
         expiry: '2026-03-27',
+        expiryTs: null,
         strike: 70000,
         right: 'call',
         inverse: false,

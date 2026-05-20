@@ -9,13 +9,16 @@
 }
 
 .logo {
-  font-size: var(--text-xl);
-  font-weight: 700;
-  font-style: italic;
-  color: var(--text-primary);
-  letter-spacing: -0.04em;
+  display: inline-flex;
+  align-items: center;
   text-decoration: none;
   justify-self: start;
+}
+
+.logo img {
+  display: block;
+  height: 56px;
+  width: auto;
 }
 
 /* ── Segmented control (Apple-style) ── */
@@ -83,56 +86,26 @@
 .status {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-3);
   font-size: var(--text-xs);
   color: var(--text-dim);
   letter-spacing: 0.02em;
 }
 
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.4;
-  }
+.freshness {
+  display: inline-block;
+  min-width: 10ch;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
 }
 
-@keyframes pulseSlow {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.3;
-  }
+.status[data-state="reconnecting"] .freshness,
+.status[data-state="stale"] .freshness {
+  color: var(--color-warning);
 }
 
-.statusDot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--text-dim);
-  transition: background 0.3s ease;
-}
-
-/* Live — green pulse */
-.statusDot[data-live="true"] {
-  background: var(--color-profit);
-  animation: pulse 2s ease-in-out infinite;
-}
-
-/* Reconnecting / stale — amber slow pulse */
-.statusDot[data-warning="true"] {
-  background: var(--color-warning, #f59e0b);
-  animation: pulseSlow 1.5s ease-in-out infinite;
-}
-
-/* Error — red, no pulse */
-.statusDot[data-state="error"] {
-  background: var(--color-loss);
-  animation: none;
+.status[data-state="error"] .freshness {
+  color: var(--color-loss);
 }
 
 .cmdk {
@@ -165,8 +138,8 @@
     gap: var(--space-2);
   }
 
-  .logo {
-    font-size: var(--text-lg);
+  .logo img {
+    height: 44px;
   }
 
   /* Hide tab pills on mobile — bottom nav handles navigation */

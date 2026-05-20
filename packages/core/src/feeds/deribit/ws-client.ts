@@ -236,6 +236,7 @@ export class DeribitWsAdapter extends SdkBaseAdapter {
       quote,
       settle,
       expiry,
+      expirationTimestamp: this.safeNum(inst.expiration_timestamp),
       strike,
       right,
       inverse: isInverse,

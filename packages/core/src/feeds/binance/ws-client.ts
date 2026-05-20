@@ -154,6 +154,7 @@ export class BinanceWsAdapter extends SdkBaseAdapter {
       quote: settle,
       settle,
       expiry,
+      expirationTimestamp: this.safeNum(parsed.expiryDate),
       strike,
       right,
       inverse: false,

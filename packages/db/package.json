@@ -12,15 +12,15 @@
     "build": "tsc",
     "lint": "biome lint .",
     "typecheck": "tsc --noEmit",
-    "migrate": "node dist/migrate.js",
-    "seed:sample": "node dist/seed-sample.js"
+    "migrate": "node --env-file-if-exists=../../.env dist/migrate.js",
+    "seed:sample": "node --env-file-if-exists=../../.env dist/seed-sample.js"
   },
   "dependencies": {
-    "pg": "^8.16.3"
+    "pg": "8.20.0"
   },
   "devDependencies": {
-    "@types/node": "^22.0.0",
-    "@types/pg": "^8.15.5",
-    "typescript": "^5.5.0"
+    "@types/node": "22.19.15",
+    "@types/pg": "8.20.0",
+    "typescript": "5.9.3"
   }
 }

@@ -52,12 +52,15 @@ export default function LegInput({ expiry, onExpiryChange }: LegInputProps) {
   function handleAdd() {
     if (!chain || !expiry) return;
 
+    const parsedQty = parseFloat(qty);
+    const quantity = Number.isFinite(parsedQty) ? Math.max(0.001, parsedQty) : 1;
+
     const leg = repriceLeg(chain, activeVenues, {
       type,
       direction,
       strike: Number(strikeInput) || atmStrike,
       expiry,
-      quantity: Math.max(1, parseInt(qty, 10) || 1),
+      quantity,
     });
 
     if (!leg) return;
@@ -90,12 +93,20 @@ export default function LegInput({ expiry, onExpiryChange }: LegInputProps) {
 
         <input
           type="text"
-          inputMode="numeric"
+          inputMode="decimal"
           className={styles.legInputField}
           placeholder="Qty"
           value={qty}
-          onChange={(e) => setQty(e.target.value.replace(/\D/g, ''))}
-          style={{ width: 42 }}
+          onChange={(e) => {
+            const cleaned = e.target.value.replace(/[^\d.]/g, '');
+            const firstDot = cleaned.indexOf('.');
+            const normalized =
+              firstDot === -1
+                ? cleaned
+                : cleaned.slice(0, firstDot + 1) + cleaned.slice(firstDot + 1).replace(/\./g, '');
+            setQty(normalized);
+          }}
+          style={{ width: 60 }}
         />
 
         <div className={styles.strikeInputWrap} ref={strikeRef}>

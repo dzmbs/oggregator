@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 // ── Venue primitives ──────────────────────────────────────────────
 
-export const VENUE_IDS = ['deribit', 'okx', 'bybit', 'binance', 'derive'] as const;
+export const VENUE_IDS = ['deribit', 'okx', 'bybit', 'binance', 'derive', 'coincall', 'thalex', 'gateio'] as const;
 export type VenueId = (typeof VENUE_IDS)[number];
 
 export const VenueIdSchema = z.enum(VENUE_IDS);
@@ -120,7 +120,10 @@ export interface GexStrike {
 }
 
 export interface ChainStats {
-  spotIndexUsd: number | null;
+  // Per-expiry forward price (averaged across reporting venues). Sourced from
+  // each contract's `underlyingPriceUsd` (Deribit `underlying_price`, OKX
+  // `fwdPx`). On long tenors this carries basis vs spot — do NOT display as "spot".
+  forwardPriceUsd: number | null;
   indexPriceUsd: number | null;
   basisPct: number | null;
   atmStrike: number | null;
@@ -128,11 +131,13 @@ export interface ChainStats {
   putCallOiRatio: number | null;
   totalOiUsd: number | null;
   skew25d: number | null;
+  bfly25d: number | null;
 }
 
 export interface EnrichedChainResponse {
   underlying: string;
   expiry: string;
+  expiryTs: number | null;
   dte: number;
   stats: ChainStats;
   strikes: EnrichedStrike[];
@@ -217,7 +222,7 @@ const GexStrikeSchema = z.object({
 });
 
 const ChainStatsSchema = z.object({
-  spotIndexUsd: NullableNumberSchema,
+  forwardPriceUsd: NullableNumberSchema,
   indexPriceUsd: NullableNumberSchema,
   basisPct: NullableNumberSchema,
   atmStrike: NullableNumberSchema,
@@ -225,11 +230,13 @@ const ChainStatsSchema = z.object({
   putCallOiRatio: NullableNumberSchema,
   totalOiUsd: NullableNumberSchema,
   skew25d: NullableNumberSchema,
+  bfly25d: NullableNumberSchema,
 });
 
 export const EnrichedChainResponseSchema = z.object({
   underlying: z.string(),
   expiry: z.string(),
+  expiryTs: z.number().nullable(),
   dte: z.number(),
   stats: ChainStatsSchema,
   strikes: z.array(EnrichedStrikeSchema),
