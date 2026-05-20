@@ -9,6 +9,7 @@ import {
   type Time,
 } from 'lightweight-charts';
 import type { InstrumentCandle, InstrumentMarkPoint } from '@oggregator/protocol';
+import { priceFormatFromSeries } from './chart-precision.js';
 import styles from './InstrumentChart.module.css';
 
 export interface InstrumentChartProps {
@@ -134,6 +135,27 @@ export default function InstrumentChart({ candles, markLine, overlays, compact =
   const ma9 = useMemo(() => sma(closes, 9), [closes]);
   const ma20 = useMemo(() => sma(closes, 20), [closes]);
 
+  // Adaptive y-axis precision — sub-$1 option premiums and Deribit inverse
+  // BTC/ETH quotes (~0.03 BTC) would otherwise round to the default 2-decimal
+  // grid and collapse every move into the same horizontal line.
+  const priceFormat = useMemo(() => {
+    const highs = candles.map((c) => c.h);
+    const marks = markLine.map((m) => m.c);
+    return priceFormatFromSeries(highs, marks);
+  }, [candles, markLine]);
+
+  useEffect(() => {
+    const fmt = {
+      type: 'price' as const,
+      precision: priceFormat.precision,
+      minMove: priceFormat.minMove,
+    };
+    candleSeriesRef.current?.applyOptions({ priceFormat: fmt });
+    markSeriesRef.current?.applyOptions({ priceFormat: fmt });
+    ma9SeriesRef.current?.applyOptions({ priceFormat: fmt });
+    ma20SeriesRef.current?.applyOptions({ priceFormat: fmt });
+  }, [priceFormat.precision, priceFormat.minMove]);
+
   useEffect(() => {
     const series = ma9SeriesRef.current;
     if (!series) return;
@@ -163,10 +185,10 @@ export default function InstrumentChart({ candles, markLine, overlays, compact =
     <div className={styles.wrap}>
       {!compact && displayOhlc && (
         <div className={styles.ohlcStrip}>
-          <span>O {displayOhlc.o.toFixed(4)}</span>
-          <span>H {displayOhlc.h.toFixed(4)}</span>
-          <span>L {displayOhlc.l.toFixed(4)}</span>
-          <span>C {displayOhlc.c.toFixed(4)}</span>
+          <span>O {displayOhlc.o.toFixed(priceFormat.precision)}</span>
+          <span>H {displayOhlc.h.toFixed(priceFormat.precision)}</span>
+          <span>L {displayOhlc.l.toFixed(priceFormat.precision)}</span>
+          <span>C {displayOhlc.c.toFixed(priceFormat.precision)}</span>
         </div>
       )}
       <div ref={containerRef} className={styles.chart} />
