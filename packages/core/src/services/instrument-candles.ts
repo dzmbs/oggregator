@@ -858,6 +858,29 @@ function priceCurrencyFor(venue: VenueId, symbol: string): string {
   return head || 'BASE';
 }
 
+// Venues whose REST "trade" endpoint fills non-trade buckets with
+// mark-derived OHLC, making candle close ≈ venue mark per bucket. For
+// these we synthesize markLine entries from candle closes whenever the
+// real mark series is shorter than the candle series — gives the orange
+// mark overlay continuous coverage instead of a 1-point live blip.
+// Verified live behavior (2026-05-20):
+//   - derive: get_tradingview_chart_data → vol=0 buckets are o=h=l=c=mark
+//   - coincall: signed kline → vol=0 buckets carry intra-bar mark range
+//   - binance: eapi/v1/klines → vol=0 buckets are o=h=l=c=mark (flat)
+//   - deribit: get_tradingview_chart_data → vol=0 buckets are flat marks;
+//             needed because Deribit's mark-history endpoint only covers
+//             vol-index strikes and returns [] for every other contract.
+// Excluded:
+//   - okx / bybit / thalex: dedicated mark-history REST already returns
+//     full coverage, so markLine.length >= candles.length naturally.
+//   - gateio: public /options/candlesticks is trade-only and returns []
+//     for untraded strikes — trade close ≠ mark. The signed
+//     /mark_price_candlesticks endpoint (with creds) already fills the
+//     mark series properly.
+const TRADE_CLOSE_IS_MARK: ReadonlySet<VenueId> = new Set([
+  'deribit', 'binance', 'derive', 'coincall',
+]);
+
 interface CacheEntry {
   fetchedAt: number;
   response: InstrumentCandlesResponse;
@@ -910,16 +933,14 @@ export class InstrumentCandleService {
     const [trade, mark] = await this.fetchForVenue(venue, symbol, interval, range);
     const merged = mergeTradeAndMark(trade, mark);
 
-    // Derive has no REST mark-history endpoint, and the live MarkHistoryBuffer
-    // only retains recent ticks (~minutes). But Derive's
-    // get_tradingview_chart_data already fills non-trade buckets with
-    // mark-derived OHLC (open=high=low=close=mark, vol=0), so the candle
-    // close IS Derive's mark per bucket. Synthesize markLine entries from
-    // candle closes for any bucket the buffer didn't cover so the mark
-    // overlay has continuous coverage. Buffer-derived marks (sub-bucket
-    // fresh) still win on collisions because they were added to markLine
-    // first by mergeTradeAndMark.
-    if (venue === 'derive' && merged.markLine.length < merged.candles.length) {
+    // For venues whose REST trade endpoint fills non-trade buckets with
+    // mark-derived OHLC (see TRADE_CLOSE_IS_MARK above), synthesize
+    // markLine entries from candle closes for any bucket the live
+    // MarkHistoryBuffer didn't already cover. Buffer-derived marks
+    // (sub-bucket fresh, e.g., the active 1m bar updating mid-bucket)
+    // still win on collisions because they were added to markLine first
+    // by mergeTradeAndMark — the loop only fills gaps, never overwrites.
+    if (TRADE_CLOSE_IS_MARK.has(venue) && merged.markLine.length < merged.candles.length) {
       const haveMark = new Set<number>(merged.markLine.map((m) => m.ts));
       for (const c of merged.candles) {
         if (!haveMark.has(c.ts)) merged.markLine.push({ ts: c.ts, c: c.c });

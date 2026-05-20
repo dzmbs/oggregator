@@ -291,6 +291,82 @@ describe('InstrumentCandleService — Derive buffer integration', () => {
     expect(res.markLine).toEqual([]);
   });
 
+  it('synthesizes Coincall mark line from candle closes when buffer covers only the current bucket', async () => {
+    vi.stubEnv('COINCALL_API_KEY', 'test-key');
+    vi.stubEnv('COINCALL_API_SECRET', 'test-secret');
+    // REST kline returns 3 bars: 2 vol=0 (mark-derived OHLC) + 1 traded.
+    // Coincall's kline fills non-trade buckets with intra-bar mark range,
+    // so candle close is the mark per bucket.
+    fetchSpy.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          code: 0,
+          msg: 'Success',
+          data: [
+            { ts: BASE_TS - 2 * MIN, open: '100', high: '100', low: '100', close: '100', volume: '0' },
+            { ts: BASE_TS - MIN, open: '105', high: '105', low: '105', close: '105', volume: '0' },
+            { ts: BASE_TS, open: '108', high: '112', low: '107', close: '110', volume: '5' },
+          ],
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      ),
+    );
+    // Buffer covers only the current bucket with a sub-bucket-fresh mark
+    // (109) that differs from the candle close (110) — buffer must win.
+    buffer.recordMark('coincall', 'BTCUSD-WARM', BASE_TS, 109);
+
+    const res = await svc.getCandles('coincall', 'BTCUSD-WARM', '1m', '1d');
+
+    expect(res.candles).toHaveLength(3);
+    expect(res.markLine.map((m) => m.c)).toEqual([100, 105, 109]);
+  });
+
+  it('synthesizes Binance mark line from candle closes (klines fill non-trade buckets with flat mark)', async () => {
+    // Binance eapi/v1/klines fills vol=0 buckets with o=h=l=c=mark.
+    // No mark history endpoint, no buffer for this symbol — every markLine
+    // entry comes from synthesis off the candle close.
+    fetchSpy.mockResolvedValue(
+      new Response(
+        JSON.stringify([
+          // [openTime, o, h, l, c, vol, closeTime, qVol, takerVol, takerQVol, amount, ignore]
+          [BASE_TS - 2 * MIN, '100', '100', '100', '100', '0', 0, '0', 0, '0', '0', '0'],
+          [BASE_TS - MIN, '105', '105', '105', '105', '0', 0, '0', 0, '0', '0', '0'],
+          [BASE_TS, '108', '112', '107', '110', '5', 0, '550', 0, '0', '0', '0'],
+        ]),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      ),
+    );
+
+    const res = await svc.getCandles('binance', 'BTC-260520-100000-C', '1m', '1d');
+
+    expect(res.candles).toHaveLength(3);
+    expect(res.markLine.map((m) => m.c)).toEqual([100, 105, 110]);
+  });
+
+  it('does not synthesize markLine for Gate.io (public candlesticks endpoint is trade-only, not mark-filled)', async () => {
+    vi.stubEnv('GATEIO_API_KEY', '');
+    vi.stubEnv('GATEIO_API_SECRET', '');
+    // Public /options/candlesticks returns one trade bar — Gate.io does
+    // NOT fill non-trade buckets with mark (verified). Synthesis would
+    // wrongly equate trade close with mark, so the flag excludes gateio.
+    fetchSpy.mockResolvedValue(
+      new Response(
+        JSON.stringify([
+          { t: Math.floor(BASE_TS / 1000), o: '5.84', h: '5.84', l: '5.84', c: '5.84', v: 1 },
+        ]),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      ),
+    );
+    buffer.recordMark('gateio', 'HYPE_USDT-20260522-40-C', BASE_TS, 5.5);
+
+    const res = await svc.getCandles('gateio', 'HYPE_USDT-20260522-40-C', '1m', '1d');
+
+    expect(res.candles.some((c) => c.vol > 0)).toBe(true);
+    // markLine stays at buffer value (5.5); trade close (5.84) is NOT
+    // synthesized into it because trade ≠ mark on Gate.io's public endpoint.
+    expect(res.markLine.map((m) => m.c)).toEqual([5.5]);
+  });
+
   it('degrades to buffer when Coincall REST returns a non-success code', async () => {
     vi.stubEnv('COINCALL_API_KEY', 'test-key');
     vi.stubEnv('COINCALL_API_SECRET', 'test-secret');
